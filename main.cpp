@@ -128,6 +128,9 @@ int main(int argc, char **argv)
 
     auto t1 = high_resolution_clock::now();
 
+    vector<uint64_t> a1;
+    vector<uint64_t> a2;
+
     result1 = learnedMerge(matrix);
 
     auto t2 = high_resolution_clock::now();
@@ -135,11 +138,10 @@ int main(int argc, char **argv)
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
     ms_double = t2 - t1;
 
-    std::cout<<"Learned merge optimised: "<<ms_double.count()<<" ms\n";
+    //std::cout<<"Learned merge optimised: "<<ms_double.count()<<" ms\n";
 
     for(uint64_t i=0;i<matrix.size()*1000000-1;i++)
     {
-        std::cout<<i<<" "<<result1[i]<<" "<<result1[i+1]<<"\n";
         assert(result1[i]<=result1[i+1]);
     }
     
@@ -157,11 +159,6 @@ int main(int argc, char **argv)
         assert(result1[i]==result2[i]);
     }
     
-    cout<<"Standard merge: "<<ms_double.count()<<"ms\n";
-
-    for(int i=0;i<matrix.size()*1000000-1;i++)
-    {
-        assert(result2[i]<=result2[i+1]);
-    }
+    //cout<<"Standard merge: "<<ms_double.count()<<"ms\n";
     return 0;
 }

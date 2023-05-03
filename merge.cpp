@@ -73,7 +73,7 @@ vector<uint64_t> standardMerge(vector<vector<uint64_t>> data)
         result.push_back(data[s][pos[s]]);
         pos[s] = pos[s] + 1;
     }
-    cout<<"Standard comparison count: "<<num_comp<<"\n";
+    //cout<<"Standard comparison count: "<<num_comp<<"\n";
     return result;
 }
 
@@ -110,7 +110,7 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
             }
             else
                 num_comp++;
-        }
+            }
         }
         else
         {
@@ -133,7 +133,7 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
             }
             else if(data[second_smallest][pos[second_smallest]] > data[i][pos[i]])
             {
-                second_smallest = smallest;
+                second_smallest = i;
                 num_comp+=2;
             }
             else
@@ -167,7 +167,7 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
                 approx_pos -= 1;
             }
             //under-prediction
-            while(approx_pos < data[smallest].size() && data[smallest][approx_pos] <= data[second_smallest][pos[second_smallest]]){
+            while(approx_pos < data[smallest].size() && (data[smallest][approx_pos] <= data[second_smallest][pos[second_smallest]])){
                 cdf_error += 1;
                 approx_pos += 1;
             }
@@ -179,7 +179,7 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
         }
         smallest = second_smallest;
     }
-    std::cout<<"Learned comparison count optimised: "<<num_comp<<"\n";
-    std::cout<<"CDF error count optimised: "<<cdf_error<<"\n";
+    //std::cout<<"Learned comparison count optimised: "<<num_comp<<"\n";
+    //std::cout<<"CDF error count optimised: "<<cdf_error<<"\n";
     return merged_array;
 }
