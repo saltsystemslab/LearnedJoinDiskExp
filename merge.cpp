@@ -73,7 +73,7 @@ vector<uint64_t> standardMerge(vector<vector<uint64_t>> data)
         result.push_back(data[s][pos[s]]);
         pos[s] = pos[s] + 1;
     }
-    //cout<<"Standard comparison count: "<<num_comp<<"\n";
+    cout<<"Standard comparison count: "<<num_comp<<"\n";
     return result;
 }
 
@@ -179,7 +179,7 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
         }
         smallest = second_smallest;
     }
-    //std::cout<<"Learned comparison count optimised: "<<num_comp<<"\n";
-    //std::cout<<"CDF error count optimised: "<<cdf_error<<"\n";
+    std::cout<<"Learned comparison count optimised: "<<num_comp<<"\n";
+    std::cout<<"CDF error count optimised: "<<cdf_error<<"\n";
     return merged_array;
 }

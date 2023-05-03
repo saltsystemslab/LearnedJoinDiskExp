@@ -135,7 +135,7 @@ int main(int argc, char **argv)
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
     ms_double = t2 - t1;
 
-    //std::cout<<"Learned merge optimised: "<<ms_double.count()<<" ms\n";
+    std::cout<<"Learned merge optimised: "<<ms_double.count()<<" ms\n";
 
     for(uint64_t i=0;i<matrix.size()*1000000-1;i++)
     {
@@ -156,6 +156,6 @@ int main(int argc, char **argv)
         assert(result1[i]==result2[i]);
     }
     
-    //cout<<"Standard merge: "<<ms_double.count()<<"ms\n";
+    std::cout<<"Standard merge: "<<ms_double.count()<<"ms\n";
     return 0;
 }
