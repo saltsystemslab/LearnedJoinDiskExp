@@ -77,7 +77,7 @@ public:
 
 class PLRBuilder {
 private:
-    GreedyPLR *plr; // GreedyPLR should be merged with PLRBuilder
+    GreedyPLR *plr;
     PLRModel plrModel;
         
 public:
@@ -86,8 +86,6 @@ public:
     }
     uint64_t processKey(std::string key, int i, uint64_t prev_key);
     PLRModel& finishTraining();
-    // GuessPosition should be in PLRModel, this is just a builder...
-    double guessPosition(const std::string targetKey, PLRModel model);
     void clear();
 };
 #endif

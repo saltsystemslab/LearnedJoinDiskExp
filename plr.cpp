@@ -100,7 +100,6 @@ GreedyPLR::process(const struct point& pt) {
     } else if (this->state.compare("ready") == 0) {
         s = process__(pt);
     } else {
-        // impossible
         std::cout << "ERROR in process" << std::endl;
     }
     
@@ -197,28 +196,9 @@ PLRBuilder::finishTraining() {
     if (last.x != 0 ||
         last.k != 0 ||
         last.b != 0) {
-        this->plrModel.plrModelSegments.push_back(last);     
+        this->plrModel.plrModelSegments.push_back(last);
     }
     return this->plrModel;
-}
-
-double
-guessPosition(const std::string targetKey, PLRModel segments) {
-  uint64_t target_int = LdbKeyToInteger(targetKey);
-  
-  // binary search between segments
-  uint32_t left = 0, right = (uint32_t)segments.plrModelSegments.size() - 1;
-  while (left != right - 1) {
-    uint32_t mid = (right + left) / 2;
-    if (target_int < segments.plrModelSegments[mid].x)  
-      right = mid;
-    else
-      left = mid;
-  }
-
-  double result =
-      target_int * segments.plrModelSegments[left].k + segments.plrModelSegments[left].b;
-  return floor(result);
 }
 
 void
