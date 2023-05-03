@@ -128,9 +128,6 @@ int main(int argc, char **argv)
 
     auto t1 = high_resolution_clock::now();
 
-    vector<uint64_t> a1;
-    vector<uint64_t> a2;
-
     result1 = learnedMerge(matrix);
 
     auto t2 = high_resolution_clock::now();

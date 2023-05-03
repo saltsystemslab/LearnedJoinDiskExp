@@ -167,7 +167,7 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
                 approx_pos -= 1;
             }
             //under-prediction
-            while(approx_pos < data[smallest].size() && (data[smallest][approx_pos] <= data[second_smallest][pos[second_smallest]])){
+            while(approx_pos < data[smallest].size() && data[smallest][approx_pos] <= data[second_smallest][pos[second_smallest]]){
                 cdf_error += 1;
                 approx_pos += 1;
             }
