@@ -12,7 +12,7 @@ g++ -c main.cpp
 g++ -o main main.o merge.o plr.o
 
 
-./main <parameter> where parameter = 1/2/3 ( 1= best case, 2 = average case, 3 = worst case)
+./main "parameter" where parameter = 1/2/3 ( 1= best case, 2 = average case, 3 = worst case)
 
 Best case : 
             
