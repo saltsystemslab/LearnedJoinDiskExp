@@ -1,6 +1,8 @@
 #ifndef ITERATOR_H
 #define ITERATOR_H
 
+#include <stdint.h>
+
 template <class T>
 class Iterator{
     public:

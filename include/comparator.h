@@ -4,6 +4,6 @@
 template <class T>
 class Comparator{
     public:
-        virtual int compare(T first_key, T sec_key) const = 0;
+        virtual int compare(const T& first_key, const T& sec_key) const = 0;
 };
 #endif
