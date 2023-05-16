@@ -1,7 +1,7 @@
-#include "include/merge_result_builder.h"
-#include "include/comparator.h"
-#include "include/iterator.h"
-
+#include "merge_result_builder.h"
+#include "comparator.h"
+#include "iterator.h"
+#include "merge.h"
 #include <iostream>
 #include <cassert>
 
@@ -87,17 +87,30 @@ private:
 };
 
 int main() {
-    IntMergeResultBuilder *builder = new IntMergeResultBuilder(10);
+    IntMergeResultBuilder *builder1 = new IntMergeResultBuilder(10);
     for (int i=0; i<10; i++) {
-        builder->add(i);
+        builder1->add(2*i);
     }
-    ArrayIntIterator *iterator = builder->finish();
-    while (iterator->valid()) {
-        std::cout<<iterator->key()<<std::endl;
-	iterator->next();
+    IntMergeResultBuilder *builder2 = new IntMergeResultBuilder(10);
+    for (int i=0; i<10; i++) {
+        builder2->add(2*i+1);
     }
+    
+    Iterator<int>** iterators = new Iterator<int>*[2];
+    iterators[0] = builder1->finish();
+    iterators[1] = builder2->finish();
 
     Comparator<int> *c = new IntComparator();
+
+    IntMergeResultBuilder *resultBuilder = new IntMergeResultBuilder(20);
+    standardMerge(iterators, 2, c, resultBuilder);
+
+    Iterator<int> *result = resultBuilder->finish();
+    while(result->valid()){
+        std::cout<< result->key()<<std::endl;
+        result->next();
+    }
+
     cout<<"Comparing 3, 4 "<<c->compare(3,4)<<endl;
     cout<<"Comparing 4, 3 "<<c->compare(4,3)<<endl;
     cout<<"Comparing 4, 4 "<<c->compare(4,4)<<endl;
