@@ -17,9 +17,10 @@ using std::chrono::duration_cast;
 using std::chrono::duration;
 using std::chrono::milliseconds;
 
-uint64_t random64() {
     std::mt19937_64 rng(std::random_device{}());
     std::uniform_int_distribution<uint64_t> dist;
+
+uint64_t random64() {
     return dist(rng);
 }
 
@@ -139,19 +140,19 @@ int main(int argc, char **argv)
     }
 
     if(test_case == 4){
-        
         for(int i=0; i< 2000000; i++){
-             keys_1.push_back(generate_key(random_uint64() % UNIVERSE_SIZE));
+             keys_1.push_back(generate_key(random64() % UNIVERSE_SIZE));
          }
          for(int i=0; i< 2000000; i++){
-             keys_2.push_back(generate_key(random_uint64() % UNIVERSE_SIZE));
+             keys_2.push_back(generate_key(random64() % UNIVERSE_SIZE));
          }
-         
-
          sort(keys_1.begin(), keys_1.end());
          sort(keys_2.begin(), keys_2.end());
-         
     }
+    std::cout<<keys_1[0]<<std::endl;
+    std::cout<<keys_2[0]<<std::endl;
+
+
     //Prepare the 2d vector
     std::cout<<"testcase 4"<<std::endl;
     vector<vector<std::string>> matrix;
@@ -201,7 +202,7 @@ int main(int argc, char **argv)
     ms_int = duration_cast<milliseconds>(t2 - t1);
     ms_double = t2 - t1;
 
-    for(uint64_t i=0;i<matrix.size()*1000000;i++)
+    for(uint64_t i=0;i<result2.size();i++)
     {
         assert(result1[i]==result2[i]);
     }
