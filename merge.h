@@ -6,12 +6,12 @@
 #include <iostream>
 using namespace std;
 
-PLRModel getModel(vector<uint64_t> arr, uint64_t n);
+PLRModel* getModel(vector<std::string> arr, uint64_t n);
 
-float GuessPositionFromPLR(uint64_t target_key, uint64_t index, map<uint64_t, PLRModel> models);
+float GuessPositionFromPLR(const std::string& target_key, PLRModel* model);
 
-vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data);
+vector<std::string> learnedMerge(vector<vector<std::string>> data, PLRModel** models);
 
-vector<uint64_t> standardMerge(vector<vector<uint64_t>> data);
+vector<std::string> standardMerge(vector<vector<std::string>> data);
 
 #endif

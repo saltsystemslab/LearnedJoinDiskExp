@@ -35,10 +35,21 @@ class PLRModel {
 public:
     PLRModel(){
         plrModelSegments = std::vector<Segment>();
-        keyCount = 0;}
+        keyCount = 0;
+        plr_segment_index_ = 0;}
     PLRModel(std::vector<Segment> _plrModelSegments) : plrModelSegments(_plrModelSegments) {}
     std::vector<Segment> plrModelSegments;
     int keyCount;
+    uint64_t plr_segment_index_;
+
+
+    uint64_t getPLRLineSegmentIndex() {
+        return plr_segment_index_;
+    }
+
+    void setPLRLineSegmentIndex(uint64_t value) {
+        plr_segment_index_ = value;
+    }
 };
 
 double get_slope(struct point p1, struct point p2);
@@ -78,14 +89,15 @@ public:
 class PLRBuilder {
 private:
     GreedyPLR *plr;
-    PLRModel plrModel;
+    PLRModel* plrModel;
         
 public:
     PLRBuilder() {
         plr = new GreedyPLR(PLR_ERROR);
+        plrModel = new PLRModel();
     }
     uint64_t processKey(std::string key, int i, uint64_t prev_key);
-    PLRModel& finishTraining();
+    PLRModel* finishTraining();
     void clear();
 };
 #endif

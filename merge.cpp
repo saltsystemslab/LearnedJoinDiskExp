@@ -6,51 +6,83 @@
 
 using namespace std;
 
+// uint64_t LdbKeyToInteger(const std::string& str) {
+//     const char* data = str.data();
+//     size_t size = str.size();
+//     uint64_t num = 0;
+//     bool leading_zeros = true;
+
+//     for (int i = 0; i < size; ++i) {
+//         int temp = data[i];
+//         // TODO: Figure out where the extra bytes are coming from
+//         if (temp < '0' || temp >'9') break;
+//         if (leading_zeros && temp == '0') continue;
+//         leading_zeros = false;
+//         num = (num << 3) + (num << 1) + temp - 48;
+//     }
+//     return num;
+// }
 //generate plr model for a vector
-PLRModel getModel(vector<uint64_t> arr, uint64_t n)
+PLRModel* getModel(vector<std::string> arr, uint64_t n)
 {
+    std::cout<<"getmodel"<<std::endl;
     uint64_t prev_key = 0;
     uint64_t index=0;
     PLRBuilder plrBuilder;
     for(uint64_t i=0;i<n;i++)
     {
-        prev_key = plrBuilder.processKey(to_string(arr[i]), index, prev_key);
+        prev_key = plrBuilder.processKey(arr[i], index, prev_key);
         index+=1;
     }
-    PLRModel plrModel;
+    PLRModel* plrModel;
     plrModel = plrBuilder.finishTraining();
     return plrModel;
 }
 
 //get the position of target_key(second smallest element) in the vector with smallest head
-float GuessPositionFromPLR(uint64_t target_key, PLRModel model){
-    std::vector<Segment>& segments = model.plrModelSegments;
-    size_t s = model.plrModelSegments.size();
-    uint64_t keyCount = model.keyCount;
-  // binary search between segments
-  uint64_t count=0;
-    uint64_t left = 0, right = (uint64_t)segments.size() - 1;
-    while (left != right - 1 && left < right) {
-        count++;
-        uint64_t mid = (right + left) / 2;
-        if (target_key < segments[mid].x)
-        right = mid;
-        else
-        left = mid;
-    }
-    double result = target_key * segments[left].k + segments[left].b;
-    if(result < 0){
-        result = 0;
-    }
-    return result;
-}
+// float GuessPositionFromPLR(uint64_t target_key, PLRModel* model){
+//     std::vector<Segment>& segments = model->plrModelSegments;
+//     size_t s = model->plrModelSegments.size();
+//     uint64_t keyCount = model->keyCount;
+//   // binary search between segments
+//   uint64_t count=0;
+//     uint64_t left = 0, right = (uint64_t)segments.size() - 1;
+//     while (left != right - 1 && left < right) {
+//         count++;
+//         uint64_t mid = (right + left) / 2;
+//         if (target_key < segments[mid].x)
+//         right = mid;
+//         else
+//         left = mid;
+//     }
+//     double result = target_key * segments[left].k + segments[left].b;
+//     if(result < 0){
+//         result = 0;
+//     }
+//     return result;
+// }
 
-vector<uint64_t> standardMerge(vector<vector<uint64_t>> data)
+float GuessPositionFromPLR(const std::string& target_key, PLRModel* model) {
+        std::vector<Segment>& segments = model->plrModelSegments;
+        uint64_t target_int = LdbKeyToInteger(target_key);
+        for(uint64_t i = model->getPLRLineSegmentIndex(); i < (uint64_t)segments.size(); i++){
+            if(segments[i].last > target_int){
+            model->setPLRLineSegmentIndex(i);
+            double result = target_int * segments[i].k + segments[i].b;
+            if(result < 0){
+                result = 0;
+            }
+            return floor(result);
+            }
+        }  
+    }
+
+vector<std::string> standardMerge(vector<vector<std::string>> data)
 {
     vector<uint64_t> pos;
     for(uint64_t i=0;i<data.size();i++)
         pos.push_back(0);
-    vector<uint64_t> result;
+    vector<std::string> result;
     uint64_t num_comp=0;
     while(true)
     {
@@ -77,15 +109,8 @@ vector<uint64_t> standardMerge(vector<vector<uint64_t>> data)
     return result;
 }
 
-vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
-
-    map<uint64_t, PLRModel> models;
-    for(uint64_t i=0;i<data.size();i++)
-    {
-        models[i]=getModel(data[i],data[i].size());
-    }
-
-    vector<uint64_t> merged_array;
+vector<std::string> learnedMerge(vector<vector<std::string>> data, PLRModel** models) {
+    vector<std::string> merged_array;
     uint64_t cdf_error = 0;
     vector<uint64_t> pos;
     for(uint64_t i=0;i<data.size();i++)
@@ -94,13 +119,17 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
     uint64_t smallest = -1;
     while(true)
     {
+        // FIND SMALLEST AND SECOND SMALLEST
         uint64_t second_smallest = -1;
-        if(smallest!=-1)
+        if(smallest != -1) // SMALLEST IS PREVIOUS SECOND SMALLEST
         {
             for (uint64_t i = 0; i < data.size(); i++) {
             if(pos[i] == data[i].size())
                 continue;
-            if (second_smallest == -1 || second_smallest == smallest) {
+            if (i == smallest) {
+                continue;
+            }
+            if (second_smallest == -1) {
                 second_smallest = i;
                 continue;
             }
@@ -140,44 +169,66 @@ vector<uint64_t> learnedMerge(vector<vector<uint64_t>> data) {
                 num_comp+=2;
             }
         }
+        // FOUND SMALLEST AND SECOND SMALLEST
+
         if(smallest == -1)
             break;
-        if(second_smallest == -1 || second_smallest==smallest)
+        // LAST LIST, SO LOAD TILL END
+        if(second_smallest == -1)
         {
+            // LOAD TO END OF SMALLEST
             for (uint64_t i=pos[smallest];i<data[smallest].size();i++)
             {
                 merged_array.push_back(data[smallest][pos[smallest]]);
                 pos[smallest] += 1;
             }
+            break;
         }
         else
         {
-            uint64_t target_key = data[second_smallest][pos[second_smallest]];
+            const std::string& target_key = data[second_smallest][pos[second_smallest]];
             float approx_pos = GuessPositionFromPLR(target_key, models[smallest]);
             approx_pos=floor(approx_pos);
 
             if(approx_pos < 0)
                 approx_pos = 0;
-            if(approx_pos >= data[smallest].size())
-                approx_pos = data[smallest].size()-1;
+            if(approx_pos >= data[smallest].size()) {
+                approx_pos = pos[smallest];
+            }
+            
+            if (approx_pos < pos[smallest]) {
+                merged_array.push_back(data[smallest][pos[smallest]]);
+                pos[smallest]++;
+                while (pos[smallest] < data[smallest].size() 
+                    && data[smallest][pos[smallest]] <= data[second_smallest][pos[second_smallest]]) {
+                    merged_array.push_back(data[smallest][pos[smallest]]);
+                    pos[smallest]++;
+                    num_comp++;
+                }
+                if (pos[smallest] < data[smallest].size()) {
+                    num_comp++;
+                }
+                smallest = second_smallest;
+                continue;
+            }
 
-            //over-prediction
-            while(approx_pos > 0 && data[smallest][approx_pos] > data[second_smallest][pos[second_smallest]]){
+            while (approx_pos > pos[smallest] 
+                && data[smallest][approx_pos] > data[second_smallest][pos[second_smallest]]) {
                 cdf_error += 1;
-                approx_pos -= 1;
+                approx_pos--;
             }
-            //under-prediction
-            while(approx_pos < data[smallest].size() && data[smallest][approx_pos] <= data[second_smallest][pos[second_smallest]]){
+            if (approx_pos != pos[smallest]) {
                 cdf_error += 1;
-                approx_pos += 1;
             }
-            for(uint64_t i=pos[smallest];i<approx_pos;i++)
-            {
+
+            while(pos[smallest] <= approx_pos){
                 merged_array.push_back(data[smallest][pos[smallest]]);
                 pos[smallest] += 1;
             }
+
         }
         smallest = second_smallest;
+        
     }
     std::cout<<"Learned comparison count optimised: "<<num_comp<<"\n";
     std::cout<<"CDF error count optimised: "<<cdf_error<<"\n";

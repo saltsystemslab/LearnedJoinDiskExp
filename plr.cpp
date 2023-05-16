@@ -173,14 +173,14 @@ GreedyPLR::finish() {
 uint64_t
 PLRBuilder::processKey(std::string key, int i, uint64_t prev_key) {
     uint64_t current_key = LdbKeyToInteger(key);
-    this->plrModel.keyCount++;
+    this->plrModel->keyCount++;
     if (i && prev_key != current_key){
         Segment seg = plr->process(point((double) current_key, i));
         
         if (seg.x != 0 ||
             seg.k != 0 ||
             seg.b != 0) {
-            this->plrModel.plrModelSegments.push_back(seg);
+            this->plrModel->plrModelSegments.push_back(seg);
         }
         return current_key;
     }
@@ -190,20 +190,20 @@ PLRBuilder::processKey(std::string key, int i, uint64_t prev_key) {
     
 }
 
-PLRModel&
+PLRModel*
 PLRBuilder::finishTraining() {
     Segment last = plr->finish();
     if (last.x != 0 ||
         last.k != 0 ||
         last.b != 0) {
-        this->plrModel.plrModelSegments.push_back(last);
+        this->plrModel->plrModelSegments.push_back(last);
     }
     return this->plrModel;
 }
 
 void
 PLRBuilder::clear() {
-    this->plrModel.plrModelSegments.clear();
-    this->plrModel.keyCount=0;
+    this->plrModel->plrModelSegments.clear();
+    this->plrModel->keyCount=0;
     this->plr->reset();
 }

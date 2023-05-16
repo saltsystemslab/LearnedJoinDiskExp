@@ -8,6 +8,10 @@
 
 #include "merge.h"
 
+static const uint64_t UNIVERSE_SIZE = 2000000000000000000;
+static uint64_t num_keys;
+static int key_size = 19;
+
 using std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
 using std::chrono::duration;
@@ -19,11 +23,25 @@ uint64_t random64() {
     return dist(rng);
 }
 
+uint64_t random_uint64() {
+    uint64_t result = random();
+    result = result << 32;
+    result = result + random();
+    return result;
+}
+
+string generate_key(uint64_t key_value) {
+  string key = to_string(key_value);
+  string result = string(key_size - key.length(), '0') + key;
+  return std::move(result);
+}
+
 int main(int argc, char **argv)
 {
     //BEST CASE : 1
     //AVERAGE CASE : 2
     //WORST CASE : 3
+   // key_size = atoi(argv[2]);
 
     cout<<"Start Test\n";
     int test_case = argv[1][0] - '0';
@@ -33,6 +51,10 @@ int main(int argc, char **argv)
     vector<uint64_t> arr3;
     vector<uint64_t> arr4;
 
+    vector<std::string> keys_1;
+    vector<std::string> keys_2;
+    vector<std::string> keys_3;
+    vector<std::string> keys_4;
     //AVERAGE CASE
     if(test_case==2)
     {
@@ -116,19 +138,47 @@ int main(int argc, char **argv)
         sort(arr4.begin(), arr4.end());
     }
 
+    if(test_case == 4){
+        
+        for(int i=0; i< 2000000; i++){
+             keys_1.push_back(generate_key(random_uint64() % UNIVERSE_SIZE));
+         }
+         for(int i=0; i< 2000000; i++){
+             keys_2.push_back(generate_key(random_uint64() % UNIVERSE_SIZE));
+         }
+         
+
+         sort(keys_1.begin(), keys_1.end());
+         sort(keys_2.begin(), keys_2.end());
+         
+    }
     //Prepare the 2d vector
-    vector<vector<uint64_t>> matrix;
-    matrix.push_back(arr1);
-    matrix.push_back(arr2);
-    matrix.push_back(arr3);
-    matrix.push_back(arr4);
-    vector<uint64_t> result1;
-    vector<uint64_t> result2;
+    std::cout<<"testcase 4"<<std::endl;
+    vector<vector<std::string>> matrix;
+    matrix.push_back(keys_1);
+    matrix.push_back(keys_2);
+   // matrix.push_back(arr1);
+   // matrix.push_back(arr2);
+   // matrix.push_back(arr3);
+   // matrix.push_back(arr4);
+    vector<std::string> result1;
+    vector<std::string> result2;
     duration<double, std::milli> ms_double;
+    duration<double, std::milli> ms_double_train;
+    PLRModel** models = new PLRModel*[matrix.size()];
+    auto train_1 = high_resolution_clock::now();
+    for(uint64_t i=0;i<matrix.size();i++)
+    {
+        models[i]=getModel(matrix[i],matrix[i].size());
+    }
+    auto train_2 = high_resolution_clock::now();
+    ms_double_train = train_2 - train_1;
+
+    std::cout<<"model training time"<<ms_double_train.count()<<" ms\n";
 
     auto t1 = high_resolution_clock::now();
 
-    result1 = learnedMerge(matrix);
+    result1 = learnedMerge(matrix, models);
 
     auto t2 = high_resolution_clock::now();
 
@@ -137,7 +187,7 @@ int main(int argc, char **argv)
 
     std::cout<<"Learned merge optimised: "<<ms_double.count()<<" ms\n";
 
-    for(uint64_t i=0;i<matrix.size()*1000000-1;i++)
+    for(uint64_t i=0;i<result1.size()-1;i++)
     {
         assert(result1[i]<=result1[i+1]);
     }
