@@ -91,7 +91,7 @@ int main() {
   Comparator<int> *c = new IntComparator();
 
   IntMergeResultBuilder *resultBuilder = new IntMergeResultBuilder(20);
-  standardMerge(iterators, 2, c, resultBuilder);
+  StandardMerger::merge(iterators, 2, c, resultBuilder);
 
   Iterator<int> *result = resultBuilder->finish();
   int i = 0;
@@ -100,4 +100,5 @@ int main() {
     result->next();
   }
   assert(i == 20);
+  std::cout<<"Ok!"<<std::endl;
 }
