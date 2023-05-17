@@ -100,5 +100,5 @@ int main() {
     result->next();
   }
   assert(i == 20);
-  std::cout<<"Ok!"<<std::endl;
+  std::cout << "Ok!" << std::endl;
 }

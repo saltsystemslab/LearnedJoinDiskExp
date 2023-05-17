@@ -11,6 +11,9 @@ public:
   template <class T>
   static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
                     MergeResultBuilder<T> *resultBuilder) {
+    for (int i = 0; i < n; i++) {
+      iterators[i]->seekToFirst();
+    }
     Iterator<T> *smallest;
     while ((smallest = findSmallest(iterators, n, comparator)) != nullptr) {
       resultBuilder->add(smallest->key());
