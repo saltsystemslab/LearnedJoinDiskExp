@@ -1,6 +1,9 @@
 #ifndef SLICE_H
 #define SLICE_H
 
+#include <cstddef>
+#include <string>
+
 class Slice {
 public:
   Slice() : data_(""), size_(0) {}
