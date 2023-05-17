@@ -1,5 +1,6 @@
 test_interfaces: include/* tests/test_interfaces.cpp
-		g++ tests/test_interfaces.cpp -o tests/test_interfaces -Iinclude
+		mkdir -p build/
+		g++ tests/test_interfaces.cpp -o build/test_interfaces -Iinclude
 	
 format:
 		clang-format -i include/*.h
@@ -7,7 +8,7 @@ format:
 		clang-format -i tests/*.cpp
 	
 clean:
-		rm -f tests/test_interfaces
+		rm -rf build
 		rm -f a.out
 		rm -f *.o
 
