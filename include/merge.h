@@ -10,7 +10,7 @@ class StandardMerger {
 public:
   template <class T>
   static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
-                     MergeResultBuilder<T> *resultBuilder) {
+                    MergeResultBuilder<T> *resultBuilder) {
     Iterator<T> *smallest;
     while ((smallest = findSmallest(iterators, n, comparator)) != nullptr) {
       resultBuilder->add(smallest->key());
@@ -21,7 +21,7 @@ public:
 private:
   template <class T>
   static Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
-                            Comparator<T> *comparator) {
+                                   Comparator<T> *comparator) {
     Iterator<T> *smallest = nullptr;
     for (int i = 0; i < n; i++) {
       auto child = iterators[i];
