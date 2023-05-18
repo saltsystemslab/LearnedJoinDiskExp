@@ -1,9 +1,9 @@
 #ifndef ITERATOR_H
 #define ITERATOR_H
 
-#include <stdint.h>
+#include "slice_comparator.h"
 #include <cassert>
-#include "slice.h"
+#include <stdint.h>
 
 template <class T> class Iterator {
 public:
@@ -22,7 +22,6 @@ public:
   virtual void add(T t) = 0;
   virtual Iterator<T> *finish() = 0;
 };
-
 
 class IntArrayIterator : public Iterator<int> {
 public:

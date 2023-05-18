@@ -17,7 +17,6 @@ public:
   }
 };
 
-
 int main() {
   IntArrayIteratorBuilder *builder1 = new IntArrayIteratorBuilder(10);
   for (int i = 0; i < 10; i++) {
