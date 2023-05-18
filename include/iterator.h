@@ -19,7 +19,7 @@ public:
 
 template <class T> class IteratorBuilder {
 public:
-  virtual void add(const T& t) = 0;
+  virtual void add(const T &t) = 0;
   virtual Iterator<T> *finish() = 0;
 };
 
@@ -71,7 +71,7 @@ public:
     this->cur = 0;
     this->n = n;
   }
-  void add(const int& t) override { a[cur++] = t; }
+  void add(const int &t) override { a[cur++] = t; }
   IntArrayIterator *finish() override { return new IntArrayIterator(a, n); }
 
 private:
