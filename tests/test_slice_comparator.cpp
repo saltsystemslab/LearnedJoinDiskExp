@@ -60,7 +60,7 @@ public:
     this->n = n;
     this->key_size = key_size;
   }
-  void add(Slice t) override {
+  void add(const Slice& t) override {
     for (int i = 0; i < key_size; i++) {
       a[cur * key_size + i] = t.data_[i];
     }

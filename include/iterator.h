@@ -1,9 +1,9 @@
 #ifndef ITERATOR_H
 #define ITERATOR_H
 
-#include <stdint.h>
-#include <cassert>
 #include "slice.h"
+#include <cassert>
+#include <stdint.h>
 
 template <class T> class Iterator {
 public:
@@ -19,10 +19,9 @@ public:
 
 template <class T> class IteratorBuilder {
 public:
-  virtual void add(T t) = 0;
+  virtual void add(const T& t) = 0;
   virtual Iterator<T> *finish() = 0;
 };
-
 
 class IntArrayIterator : public Iterator<int> {
 public:
@@ -72,7 +71,7 @@ public:
     this->cur = 0;
     this->n = n;
   }
-  void add(int t) override { a[cur++] = t; }
+  void add(const int& t) override { a[cur++] = t; }
   IntArrayIterator *finish() override { return new IntArrayIterator(a, n); }
 
 private:
