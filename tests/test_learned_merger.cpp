@@ -63,7 +63,7 @@ public:
     this->n = n;
   }
   void add(int t) override { a[cur++] = t; }
-  ArrayIntIterator *finish() { return new ArrayIntIterator(a, n); }
+  ArrayIntIterator *finish() override { return new ArrayIntIterator(a, n); }
 
 private:
   int *a;
@@ -88,9 +88,9 @@ int main() {
   Comparator<int> *c = new IntComparator();
 
   IntArrayIteratorBuilder *resultBuilder = new IntArrayIteratorBuilder(20);
-  LearnedMerger<int>::merge(iterators, 2, c, resultBuilder);
+  Iterator<int> *result =
+      LearnedMerger<int>::merge(iterators, 2, c, resultBuilder);
 
-  Iterator<int> *result = resultBuilder->finish();
   int i = 0;
   while (result->valid()) {
     assert(result->key() == i++);

@@ -66,7 +66,7 @@ public:
     this->n = n;
   }
   void add(int t) override { a[cur++] = t; }
-  IntArrayIterator *finish() { return new IntArrayIterator(a, n); }
+  IntArrayIterator *finish() override { return new IntArrayIterator(a, n); }
 
 private:
   int *a;
@@ -91,9 +91,8 @@ int main() {
   Comparator<int> *c = new IntComparator();
 
   IntArrayIteratorBuilder *resultBuilder = new IntArrayIteratorBuilder(20);
-  StandardMerger::merge(iterators, 2, c, resultBuilder);
+  Iterator<int> *result = StandardMerger::merge(iterators, 2, c, resultBuilder);
 
-  Iterator<int> *result = resultBuilder->finish();
   int i = 0;
   while (result->valid()) {
     assert(result->key() == i++);

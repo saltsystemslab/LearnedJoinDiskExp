@@ -7,8 +7,9 @@
 class StandardMerger {
 public:
   template <class T>
-  static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
-                    IteratorBuilder<T> *result) {
+  static Iterator<T> *merge(Iterator<T> **iterators, int n,
+                            Comparator<T> *comparator,
+                            IteratorBuilder<T> *result) {
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
@@ -17,6 +18,7 @@ public:
       result->add(smallest->key());
       smallest->next();
     }
+    return result->finish();
   }
 
 private:

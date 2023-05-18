@@ -66,7 +66,7 @@ public:
     }
     cur++;
   }
-  SliceArrayIterator *finish() {
+  SliceArrayIterator *finish() override {
     return new SliceArrayIterator(a, n, KEY_SIZE);
   }
 
@@ -103,9 +103,9 @@ int main() {
   Comparator<Slice> *c = new SliceComparator();
 
   SliceArrayBuilder *resultBuilder = new SliceArrayBuilder(20, KEY_SIZE);
-  StandardMerger::merge(iterators, 2, c, resultBuilder);
+  Iterator<Slice> *result =
+      StandardMerger::merge(iterators, 2, c, resultBuilder);
 
-  Iterator<Slice> *result = resultBuilder->finish();
   int i = 0;
   while (result->valid()) {
     assert(c->compare(result->key(),

@@ -8,8 +8,9 @@
 
 template <class T> class LearnedMerger {
 public:
-  static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
-                    IteratorBuilder<T> *result) {
+  static Iterator<T> *merge(Iterator<T> **iterators, int n,
+                            Comparator<T> *comparator,
+                            IteratorBuilder<T> *result) {
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
@@ -32,6 +33,7 @@ public:
       second_smallest = nullptr;
       findSecondSmallest(iterators, n, comparator, smallest, &second_smallest);
     }
+    return result->finish();
   }
 
 private:

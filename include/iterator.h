@@ -18,5 +18,6 @@ public:
 template <class T> class IteratorBuilder {
 public:
   virtual void add(T t) = 0;
+  virtual Iterator<T> *finish() = 0;
 };
 #endif
