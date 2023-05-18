@@ -4,14 +4,14 @@
 #include "comparator.h"
 #include "iterator.h"
 #include "merge_result_builder.h"
-#include <iostream>
 #include <cmath>
+#include <iostream>
 
 template <class T> class LearnedMerger {
 public:
   static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
                     MergeResultBuilder<T> *resultBuilder) {
-    for (int i=0; i<n; i++) {
+    for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
     Iterator<T> *smallest = nullptr;
@@ -36,9 +36,10 @@ public:
   }
 
 private:
-  static void addClusterToResult(Iterator<T> *smallest, Iterator<T> *second_smallest,
-                          Comparator<T> *comparator,
-                          MergeResultBuilder<T> *merge_result_builder) {
+  static void addClusterToResult(Iterator<T> *smallest,
+                                 Iterator<T> *second_smallest,
+                                 Comparator<T> *comparator,
+                                 MergeResultBuilder<T> *merge_result_builder) {
     // approx_pos is always a valid position in iterator.
     uint64_t approx_pos =
         floor(smallest->guessPosition(second_smallest->key()));
@@ -73,8 +74,8 @@ private:
   }
 
   static void findTwoSmallest(Iterator<T> **iterators, int n,
-                       Comparator<T> *comparator, Iterator<T> **smallest,
-                       Iterator<T> **second_smallest) {
+                              Comparator<T> *comparator, Iterator<T> **smallest,
+                              Iterator<T> **second_smallest) {
     for (int i = 0; i < n; i++) {
       if (!iterators[i]->valid()) {
         continue;
@@ -101,8 +102,9 @@ private:
   }
 
   static void findSecondSmallest(Iterator<T> **iterators, int n,
-                          Comparator<T> *comparator, const Iterator<T> *smallest,
-                          Iterator<T> **second_smallest) {
+                                 Comparator<T> *comparator,
+                                 const Iterator<T> *smallest,
+                                 Iterator<T> **second_smallest) {
     for (int i = 0; i < n; i++) {
       if (!iterators[i]->valid()) {
         continue;
