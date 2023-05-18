@@ -1,7 +1,7 @@
 #include "comparator.h"
 #include "iterator.h"
 #include "merge_result_builder.h"
-#include "standard_merge.h"
+#include "learned_merge.h"
 #include <cassert>
 #include <iostream>
 
@@ -28,7 +28,6 @@ public:
   ~ArrayIntIterator() { delete a; }
   bool valid() const override { return cur < n; }
   void next() override {
-    assert(valid());
     cur++;
   }
   int peek(uint64_t pos) const override { return a[pos]; }
@@ -45,7 +44,7 @@ public:
   int key() const override { return a[cur]; }
   uint64_t current_pos() const override { return cur; }
   double guessPosition(int target_key) {
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n-1; i++) {
       if (a[i] > target_key) {
         return cur;
       }
@@ -66,7 +65,9 @@ public:
     this->cur = 0;
     this->n = n;
   }
-  void add(int t) override { a[cur++] = t; }
+  void add(int t) override { 
+			a[cur++] = t; 
+	}
   ArrayIntIterator *finish() { return new ArrayIntIterator(a, n); }
 
 private:
@@ -92,7 +93,7 @@ int main() {
   Comparator<int> *c = new IntComparator();
 
   IntMergeResultBuilder *resultBuilder = new IntMergeResultBuilder(20);
-  StandardMerger::merge(iterators, 2, c, resultBuilder);
+  LearnedMerger<int>::merge(iterators, 2, c, resultBuilder);
 
   Iterator<int> *result = resultBuilder->finish();
   int i = 0;

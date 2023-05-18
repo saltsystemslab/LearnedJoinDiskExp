@@ -11,6 +11,7 @@ public:
   virtual void seek(T item) = 0;
   virtual void seekToFirst() = 0;
   virtual T key() const = 0;
+  virtual uint64_t current_pos() const = 0;
   virtual double guessPosition(T target_key) { return -1; }
 };
 #endif
