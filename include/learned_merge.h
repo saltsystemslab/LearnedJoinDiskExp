@@ -3,14 +3,13 @@
 
 #include "comparator.h"
 #include "iterator.h"
-#include "merge_result_builder.h"
 #include <cmath>
 #include <iostream>
 
 template <class T> class LearnedMerger {
 public:
   static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
-                    MergeResultBuilder<T> *resultBuilder) {
+                    IteratorBuilder<T> *result) {
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
@@ -22,13 +21,13 @@ public:
       // There's only one list left, so let's fill up all the way.
       if (second_smallest == nullptr) {
         while (smallest->valid()) {
-          resultBuilder->add(smallest->key());
+          result->add(smallest->key());
           smallest->next();
         }
         smallest = nullptr;
         continue;
       }
-      addClusterToResult(smallest, second_smallest, comparator, resultBuilder);
+      addClusterToResult(smallest, second_smallest, comparator, result);
       smallest = second_smallest;
       second_smallest = nullptr;
       findSecondSmallest(iterators, n, comparator, smallest, &second_smallest);
@@ -39,7 +38,7 @@ private:
   static void addClusterToResult(Iterator<T> *smallest,
                                  Iterator<T> *second_smallest,
                                  Comparator<T> *comparator,
-                                 MergeResultBuilder<T> *merge_result_builder) {
+                                 IteratorBuilder<T> *merge_result_builder) {
     // approx_pos is always a valid position in iterator.
     uint64_t approx_pos =
         floor(smallest->guessPosition(second_smallest->key()));

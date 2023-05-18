@@ -14,4 +14,9 @@ public:
   virtual uint64_t current_pos() const = 0;
   virtual double guessPosition(T target_key) { return -1; }
 };
+
+template <class T> class IteratorBuilder {
+public:
+  virtual void add(T t) = 0;
+};
 #endif

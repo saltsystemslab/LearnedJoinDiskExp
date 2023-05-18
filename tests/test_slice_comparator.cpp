@@ -1,8 +1,7 @@
 #include "comparator.h"
 #include "iterator.h"
-#include "merge.h"
-#include "merge_result_builder.h"
 #include "slice_comparator.h"
+#include "standard_merge.h"
 #include <cassert>
 #include <iostream>
 
@@ -15,15 +14,15 @@ string generate_key(int key_value) {
   return std::move(result);
 }
 
-class ArraySliceIterator : public Iterator<Slice> {
+class SliceArrayIterator : public Iterator<Slice> {
 public:
-  ArraySliceIterator(char *a, int n, int key_size) {
+  SliceArrayIterator(char *a, int n, int key_size) {
     this->a = a;
     this->cur = 0;
     this->n = n;
     this->key_size = key_size;
   }
-  ~ArraySliceIterator() { delete a; }
+  ~SliceArrayIterator() { delete a; }
   bool valid() const override { return cur < n; }
   void next() override {
     assert(valid());
@@ -44,6 +43,7 @@ public:
   }
   void seekToFirst() override { cur = 0; }
   Slice key() const override { return Slice(a + cur * key_size, key_size); }
+  uint64_t current_pos() const { return cur; }
 
 private:
   char *a;
@@ -52,9 +52,9 @@ private:
   int n;
 };
 
-class SliceMergeResultBuilder : public MergeResultBuilder<Slice> {
+class SliceArrayBuilder : public IteratorBuilder<Slice> {
 public:
-  SliceMergeResultBuilder(int n, int key_size) {
+  SliceArrayBuilder(int n, int key_size) {
     this->a = new char[n * key_size];
     this->cur = 0;
     this->n = n;
@@ -66,8 +66,8 @@ public:
     }
     cur++;
   }
-  ArraySliceIterator *finish() {
-    return new ArraySliceIterator(a, n, KEY_SIZE);
+  SliceArrayIterator *finish() {
+    return new SliceArrayIterator(a, n, KEY_SIZE);
   }
 
 private:
@@ -79,12 +79,12 @@ private:
 
 int main() {
 
-  SliceMergeResultBuilder *builder1 = new SliceMergeResultBuilder(10, KEY_SIZE);
+  SliceArrayBuilder *builder1 = new SliceArrayBuilder(10, KEY_SIZE);
   for (int i = 0; i < 10; i++) {
     std::string key = generate_key(2 * i);
     builder1->add(Slice(key.c_str(), KEY_SIZE));
   }
-  SliceMergeResultBuilder *builder2 = new SliceMergeResultBuilder(10, KEY_SIZE);
+  SliceArrayBuilder *builder2 = new SliceArrayBuilder(10, KEY_SIZE);
   for (int i = 0; i < 10; i++) {
     builder2->add(Slice(generate_key((2 * i + 1)).c_str(), KEY_SIZE));
   }
@@ -102,8 +102,7 @@ int main() {
   }
   Comparator<Slice> *c = new SliceComparator();
 
-  SliceMergeResultBuilder *resultBuilder =
-      new SliceMergeResultBuilder(20, KEY_SIZE);
+  SliceArrayBuilder *resultBuilder = new SliceArrayBuilder(20, KEY_SIZE);
   StandardMerger::merge(iterators, 2, c, resultBuilder);
 
   Iterator<Slice> *result = resultBuilder->finish();

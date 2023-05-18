@@ -1,6 +1,5 @@
 #include "comparator.h"
 #include "iterator.h"
-#include "merge_result_builder.h"
 #include "standard_merge.h"
 #include <cassert>
 #include <iostream>
@@ -18,14 +17,14 @@ public:
   }
 };
 
-class ArrayIntIterator : public Iterator<int> {
+class IntArrayIterator : public Iterator<int> {
 public:
-  ArrayIntIterator(int *a, int n) {
+  IntArrayIterator(int *a, int n) {
     this->a = a;
     this->cur = 0;
     this->n = n;
   }
-  ~ArrayIntIterator() { delete a; }
+  ~IntArrayIterator() { delete a; }
   bool valid() const override { return cur < n; }
   void next() override {
     assert(valid());
@@ -59,15 +58,15 @@ private:
   int n;
 };
 
-class IntMergeResultBuilder : public MergeResultBuilder<int> {
+class IntArrayIteratorBuilder : public IteratorBuilder<int> {
 public:
-  IntMergeResultBuilder(int n) {
+  IntArrayIteratorBuilder(int n) {
     this->a = new int[n];
     this->cur = 0;
     this->n = n;
   }
   void add(int t) override { a[cur++] = t; }
-  ArrayIntIterator *finish() { return new ArrayIntIterator(a, n); }
+  IntArrayIterator *finish() { return new IntArrayIterator(a, n); }
 
 private:
   int *a;
@@ -76,11 +75,11 @@ private:
 };
 
 int main() {
-  IntMergeResultBuilder *builder1 = new IntMergeResultBuilder(10);
+  IntArrayIteratorBuilder *builder1 = new IntArrayIteratorBuilder(10);
   for (int i = 0; i < 10; i++) {
     builder1->add(2 * i);
   }
-  IntMergeResultBuilder *builder2 = new IntMergeResultBuilder(10);
+  IntArrayIteratorBuilder *builder2 = new IntArrayIteratorBuilder(10);
   for (int i = 0; i < 10; i++) {
     builder2->add(2 * i + 1);
   }
@@ -91,7 +90,7 @@ int main() {
 
   Comparator<int> *c = new IntComparator();
 
-  IntMergeResultBuilder *resultBuilder = new IntMergeResultBuilder(20);
+  IntArrayIteratorBuilder *resultBuilder = new IntArrayIteratorBuilder(20);
   StandardMerger::merge(iterators, 2, c, resultBuilder);
 
   Iterator<int> *result = resultBuilder->finish();

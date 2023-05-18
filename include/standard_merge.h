@@ -3,19 +3,18 @@
 
 #include "comparator.h"
 #include "iterator.h"
-#include "merge_result_builder.h"
 
 class StandardMerger {
 public:
   template <class T>
   static void merge(Iterator<T> **iterators, int n, Comparator<T> *comparator,
-                    MergeResultBuilder<T> *resultBuilder) {
+                    IteratorBuilder<T> *result) {
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
     Iterator<T> *smallest;
     while ((smallest = findSmallest(iterators, n, comparator)) != nullptr) {
-      resultBuilder->add(smallest->key());
+      result->add(smallest->key());
       smallest->next();
     }
   }

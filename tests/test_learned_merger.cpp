@@ -1,7 +1,6 @@
 #include "comparator.h"
 #include "iterator.h"
 #include "learned_merge.h"
-#include "merge_result_builder.h"
 #include <cassert>
 #include <iostream>
 
@@ -56,9 +55,9 @@ private:
   int n;
 };
 
-class IntMergeResultBuilder : public MergeResultBuilder<int> {
+class IntArrayIteratorBuilder : public IteratorBuilder<int> {
 public:
-  IntMergeResultBuilder(int n) {
+  IntArrayIteratorBuilder(int n) {
     this->a = new int[n];
     this->cur = 0;
     this->n = n;
@@ -73,11 +72,11 @@ private:
 };
 
 int main() {
-  IntMergeResultBuilder *builder1 = new IntMergeResultBuilder(10);
+  IntArrayIteratorBuilder *builder1 = new IntArrayIteratorBuilder(10);
   for (int i = 0; i < 10; i++) {
     builder1->add(2 * i);
   }
-  IntMergeResultBuilder *builder2 = new IntMergeResultBuilder(10);
+  IntArrayIteratorBuilder *builder2 = new IntArrayIteratorBuilder(10);
   for (int i = 0; i < 10; i++) {
     builder2->add(2 * i + 1);
   }
@@ -88,7 +87,7 @@ int main() {
 
   Comparator<int> *c = new IntComparator();
 
-  IntMergeResultBuilder *resultBuilder = new IntMergeResultBuilder(20);
+  IntArrayIteratorBuilder *resultBuilder = new IntArrayIteratorBuilder(20);
   LearnedMerger<int>::merge(iterators, 2, c, resultBuilder);
 
   Iterator<int> *result = resultBuilder->finish();
