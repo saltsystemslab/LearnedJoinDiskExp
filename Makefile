@@ -1,14 +1,17 @@
-test_interfaces: include/* tests/test_interfaces.cpp
-		mkdir -p build/
-		g++ tests/test_interfaces.cpp -o build/test_interfaces -Iinclude
-	
-test_slice_comparator: include/* tests/test_slice_comparator.cpp
-		mkdir -p build/
-		g++ tests/test_slice_comparator.cpp -o build/test_slice_comparator -Iinclude
+CXX=g++
+C_OPTIONS=-g
 
-test_learned_merger: include/* tests/test_learned_merger.cpp
-		mkdir -p build/
-		g++ -g tests/test_learned_merger.cpp -o build/test_learned_merger -Iinclude
+
+build_test: include/* tests/*.cpp
+		mkdir -p test_bin/
+		$(CXX) $(OPTIONS) tests/test_interfaces.cpp -o test_bin/test_interfaces -Iinclude
+		$(CXX) $(OPTIONS) tests/test_slice_comparator.cpp -o test_bin/test_slice_comparator -Iinclude
+		$(CXX) $(OPTIONS) tests/test_learned_merger.cpp -o test_bin/test_learned_merger -Iinclude
+
+test: build_test
+		./test_bin/test_interfaces
+		./test_bin/test_learned_merger
+		./test_bin/test_slice_comparator
 
 format:
 		clang-format -i include/*.h
@@ -16,7 +19,7 @@ format:
 		clang-format -i tests/*.cpp
 	
 clean:
-		rm -rf build
+		rm -rf test_bin 
 		rm -f a.out
 		rm -f *.o
 
