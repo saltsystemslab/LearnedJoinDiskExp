@@ -3,7 +3,7 @@ C_OPTIONS=-g
 INCLUDE=include
 
 OBJDIR=obj
-_OBJ=slice_file_iterator.o slice_array.o
+_OBJ=slice_file_iterator.o slice_array.o plr.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
 $(OBJDIR)/%.o: src/%.cpp
@@ -16,9 +16,9 @@ build_benchmark: include/* src/*.cpp $(OBJ)
 
 build_test: include/* tests/*.cpp $(OBJ) 
 		mkdir -p test_bin/
-		$(CXX) $(OPTIONS) tests/test_interfaces.cpp -o test_bin/test_interfaces -Iinclude
+		$(CXX) $(OPTIONS) $(OBJ) tests/test_interfaces.cpp -o test_bin/test_interfaces -Iinclude
 		$(CXX) $(OPTIONS) $(OBJ) tests/test_slice_comparator.cpp -o test_bin/test_slice_comparator -Iinclude
-		$(CXX) $(OPTIONS) tests/test_learned_merger.cpp -o test_bin/test_learned_merger -Iinclude
+		$(CXX) $(OPTIONS) $(OBJ) tests/test_learned_merger.cpp -o test_bin/test_learned_merger -Iinclude
 		$(CXX) $(OPTIONS) $(OBJ) tests/test_slice_file_iterator.cpp -o test_bin/test_slice_file_iterator -I$(INCLUDE)
 
 test: build_test build_benchmark

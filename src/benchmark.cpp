@@ -12,7 +12,7 @@ using namespace std;
 
 static int FLAGS_num_of_lists = 2;
 static int FLAGS_key_size_bytes = 10;
-static const char *FLAGS_merge_type = "standard";
+static const char *FLAGS_merge_type = "learned";
 static const char *FLAGS_num_of_items_per_list = "10, 10";
 
 string generate_key(int key_value, int key_size) {

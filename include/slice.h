@@ -10,7 +10,7 @@ public:
   Slice(const char *data, int len) : data_(data), size_(len){};
   const char *data_;
   size_t size_;
-  std::string toString() { return std::string(data_, size_); }
+  std::string toString() const { return std::string(data_, size_); }
 };
 
 #endif
