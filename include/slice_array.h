@@ -1,8 +1,8 @@
 #ifndef SLICE_ARRAY_H
 #define SLICE_ARRAY_H
 
-#include "slice.h"
 #include "iterator.h"
+#include "slice.h"
 
 class SliceArrayIterator : public Iterator<Slice> {
 public:
@@ -26,7 +26,7 @@ private:
 class SliceArrayBuilder : public IteratorBuilder<Slice> {
 public:
   SliceArrayBuilder(int n, int key_size);
-  void add(const Slice& t) override;
+  void add(const Slice &t) override;
   SliceArrayIterator *finish() override;
 
 private:

@@ -1,9 +1,8 @@
 #ifndef ITERATOR_H
 #define ITERATOR_H
 
-#include <stdint.h>
 #include <cassert>
-
+#include <stdint.h>
 
 template <class T> class Iterator {
 public:
@@ -22,6 +21,5 @@ public:
   virtual void add(const T &t) = 0;
   virtual Iterator<T> *finish() = 0;
 };
-
 
 #endif

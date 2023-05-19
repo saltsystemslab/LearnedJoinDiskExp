@@ -38,7 +38,7 @@ SliceArrayBuilder::SliceArrayBuilder(int n, int key_size) {
   this->n = n;
   this->key_size = key_size;
 }
-void SliceArrayBuilder::add(const Slice& t) {
+void SliceArrayBuilder::add(const Slice &t) {
   for (int i = 0; i < key_size; i++) {
     a[cur * key_size + i] = t.data_[i];
   }

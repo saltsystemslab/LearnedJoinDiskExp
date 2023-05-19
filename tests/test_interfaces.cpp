@@ -1,7 +1,7 @@
 #include "comparator.h"
+#include "int_iterator.h"
 #include "iterator.h"
 #include "standard_merge.h"
-#include "int_iterator.h"
 #include <cassert>
 #include <iostream>
 
