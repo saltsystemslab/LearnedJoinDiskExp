@@ -1,4 +1,5 @@
 #include "comparator.h"
+#include "int_iterator.h"
 #include "iterator.h"
 #include "learned_merge.h"
 #include <cassert>

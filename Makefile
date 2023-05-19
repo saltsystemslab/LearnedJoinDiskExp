@@ -1,24 +1,33 @@
 CXX=g++
 C_OPTIONS=-g
-OBJECTS=slice_file_iterator.o
 INCLUDE=include
 
-slice_file_iterator.o : src/slice_file_iterator.cpp 
-		mkdir -p build/
-		g++ $(C_OPTIONS) -o slice_file_iterator.o -I$(INCLUDE) -c src/slice_file_iterator.cpp
+OBJDIR=obj
+_OBJ=slice_file_iterator.o slice_array.o
+OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
-build_test: $(INCLUDE)/* tests/*.cpp $(OBJECTS)
+$(OBJDIR)/%.o: src/%.cpp
+		mkdir -p $(OBJDIR)
+		$(CXX) -c -o $@ $< $(C_OPTIONS) -I$(INCLUDE)
+
+build_benchmark: include/* src/*.cpp $(OBJ)
 		mkdir -p test_bin/
-		$(CXX) $(OPTIONS) tests/test_interfaces.cpp -o test_bin/test_interfaces -I$(INCLUDE)
-		$(CXX) $(OPTIONS) tests/test_slice_comparator.cpp -o test_bin/test_slice_comparator -I$(INCLUDE)
-		$(CXX) $(OPTIONS) tests/test_learned_merger.cpp -o test_bin/test_learned_merger -I$(INCLUDE)
-		$(CXX) $(OPTIONS) $(OBJECTS) tests/test_slice_file_iterator.cpp -o test_bin/test_slice_file_iterator -I$(INCLUDE)
+		$(CXX) $(OPTIONS) $(OBJ) src/benchmark.cpp -o test_bin/benchmark -Iinclude
 
-test: build_test
+build_test: include/* tests/*.cpp $(OBJ) 
+		mkdir -p test_bin/
+		$(CXX) $(OPTIONS) tests/test_interfaces.cpp -o test_bin/test_interfaces -Iinclude
+		$(CXX) $(OPTIONS) $(OBJ) tests/test_slice_comparator.cpp -o test_bin/test_slice_comparator -Iinclude
+		$(CXX) $(OPTIONS) tests/test_learned_merger.cpp -o test_bin/test_learned_merger -Iinclude
+		$(CXX) $(OPTIONS) $(OBJ) tests/test_slice_file_iterator.cpp -o test_bin/test_slice_file_iterator -I$(INCLUDE)
+
+test: build_test build_benchmark
 		./test_bin/test_interfaces
 		./test_bin/test_learned_merger
 		./test_bin/test_slice_comparator
 		./test_bin/test_slice_file_iterator
+		./test_bin/benchmark
+
 
 format:
 		clang-format -i $(INCLUDE)/*.h
@@ -26,6 +35,7 @@ format:
 		clang-format -i tests/*.cpp
 	
 clean:
+		rm -rf obj
 		rm -rf test_bin 
 		rm -f a.out
 		rm -f *.o

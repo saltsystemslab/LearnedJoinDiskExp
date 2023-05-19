@@ -8,6 +8,7 @@
 
 class FixedSizeSliceFileIterator : public Iterator<Slice> {
 public:
+<<<<<<< HEAD
   FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
                              int key_size)
       : file_descriptor_(file_descriptor), num_keys_(num_keys),

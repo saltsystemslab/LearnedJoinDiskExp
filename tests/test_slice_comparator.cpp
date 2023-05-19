@@ -1,5 +1,6 @@
 #include "comparator.h"
 #include "iterator.h"
+#include "slice_array_iterator.h"
 #include "slice_comparator.h"
 #include "standard_merge.h"
 #include <cassert>
@@ -13,69 +14,6 @@ string generate_key(int key_value) {
   string result = string(KEY_SIZE - key.length(), '0') + key;
   return std::move(result);
 }
-
-class SliceArrayIterator : public Iterator<Slice> {
-public:
-  SliceArrayIterator(char *a, int n, int key_size) {
-    this->a = a;
-    this->cur = 0;
-    this->n = n;
-    this->key_size = key_size;
-  }
-  ~SliceArrayIterator() { delete a; }
-  bool valid() const override { return cur < n; }
-  void next() override {
-    assert(valid());
-    cur++;
-  }
-  Slice peek(uint64_t pos) const override {
-    return Slice(a + pos * key_size, key_size);
-  }
-  void seek(Slice item) override {
-    Comparator<Slice> *c = new SliceComparator();
-    for (int i = 0; i < n; i++) {
-      if (c->compare(Slice(a + i * key_size, key_size), item) > 0) {
-        cur = i;
-        return;
-      }
-    }
-    cur = n;
-  }
-  void seekToFirst() override { cur = 0; }
-  Slice key() const override { return Slice(a + cur * key_size, key_size); }
-  uint64_t current_pos() const { return cur; }
-
-private:
-  char *a;
-  int key_size;
-  int cur;
-  int n;
-};
-
-class SliceArrayBuilder : public IteratorBuilder<Slice> {
-public:
-  SliceArrayBuilder(int n, int key_size) {
-    this->a = new char[n * key_size];
-    this->cur = 0;
-    this->n = n;
-    this->key_size = key_size;
-  }
-  void add(const Slice &t) override {
-    for (int i = 0; i < key_size; i++) {
-      a[cur * key_size + i] = t.data_[i];
-    }
-    cur++;
-  }
-  SliceArrayIterator *finish() override {
-    return new SliceArrayIterator(a, n, KEY_SIZE);
-  }
-
-private:
-  char *a;
-  int n;
-  int cur;
-  int key_size;
-};
 
 int main() {
 
