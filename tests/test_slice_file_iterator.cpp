@@ -7,7 +7,7 @@
 #include <iostream>
 
 int main(int argc, char **argv) {
-  SliceFileIteratorBuilder builder("./test.txt", 100);
+  FixedSizeSliceFileIteratorBuilder builder("./test.txt", 100, 6);
 
   const char *string_1 = "Hello,";
   const char *string_2 = "World!";
@@ -18,4 +18,5 @@ int main(int argc, char **argv) {
   builder.finish();
 
   assert(true);
+  std::cout << "Ok!" << std::endl;
 }
