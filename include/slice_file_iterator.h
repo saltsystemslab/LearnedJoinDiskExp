@@ -11,7 +11,6 @@ class SliceFileIteratorBuilder : public IteratorBuilder<Slice> {
 public:
   SliceFileIteratorBuilder(const char *file_name, size_t buffer_size)
       : buffer_size_(buffer_size), buffer_idx_(0), file_offset_(0) {
-
     file_descriptor_ = open(file_name, O_WRONLY | O_CREAT, 0644);
     if (file_descriptor_ == -1) {
       perror("popen");
