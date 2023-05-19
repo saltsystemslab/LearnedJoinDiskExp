@@ -27,7 +27,7 @@ public:
     cur = n;
   }
   void seekToFirst() override { cur = 0; }
-  int key() const override { return a[cur]; }
+  int key() override { return a[cur]; }
   uint64_t current_pos() const override { return cur; }
   double guessPosition(int target_key) {
     for (int i = 0; i < n; i++) {

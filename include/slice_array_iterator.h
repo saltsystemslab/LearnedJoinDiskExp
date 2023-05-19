@@ -13,7 +13,7 @@ public:
   Slice peek(uint64_t pos) const override;
   void seek(Slice item) override;
   void seekToFirst() override;
-  Slice key() const override;
+  Slice key() override;
   uint64_t current_pos() const override;
 
 private:

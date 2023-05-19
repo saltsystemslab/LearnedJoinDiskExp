@@ -1,9 +1,11 @@
 #include "slice_file_iterator.h"
+
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <cassert>
 #include <cstring>
-#include <fcntl.h>
 #include <iostream>
-#include <unistd.h>
 
 void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
@@ -15,13 +17,45 @@ void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   flushBufferToDisk();
   addKeyToBuffer(key);
 }
-bool FixedSizeSliceFileIterator::valid() const {}
-void FixedSizeSliceFileIterator::next() {}
-Slice FixedSizeSliceFileIterator::key() const {}
-Slice FixedSizeSliceFileIterator::peek(uint64_t pos) const {}
-void FixedSizeSliceFileIterator::seekToFirst() {}
-void FixedSizeSliceFileIterator::seek(Slice item) {}
-uint64_t FixedSizeSliceFileIterator::current_pos() const {}
+bool FixedSizeSliceFileIterator::valid() const { return cur_idx_ < num_keys_; }
+
+void FixedSizeSliceFileIterator::next() {
+  assert(valid());
+  cur_idx_++;
+  cur_key_loaded_ = false;
+}
+
+Slice FixedSizeSliceFileIterator::key() {
+  if (!cur_key_loaded_) {
+    ssize_t bytes_read =
+        pread(file_descriptor_, cur_key_buffer_, key_size_, cur_idx_ * key_size_);
+    if (bytes_read == -1) {
+      perror("pread");
+      abort();
+    }
+    cur_key_loaded_ = true;
+  }
+  return Slice(cur_key_buffer_, key_size_);
+}
+
+Slice FixedSizeSliceFileIterator::peek(uint64_t pos) const {
+  pos = std::min(num_keys_, pos);
+  ssize_t bytes_read =
+      pread(file_descriptor_, peek_key_buffer_, key_size_, pos * key_size_);
+  if (bytes_read == -1) {
+    perror("pread");
+    abort();
+  }
+  return Slice(peek_key_buffer_, key_size_);
+}
+
+void FixedSizeSliceFileIterator::seekToFirst() {
+  cur_idx_ = 0;
+  cur_key_loaded_ = false;
+}
+
+void FixedSizeSliceFileIterator::seek(Slice item) { abort(); }
+uint64_t FixedSizeSliceFileIterator::current_pos() const { return cur_idx_; }
 
 Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
   flushBufferToDisk();
