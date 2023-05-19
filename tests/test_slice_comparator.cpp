@@ -1,6 +1,6 @@
 #include "comparator.h"
 #include "iterator.h"
-#include "slice_array.h"
+#include "slice_array_iterator.h"
 #include "slice_comparator.h"
 #include "standard_merge.h"
 #include <cassert>
