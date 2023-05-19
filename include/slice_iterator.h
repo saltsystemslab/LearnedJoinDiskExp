@@ -8,11 +8,11 @@ public:
   SliceIterator();
   double guessPosition(Slice target_key) override;
 
-private:
+protected:
   PLRModel *model;
+
+private:
   uint64_t plr_segment_index;
-
   uint64_t getPLRLineSegmentIndex();
-
   void setPLRLineSegmentIndex(uint64_t value);
 };

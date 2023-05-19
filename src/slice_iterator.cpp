@@ -10,7 +10,6 @@ void SliceIterator::setPLRLineSegmentIndex(uint64_t value) {
 double SliceIterator::guessPosition(Slice target_key) {
   std::vector<Segment> &segments = model->lineSegments_;
   uint64_t target_int = LdbKeyToInteger(target_key.toString());
-
   for (uint64_t i = getPLRLineSegmentIndex(); i < (uint64_t)segments.size();
        i++) {
     if (segments[i].last > target_int) {

@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
   while (result->valid()) {
     Slice s = result->key();
     result->next();
-    for (int i=0; i<s.size_; i++) {
+    for (int i = 0; i < s.size_; i++) {
       printf("%c", s.data_[i]);
     }
     printf("\n");

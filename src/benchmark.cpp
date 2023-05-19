@@ -1,12 +1,15 @@
-#include "learned_merge.h"
-#include "slice_array_iterator.h"
-#include "slice_comparator.h"
-#include "standard_merge.h"
 #include <bits/stdc++.h>
+
 #include <cassert>
 #include <cstring>
 #include <string>
 #include <vector>
+
+#include "config.h"
+#include "learned_merge.h"
+#include "slice_array_iterator.h"
+#include "slice_comparator.h"
+#include "standard_merge.h"
 
 using namespace std;
 
@@ -67,18 +70,18 @@ int main(int argc, char **argv) {
   }
 
   Comparator<Slice> *c = new SliceComparator();
-
   SliceArrayBuilder *resultBuilder =
       new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes);
   Iterator<Slice> *result;
   if (FLAGS_merge_type == "standard") {
     result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
-  } else {
+  } else if (FLAGS_merge_type == "learned") {
     result =
         LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
+  } else {
+    abort();
   }
   while (result->valid()) {
-    cout << result->key().toString() << endl;
     result->next();
   }
   std::cout << "Ok!" << std::endl;

@@ -1,4 +1,5 @@
 #include "slice_array_iterator.h"
+#include "config.h"
 #include "math.h"
 #include "slice_comparator.h"
 
@@ -52,8 +53,9 @@ void SliceArrayBuilder::add(const Slice &t) {
 #endif
 }
 SliceArrayIterator *SliceArrayBuilder::finish() {
-  return new SliceArrayIterator(a, n, key_size);
 #if LEARNED_MERGE
   return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining());
+#else
+  return new SliceArrayIterator(a, n, key_size);
 #endif
 }
