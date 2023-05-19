@@ -31,22 +31,11 @@ Slice SliceArrayIterator::peek(uint64_t pos) const
 {
   return Slice(a + pos * key_size, key_size);
 }
-void SliceArrayIterator::seek(Slice item)
-{
-  Comparator<Slice> *c = new SliceComparator();
-  for (int i = 0; i < n; i++)
-  {
-    if (c->compare(Slice(a + i * key_size, key_size), item) > 0)
-    {
-      cur = i;
-      return;
-    }
-  }
-  cur = n;
+void SliceArrayIterator::seek(Slice item) {
+  abort();
 }
 void SliceArrayIterator::seekToFirst() { cur = 0; }
-Slice SliceArrayIterator::key() const
-{
+Slice SliceArrayIterator::key() {
   return Slice(a + cur * key_size, key_size);
 }
 uint64_t SliceArrayIterator::current_pos() const { return cur; }
