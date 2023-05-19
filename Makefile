@@ -3,7 +3,7 @@ C_OPTIONS=-g
 INCLUDE=include
 
 OBJDIR=obj
-_OBJ=slice_file_iterator.o slice_array.o plr.o
+_OBJ=slice_file_iterator.o slice_array_iterator.o plr.o slice_iterator.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
 $(OBJDIR)/%.o: src/%.cpp

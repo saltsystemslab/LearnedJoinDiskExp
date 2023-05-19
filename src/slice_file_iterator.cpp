@@ -27,8 +27,8 @@ void FixedSizeSliceFileIterator::next() {
 
 Slice FixedSizeSliceFileIterator::key() {
   if (!cur_key_loaded_) {
-    ssize_t bytes_read =
-        pread(file_descriptor_, cur_key_buffer_, key_size_, cur_idx_ * key_size_);
+    ssize_t bytes_read = pread(file_descriptor_, cur_key_buffer_, key_size_,
+                               cur_idx_ * key_size_);
     if (bytes_read == -1) {
       perror("pread");
       abort();

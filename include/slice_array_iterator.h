@@ -1,16 +1,15 @@
 #ifndef SLICE_ARRAY_H
 #define SLICE_ARRAY_H
 
-#include "iterator.h"
-#include "slice.h"
-#include "plr.h"
 #include "config.h"
+#include "plr.h"
+#include "slice.h"
+#include "slice_iterator.h"
 
-class SliceArrayIterator : public Iterator<Slice>
-{
+class SliceArrayIterator : public SliceIterator {
 public:
   SliceArrayIterator(char *a, int n, int key_size);
-  SliceArrayIterator(char *a, int n, int key_size, PLRModel* model);
+  SliceArrayIterator(char *a, int n, int key_size, PLRModel *model);
   ~SliceArrayIterator();
   bool valid() const override;
   void next() override;
@@ -19,28 +18,18 @@ public:
   void seekToFirst() override;
   Slice key() override;
   uint64_t current_pos() const override;
-  #if LEARNED_MERGE
-  double guessPosition(Slice target_key) override;
-  #endif
 
 private:
   char *a;
   int key_size;
   int cur;
   int n;
-  #if LEARNED_MERGE
+#if LEARNED_MERGE
   PLRModel *model;
-  uint64_t plr_segment_index;
-  
-
-  uint64_t getPLRLineSegmentIndex();
-
-  void setPLRLineSegmentIndex(uint64_t value);
-  #endif
+#endif
 };
 
-class SliceArrayBuilder : public IteratorBuilder<Slice>
-{
+class SliceArrayBuilder : public IteratorBuilder<Slice> {
 public:
   SliceArrayBuilder(int n, int key_size);
   void add(const Slice &t) override;
@@ -51,8 +40,8 @@ private:
   int n;
   int cur;
   int key_size;
-  #if LEARNED_MERGE
+#if LEARNED_MERGE
   PLRBuilder *plrBuilder;
-  #endif
+#endif
 };
 #endif
