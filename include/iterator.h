@@ -1,9 +1,9 @@
 #ifndef ITERATOR_H
 #define ITERATOR_H
 
-#include "slice.h"
-#include <cassert>
 #include <stdint.h>
+#include <cassert>
+
 
 template <class T> class Iterator {
 public:
