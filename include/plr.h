@@ -73,6 +73,9 @@ private:
   Segment process__(struct point pt);
   Segment process(const struct point &pt);
   Segment finish();
+#if TRACK_STATS
+  uint64_t training_time;
+#endif
 
 public:
   PLRBuilder(double gamma);

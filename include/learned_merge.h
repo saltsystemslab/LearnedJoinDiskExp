@@ -1,21 +1,21 @@
 #ifndef LEARNED_MERGE_H
 #define LEARNED_MERGE_H
 
-#include "comparator.h"
-#include "iterator.h"
 #include <cmath>
 #include <iostream>
 
+#include "comparator.h"
+#include "iterator.h"
 
-template <class T> class LearnedMerger {
-public:
+template <class T>
+class LearnedMerger {
+ public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
 #if TRACK_STATS
     uint64_t cluster_length;
     uint64_t plr_error;
-    uint64_t training_time;
     uint64_t comparison_count;
     comparator = new CountingComparator<T>(comparator);
 #endif
@@ -43,20 +43,20 @@ public:
       findSecondSmallest(iterators, n, comparator, smallest, &second_smallest);
     }
 #if TRACK_STATS
-      CountingComparator<T> *count_comp = dynamic_cast<CountingComparator<T> *>(comparator);
-    std::cout<<"Comparison Count: "<<count_comp->get_count()<<std::endl;
+    CountingComparator<T> *count_comp =
+        dynamic_cast<CountingComparator<T> *>(comparator);
+    std::cout << "Comparison Count: " << count_comp->get_count() << std::endl;
 #endif
     return result->finish();
   }
 
-private:
+ private:
   static void addClusterToResult(Iterator<T> *smallest,
                                  Iterator<T> *second_smallest,
                                  Comparator<T> *comparator,
                                  IteratorBuilder<T> *merge_result_builder) {
     // approx_pos is always a valid position in iterator.
-    float approx_pos =
-        smallest->guessPosition(second_smallest->key());
+    float approx_pos = smallest->guessPosition(second_smallest->key());
     approx_pos = std::max(approx_pos, (float)smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),

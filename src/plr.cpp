@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <chrono>
 
 using std::string;
 
@@ -59,6 +60,9 @@ PLRBuilder::PLRBuilder(double gamma) {
   this->state = "need2";
   this->gamma = gamma;
   this->idx = 0;
+#if TRACK_STATS
+  this->training_time = 0;
+#endif
 }
 
 void PLRBuilder::reset() {
@@ -168,6 +172,9 @@ Segment PLRBuilder::finish() {
 }
 
 void PLRBuilder::processKey(uint64_t key) {
+#if TRACK_STATS
+  auto train_start = std::chrono::high_resolution_clock::now();
+#endif
   if (this->idx == 0 || (prev_key != key)) {
     Segment seg = this->process(point((double)key, idx));
     if (seg.x != 0 || seg.k != 0 || seg.b != 0) {
@@ -176,6 +183,12 @@ void PLRBuilder::processKey(uint64_t key) {
   }
   prev_key = key;
   this->idx++;
+#if TRACK_STATS
+  auto train_end = std::chrono::high_resolution_clock::now();
+  training_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                      train_end - train_start)
+                      .count();
+#endif
 }
 
 PLRModel *PLRBuilder::finishTraining() {
@@ -183,5 +196,10 @@ PLRModel *PLRBuilder::finishTraining() {
   if (last.x != 0 || last.k != 0 || last.b != 0) {
     this->segments.push_back(last);
   }
-  return new PLRModel(this->segments, this->idx);
+  PLRModel *model = new PLRModel(this->segments, this->idx);
+#if TRACK_STATS
+  std::cout<<"PLR Training time: "<< training_time<<std::endl;
+#endif
+
+  return model;
 }

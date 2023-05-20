@@ -1,7 +1,7 @@
 CXX=g++
 C_OPTIONS=-g
 INCLUDE=include
-LEARNED_MERGE=-DLEARNED_MERGE=0 -DTRACK_STATS=0
+LEARNED_MERGE=-DLEARNED_MERGE=1 -DTRACK_STATS=1
 
 OBJDIR=obj
 _OBJ=slice_file_iterator.o slice_array_iterator.o plr.o slice_iterator.o
