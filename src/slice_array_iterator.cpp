@@ -41,7 +41,7 @@ void SliceArrayBuilder::add(const Slice &t) {
   }
   cur++;
 #if LEARNED_MERGE
-  plrBuilder->processKey(LdbKeyToInteger(t.toString()));
+  plrBuilder->processKey(LdbKeyToInteger(t));
 #endif
 }
 SliceArrayIterator *SliceArrayBuilder::finish() {

@@ -69,9 +69,9 @@ void PLRBuilder::reset() {
 
 int counter = 0;
 
-uint64_t LdbKeyToInteger(const std::string &str) {
-  const char *data = str.data();
-  size_t size = str.size();
+uint64_t LdbKeyToInteger(const Slice& key) {
+  const char *data = key.data_;
+  size_t size = key.size_;
   uint64_t num = 0;
   bool leading_zeros = true;
 

@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "slice.h"
+
 // Code modified from https://github.com/RyanMarcus/plr
 
 struct point {
@@ -50,7 +52,7 @@ bool is_below(struct point pt, struct line l);
 struct point get_upper_bound(struct point pt, double gamma);
 struct point get_lower_bound(struct point pt, double gamma);
 
-uint64_t LdbKeyToInteger(const std::string &str);
+uint64_t LdbKeyToInteger(const Slice &key);
 
 class PLRBuilder {
 private:

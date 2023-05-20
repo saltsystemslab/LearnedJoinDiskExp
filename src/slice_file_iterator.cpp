@@ -10,7 +10,7 @@
 void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
 #if LEARNED_MERGE
-  plrBuilder->processKey(LdbKeyToInteger(key.toString()));
+  plrBuilder->processKey(LdbKeyToInteger(key));
 #endif
   num_keys_++;
   if (key.size_ + buffer_idx_ < buffer_size_) {
