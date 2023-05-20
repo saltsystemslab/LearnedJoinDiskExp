@@ -3,7 +3,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "config.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>

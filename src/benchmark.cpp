@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "config.h"
 #include "learned_merge.h"
 #include "slice_array_iterator.h"
 #include "slice_comparator.h"
@@ -18,8 +17,8 @@ static const int BUFFER_SIZE = 1000;
 static int FLAGS_num_of_lists = 2;
 static int FLAGS_key_size_bytes = 10;
 static bool FLAGS_disk_backed = false;
-static const char *FLAGS_merge_type = "learned";
 static const char *FLAGS_num_of_items_per_list = "10,10";
+static const char *FLAGS_DB_dir= "./DB";
 
 string generate_key(int key_value, int key_size) {
   string key = to_string(key_value);
@@ -32,14 +31,13 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 int main(int argc, char **argv) {
+  char db_dir[100];
   for (int i = 1; i < argc; i++) {
     double m;
     long long n;
     char junk;
     if (sscanf(argv[i], "--num_of_lists=%lld%c", &n, &junk) == 1) {
       FLAGS_num_of_lists = n;
-    } else if (is_flag(argv[i], "--merge_type=")) {
-      FLAGS_merge_type = argv[i] + strlen("--merge_type=");
     } else if (is_flag(argv[i], "--num_of_items_per_list=")) {
       FLAGS_num_of_items_per_list =
           argv[i] + strlen("--num_of_items_per_list=");
@@ -50,6 +48,10 @@ int main(int argc, char **argv) {
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
     }
+  }
+
+  if (FLAGS_disk_backed) {
+  system("mkdir -p DB");
   }
 
   vector<int> num_of_items_per_list;
@@ -66,7 +68,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_of_lists; i++) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
-      std::string fileName = std::to_string(i) + ".txt";
+      std::string fileName = "./DB/" + std::to_string(i) + ".txt";
       builder = new FixedSizeSliceFileIteratorBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes);
     } else {
@@ -85,21 +87,20 @@ int main(int argc, char **argv) {
   IteratorBuilder<Slice> *resultBuilder;
   if (FLAGS_disk_backed) {
     resultBuilder = new FixedSizeSliceFileIteratorBuilder(
-        "result.txt", BUFFER_SIZE, FLAGS_key_size_bytes);
+        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes);
   } else {
     resultBuilder =
         new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes);
   }
 
   Iterator<Slice> *result;
-  if (FLAGS_merge_type == "standard") {
-    result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
-  } else if (FLAGS_merge_type == "learned") {
+#if LEARNED_MERGE
     result =
         LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
-  } else {
-    abort();
-  }
+#else
+    result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
+#endif
+
   while (result->valid()) {
     Slice k = result->key();
     for (int i = 0; i < FLAGS_key_size_bytes; i++) {

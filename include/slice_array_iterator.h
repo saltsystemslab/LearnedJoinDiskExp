@@ -1,7 +1,6 @@
 #ifndef SLICE_ARRAY_H
 #define SLICE_ARRAY_H
 
-#include "config.h"
 #include "plr.h"
 #include "slice.h"
 #include "slice_iterator.h"

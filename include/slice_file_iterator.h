@@ -6,7 +6,6 @@
 #include <cstring>
 #include <iostream>
 
-#include "config.h"
 #include "iterator.h"
 #include "slice.h"
 #include "slice_iterator.h"

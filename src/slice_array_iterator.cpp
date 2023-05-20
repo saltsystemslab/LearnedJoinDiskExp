@@ -1,5 +1,4 @@
 #include "slice_array_iterator.h"
-#include "config.h"
 #include "math.h"
 #include "slice_comparator.h"
 

@@ -3,6 +3,7 @@
 
 #include "comparator.h"
 #include "iterator.h"
+#include <stdio.h>
 
 class StandardMerger {
 public:
@@ -10,6 +11,7 @@ public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
+    printf("StandardMerge!\n");
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
