@@ -3,12 +3,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "config.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
 
 void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
+#if LEARNED_MERGE
+  plrBuilder->processKey(LdbKeyToInteger(key.toString()));
+#endif
   num_keys_++;
   if (key.size_ + buffer_idx_ < buffer_size_) {
     addKeyToBuffer(key);
@@ -64,7 +68,12 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
     perror("popen");
     abort();
   }
+#if LEARNED_MERGE
+  return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
+                                        plrBuilder->finishTraining());
+#else
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_);
+#endif
 }
 
 void FixedSizeSliceFileIteratorBuilder::flushBufferToDisk() {

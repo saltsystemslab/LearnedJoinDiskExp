@@ -10,7 +10,7 @@ $(OBJDIR)/%.o: src/%.cpp
 		mkdir -p $(OBJDIR)
 		$(CXX) -c -o $@ $< $(C_OPTIONS) -I$(INCLUDE)
 
-build_benchmark: include/* src/*.cpp $(OBJ)
+benchmark: include/* src/*.cpp $(OBJ)
 		mkdir -p test_bin/
 		$(CXX) $(OPTIONS) $(OBJ) src/benchmark.cpp -o test_bin/benchmark -Iinclude
 
@@ -21,7 +21,7 @@ build_test: include/* tests/*.cpp $(OBJ)
 		$(CXX) $(OPTIONS) $(OBJ) tests/test_learned_merger.cpp -o test_bin/test_learned_merger -Iinclude
 		$(CXX) $(OPTIONS) $(OBJ) tests/test_slice_file_iterator.cpp -o test_bin/test_slice_file_iterator -I$(INCLUDE)
 
-test: build_test build_benchmark
+test: build_test benchmark
 		./test_bin/test_interfaces
 		./test_bin/test_learned_merger
 		./test_bin/test_slice_comparator

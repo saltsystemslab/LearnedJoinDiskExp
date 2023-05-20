@@ -6,16 +6,26 @@
 #include <cstring>
 #include <iostream>
 
+#include "config.h"
 #include "iterator.h"
 #include "slice.h"
+#include "slice_iterator.h"
 
-class FixedSizeSliceFileIterator : public Iterator<Slice> {
+class FixedSizeSliceFileIterator : public SliceIterator {
 public:
   FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
                              int key_size)
       : file_descriptor_(file_descriptor), num_keys_(num_keys),
         key_size_(key_size), cur_key_buffer_(new char[key_size]),
         peek_key_buffer_(new char[key_size]), cur_key_loaded_(false) {}
+
+  FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
+                             int key_size, PLRModel *model)
+      : file_descriptor_(file_descriptor), num_keys_(num_keys),
+        key_size_(key_size), cur_key_buffer_(new char[key_size]),
+        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false) {
+    this->model = model;
+  }
 
   ~FixedSizeSliceFileIterator() {
     delete cur_key_buffer_;
@@ -52,6 +62,9 @@ public:
       abort();
     }
     buffer_ = new char[buffer_size_];
+#if LEARNED_MERGE
+    plrBuilder = new PLRBuilder(10);
+#endif
   }
 
   ~FixedSizeSliceFileIteratorBuilder() {
@@ -73,6 +86,9 @@ private:
   size_t buffer_size_;
   off_t file_offset_;
   uint64_t num_keys_;
+#if LEARNED_MERGE
+  PLRBuilder *plrBuilder;
+#endif
 };
 
 #endif

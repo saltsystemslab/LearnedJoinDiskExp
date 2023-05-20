@@ -9,14 +9,17 @@
 #include "learned_merge.h"
 #include "slice_array_iterator.h"
 #include "slice_comparator.h"
+#include "slice_file_iterator.h"
 #include "standard_merge.h"
 
 using namespace std;
 
+static const int BUFFER_SIZE = 1000;
 static int FLAGS_num_of_lists = 2;
 static int FLAGS_key_size_bytes = 10;
+static bool FLAGS_disk_backed = false;
 static const char *FLAGS_merge_type = "learned";
-static const char *FLAGS_num_of_items_per_list = "10, 10";
+static const char *FLAGS_num_of_items_per_list = "10,10";
 
 string generate_key(int key_value, int key_size) {
   string key = to_string(key_value);
@@ -42,6 +45,8 @@ int main(int argc, char **argv) {
           argv[i] + strlen("--num_of_items_per_list=");
     } else if (sscanf(argv[i], "--key_size_bytes=%lld%c", &n, &junk) == 1) {
       FLAGS_key_size_bytes = n;
+    } else if (sscanf(argv[i], "--use_disk=%lld%c", &n, &junk) == 1) {
+      FLAGS_disk_backed = n;
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
     }
@@ -59,8 +64,15 @@ int main(int argc, char **argv) {
   Iterator<Slice> **iterators = new Iterator<Slice> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
-    SliceArrayBuilder *builder =
-        new SliceArrayBuilder(num_of_items_per_list[i], FLAGS_key_size_bytes);
+    IteratorBuilder<Slice> *builder;
+    if (FLAGS_disk_backed) {
+      std::string fileName = std::to_string(i) + ".txt";
+      builder = new FixedSizeSliceFileIteratorBuilder(
+          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes);
+    } else {
+      builder =
+          new SliceArrayBuilder(num_of_items_per_list[i], FLAGS_key_size_bytes);
+    }
     for (int j = 0; j < num_of_items_per_list[i]; j++) {
       std::string key = generate_key(2 * j, FLAGS_key_size_bytes);
       builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
@@ -70,8 +82,15 @@ int main(int argc, char **argv) {
   }
 
   Comparator<Slice> *c = new SliceComparator();
-  SliceArrayBuilder *resultBuilder =
-      new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes);
+  IteratorBuilder<Slice> *resultBuilder;
+  if (FLAGS_disk_backed) {
+    resultBuilder = new FixedSizeSliceFileIteratorBuilder(
+        "result.txt", BUFFER_SIZE, FLAGS_key_size_bytes);
+  } else {
+    resultBuilder =
+        new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes);
+  }
+
   Iterator<Slice> *result;
   if (FLAGS_merge_type == "standard") {
     result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
@@ -82,6 +101,11 @@ int main(int argc, char **argv) {
     abort();
   }
   while (result->valid()) {
+    Slice k = result->key();
+    for (int i = 0; i < FLAGS_key_size_bytes; i++) {
+      printf("%c", k.data_[i]);
+    }
+    printf("\n");
     result->next();
   }
   std::cout << "Ok!" << std::endl;

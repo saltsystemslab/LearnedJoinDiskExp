@@ -1,3 +1,5 @@
+#ifndef SLICE_ITERATOR_H
+#define SLICE_ITERATOR_H
 
 #include "iterator.h"
 #include "plr.h"
@@ -16,3 +18,4 @@ private:
   uint64_t getPLRLineSegmentIndex();
   void setPLRLineSegmentIndex(uint64_t value);
 };
+#endif
