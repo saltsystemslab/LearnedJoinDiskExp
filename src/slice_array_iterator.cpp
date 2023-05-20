@@ -2,14 +2,7 @@
 #include "math.h"
 #include "slice_comparator.h"
 
-SliceArrayIterator::SliceArrayIterator(char *a, int n, int key_size) {
-  this->a = a;
-  this->cur = 0;
-  this->n = n;
-  this->key_size = key_size;
-}
 
-#if LEARNED_MERGE
 SliceArrayIterator::SliceArrayIterator(char *a, int n, int key_size,
                                        PLRModel *model) {
   this->a = a;
@@ -18,7 +11,7 @@ SliceArrayIterator::SliceArrayIterator(char *a, int n, int key_size,
   this->key_size = key_size;
   this->model = model;
 }
-#endif
+
 SliceArrayIterator::~SliceArrayIterator() { delete a; }
 bool SliceArrayIterator::valid() const { return cur < n; }
 void SliceArrayIterator::next() {
@@ -55,6 +48,6 @@ SliceArrayIterator *SliceArrayBuilder::finish() {
 #if LEARNED_MERGE
   return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining());
 #else
-  return new SliceArrayIterator(a, n, key_size);
+  return new SliceArrayIterator(a, n, key_size, nullptr);
 #endif
 }

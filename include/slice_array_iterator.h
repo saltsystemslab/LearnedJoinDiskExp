@@ -7,10 +7,7 @@
 
 class SliceArrayIterator : public SliceIterator {
 public:
-  SliceArrayIterator(char *a, int n, int key_size);
-#if LEARNED_MERGE
   SliceArrayIterator(char *a, int n, int key_size, PLRModel *model);
-#endif
   ~SliceArrayIterator();
   bool valid() const override;
   void next() override;
