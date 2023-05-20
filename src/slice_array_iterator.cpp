@@ -6,13 +6,13 @@ SliceArrayIterator::SliceArrayIterator(char *a, int n, int key_size,
                                        PLRModel *model) {
   this->a = a;
   this->cur = 0;
-  this->n = n;
+  this->num_keys_ = n;
   this->key_size = key_size;
   this->model = model;
 }
 
 SliceArrayIterator::~SliceArrayIterator() { delete a; }
-bool SliceArrayIterator::valid() const { return cur < n; }
+bool SliceArrayIterator::valid() const { return cur < num_keys_; }
 void SliceArrayIterator::next() {
   assert(valid());
   cur++;

@@ -12,6 +12,7 @@ public:
 
 protected:
   PLRModel *model;
+  uint64_t num_keys_;
 
 private:
   uint64_t plr_segment_index;

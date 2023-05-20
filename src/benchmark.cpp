@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -15,12 +16,27 @@ using namespace std;
 
 static const int BUFFER_SIZE = 1000;
 static int FLAGS_num_of_lists = 2;
-static int FLAGS_key_size_bytes = 10;
+static uint64_t FLAGS_universe_size = 2000000000000000;
+static int FLAGS_key_size_bytes = 16;
 static bool FLAGS_disk_backed = false;
-static const char *FLAGS_num_of_items_per_list = "10,10";
+static bool FLAGS_print_result = false;
+static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
 
-string generate_key(int key_value, int key_size) {
+vector<uint64_t> generate_keys(uint64_t num_keys, uint64_t universe) {
+  std::random_device rd;   // a seed source for the random number engine
+  std::mt19937 gen(rd());  // mersenne_twister_engine seeded with rd()
+  std::uniform_int_distribution<uint64_t> distrib(1, universe);
+  vector<uint64_t> keys;
+  for (int i = 0; i < num_keys; i++) {
+    uint64_t key = distrib(gen);
+    keys.push_back(key);
+  }
+  sort(keys.begin(), keys.end());
+  return keys;
+}
+
+string to_fixed_size_key(uint64_t key_value, int key_size) {
   string key = to_string(key_value);
   string result = string(key_size - key.length(), '0') + key;
   return std::move(result);
@@ -38,13 +54,14 @@ int main(int argc, char **argv) {
     char junk;
     if (sscanf(argv[i], "--num_of_lists=%lld%c", &n, &junk) == 1) {
       FLAGS_num_of_lists = n;
-    } else if (is_flag(argv[i], "--num_of_items_per_list=")) {
-      FLAGS_num_of_items_per_list =
-          argv[i] + strlen("--num_of_items_per_list=");
+    } else if (is_flag(argv[i], "--num_keys=")) {
+      FLAGS_num_keys = argv[i] + strlen("--num_keys=");
     } else if (sscanf(argv[i], "--key_size_bytes=%lld%c", &n, &junk) == 1) {
       FLAGS_key_size_bytes = n;
     } else if (sscanf(argv[i], "--use_disk=%lld%c", &n, &junk) == 1) {
       FLAGS_disk_backed = n;
+    } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
+      FLAGS_print_result = n;
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
     }
@@ -54,15 +71,15 @@ int main(int argc, char **argv) {
     system("mkdir -p DB");
   }
 
-  vector<int> num_of_items_per_list;
-  stringstream ss(FLAGS_num_of_items_per_list);
+  vector<int> num_keys;
+  stringstream ss(FLAGS_num_keys);
 
   while (ss.good()) {
     string substr;
     getline(ss, substr, ',');
-    num_of_items_per_list.push_back(stoi(substr));
+    num_keys.push_back(stoi(substr));
   }
-  int num_of_lists = num_of_items_per_list.size();
+  int num_of_lists = num_keys.size();
   Iterator<Slice> **iterators = new Iterator<Slice> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
@@ -72,15 +89,15 @@ int main(int argc, char **argv) {
       builder = new FixedSizeSliceFileIteratorBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes);
     } else {
-      builder =
-          new SliceArrayBuilder(num_of_items_per_list[i], FLAGS_key_size_bytes);
+      builder = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes);
     }
-    for (int j = 0; j < num_of_items_per_list[i]; j++) {
-      std::string key = generate_key(2 * j, FLAGS_key_size_bytes);
+    auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
+    for (int j = 0; j < num_keys[i]; j++) {
+      std::string key = to_fixed_size_key(keys[j], FLAGS_key_size_bytes);
       builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
     }
     iterators[i] = builder->finish();
-    total_num_of_keys += num_of_items_per_list[i];
+    total_num_of_keys += num_keys[i];
   }
 
   Comparator<Slice> *c = new SliceComparator();
@@ -101,13 +118,15 @@ int main(int argc, char **argv) {
   result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
 #endif
 
-  while (result->valid()) {
-    Slice k = result->key();
-    for (int i = 0; i < FLAGS_key_size_bytes; i++) {
-      printf("%c", k.data_[i]);
+  if (FLAGS_print_result) {
+    while (result->valid()) {
+      Slice k = result->key();
+      for (int i = 0; i < FLAGS_key_size_bytes; i++) {
+        printf("%c", k.data_[i]);
+      }
+      printf("\n");
+      result->next();
     }
-    printf("\n");
-    result->next();
   }
   std::cout << "Ok!" << std::endl;
 }

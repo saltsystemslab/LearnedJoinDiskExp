@@ -21,7 +21,6 @@ private:
   char *a;
   int key_size;
   int cur;
-  int n;
 };
 
 class SliceArrayBuilder : public IteratorBuilder<Slice> {

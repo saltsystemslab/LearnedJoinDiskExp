@@ -18,9 +18,11 @@ double SliceIterator::guessPosition(Slice target_key) {
       if (result < 0) {
         result = 0;
       }
-      return floor(result);
+      if (result >= num_keys_) {
+        result = num_keys_-1;
+      }
+      return result;
     }
   }
-  return target_int * segments[(uint64_t)segments.size() - 1].k +
-         segments[(uint64_t)segments.size() - 1].b;
+  return num_keys_ - 1;
 }
