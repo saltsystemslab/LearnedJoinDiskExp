@@ -18,7 +18,7 @@ static int FLAGS_num_of_lists = 2;
 static int FLAGS_key_size_bytes = 10;
 static bool FLAGS_disk_backed = false;
 static const char *FLAGS_num_of_items_per_list = "10,10";
-static const char *FLAGS_DB_dir= "./DB";
+static const char *FLAGS_DB_dir = "./DB";
 
 string generate_key(int key_value, int key_size) {
   string key = to_string(key_value);
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   }
 
   if (FLAGS_disk_backed) {
-  system("mkdir -p DB");
+    system("mkdir -p DB");
   }
 
   vector<int> num_of_items_per_list;
@@ -95,10 +95,10 @@ int main(int argc, char **argv) {
 
   Iterator<Slice> *result;
 #if LEARNED_MERGE
-    result =
-        LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
+  result =
+      LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
 #else
-    result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
+  result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
 #endif
 
   while (result->valid()) {
