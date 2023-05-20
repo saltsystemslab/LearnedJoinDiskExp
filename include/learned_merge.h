@@ -3,9 +3,18 @@
 
 #include <cmath>
 #include <iostream>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "comparator.h"
 #include "iterator.h"
+
+#if TRACK_STATS
+   static int cluster_count_fd;
+   static int cluster_file_offset;
+   static int plr_error_fd;
+   static int plr_error_offset;
+#endif
 
 template <class T>
 class LearnedMerger {
@@ -14,10 +23,11 @@ class LearnedMerger {
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
 #if TRACK_STATS
-    uint64_t cluster_length;
-    uint64_t plr_error;
-    uint64_t comparison_count;
     comparator = new CountingComparator<T>(comparator);
+    cluster_count_fd = open("./DB/cluster.txt", O_WRONLY | O_CREAT | O_TRUNC, 777);
+    plr_error_fd = open("./DB/plr_error.txt", O_WRONLY | O_CREAT | O_TRUNC, 777);
+    cluster_file_offset = 0;
+    plr_error_offset = 0;
 #endif
     printf("LearnedMerge!\n");
     for (int i = 0; i < n; i++) {
@@ -46,6 +56,8 @@ class LearnedMerger {
     CountingComparator<T> *count_comp =
         dynamic_cast<CountingComparator<T> *>(comparator);
     std::cout << "Comparison Count: " << count_comp->get_count() << std::endl;
+    close(cluster_count_fd);
+    close(plr_error_fd);
 #endif
     return result->finish();
   }
@@ -55,6 +67,11 @@ class LearnedMerger {
                                  Iterator<T> *second_smallest,
                                  Comparator<T> *comparator,
                                  IteratorBuilder<T> *merge_result_builder) {
+#if TRACK_STATS
+    std::string hello = "hello\n";
+    cluster_file_offset += pwrite(cluster_count_fd, hello.c_str(), hello.size(), cluster_file_offset);
+    plr_error_offset += pwrite(plr_error_fd, hello.c_str(), hello.size(), plr_error_offset);
+#endif
     // approx_pos is always a valid position in iterator.
     float approx_pos = smallest->guessPosition(second_smallest->key());
     approx_pos = std::max(approx_pos, (float)smallest->current_pos());
