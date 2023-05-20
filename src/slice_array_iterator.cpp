@@ -2,7 +2,6 @@
 #include "math.h"
 #include "slice_comparator.h"
 
-
 SliceArrayIterator::SliceArrayIterator(char *a, int n, int key_size,
                                        PLRModel *model) {
   this->a = a;

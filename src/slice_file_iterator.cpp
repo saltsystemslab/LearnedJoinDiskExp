@@ -71,7 +71,8 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
                                         plrBuilder->finishTraining());
 #else
-  return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_, nullptr);
+  return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
+                                        nullptr);
 #endif
 }
 

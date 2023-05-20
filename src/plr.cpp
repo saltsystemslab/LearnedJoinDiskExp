@@ -69,7 +69,7 @@ void PLRBuilder::reset() {
 
 int counter = 0;
 
-uint64_t LdbKeyToInteger(const Slice& key) {
+uint64_t LdbKeyToInteger(const Slice &key) {
   const char *data = key.data_;
   size_t size = key.size_;
   uint64_t num = 0;
