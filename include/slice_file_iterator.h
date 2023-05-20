@@ -37,7 +37,6 @@ class FixedSizeSliceFileIterator : public SliceIterator {
 
  private:
   int file_descriptor_;
-  uint64_t num_keys_;
   uint64_t cur_idx_;
   int key_size_;
   char *cur_key_buffer_;
@@ -52,6 +51,7 @@ class FixedSizeSliceFileIteratorBuilder : public IteratorBuilder<Slice> {
       : file_name_(new char[strlen(file_name)]),
         buffer_size_(buffer_size),
         key_size_(key_size),
+        num_keys_(0),
         buffer_idx_(0),
         file_offset_(0) {
     memcpy(file_name_, file_name, strlen(file_name));

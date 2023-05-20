@@ -11,6 +11,7 @@ public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
+    printf("LearnedMerge!\n");
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
@@ -42,8 +43,9 @@ private:
                                  Comparator<T> *comparator,
                                  IteratorBuilder<T> *merge_result_builder) {
     // approx_pos is always a valid position in iterator.
-    uint64_t approx_pos =
-        floor(smallest->guessPosition(second_smallest->key()));
+    float approx_pos =
+        smallest->guessPosition(second_smallest->key());
+    approx_pos = std::max(approx_pos, (float)smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),
                             second_smallest->key()) > 0) {

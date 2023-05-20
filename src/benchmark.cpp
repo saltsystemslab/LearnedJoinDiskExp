@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + std::to_string(i) + ".txt";
+      std::cout<<fileName<<std::endl;
       builder = new FixedSizeSliceFileIteratorBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes);
     } else {
@@ -111,12 +112,17 @@ int main(int argc, char **argv) {
   }
 
   Iterator<Slice> *result;
+  auto merge_start = std::chrono::high_resolution_clock::now();
 #if LEARNED_MERGE
   result =
       LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
 #else
   result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
 #endif
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                      merge_end - merge_start)
+                      .count();
 
   if (FLAGS_print_result) {
     while (result->valid()) {
@@ -128,5 +134,6 @@ int main(int argc, char **argv) {
       result->next();
     }
   }
+  std::cout<<"Merge duration: "<<duration<<" ns"<<std::endl;
   std::cout << "Ok!" << std::endl;
 }
