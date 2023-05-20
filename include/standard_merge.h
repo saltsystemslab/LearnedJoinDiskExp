@@ -11,6 +11,9 @@ public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
+#if TRACK_STATS
+    comparator = new CountingComparator<T>(comparator);
+#endif
     printf("StandardMerge!\n");
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
@@ -20,6 +23,10 @@ public:
       result->add(smallest->key());
       smallest->next();
     }
+#if TRACK_STATS
+    CountingComparator<T> *count_comp = dynamic_cast<CountingComparator<T> *>(comparator);
+    std::cout<<"CompCount: "<<count_comp->get_count()<<std::endl;
+#endif
     return result->finish();
   }
 

@@ -6,11 +6,19 @@
 #include <cmath>
 #include <iostream>
 
+
 template <class T> class LearnedMerger {
 public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
+#if TRACK_STATS
+    uint64_t cluster_length;
+    uint64_t plr_error;
+    uint64_t training_time;
+    uint64_t comparison_count;
+    comparator = new CountingComparator<T>(comparator);
+#endif
     printf("LearnedMerge!\n");
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
@@ -34,6 +42,10 @@ public:
       second_smallest = nullptr;
       findSecondSmallest(iterators, n, comparator, smallest, &second_smallest);
     }
+#if TRACK_STATS
+      CountingComparator<T> *count_comp = dynamic_cast<CountingComparator<T> *>(comparator);
+    std::cout<<"Comparison Count: "<<count_comp->get_count()<<std::endl;
+#endif
     return result->finish();
   }
 

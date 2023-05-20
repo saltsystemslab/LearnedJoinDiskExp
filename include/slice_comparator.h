@@ -7,7 +7,7 @@
 
 class SliceComparator : public Comparator<Slice> {
 public:
-  int compare(const Slice &a, const Slice &b) const override {
+  int compare(const Slice &a, const Slice &b) override {
     const size_t min_len = (a.size_ < b.size_) ? a.size_ : b.size_;
     int r = memcmp(a.data_, b.data_, min_len);
     if (r == 0) {
