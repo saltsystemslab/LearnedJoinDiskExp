@@ -1,19 +1,20 @@
 #ifndef LEARNED_MERGE_H
 #define LEARNED_MERGE_H
 
-#include <cmath>
-#include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include <cmath>
+#include <iostream>
 
 #include "comparator.h"
 #include "iterator.h"
 
 #if TRACK_STATS
-   static int cluster_count_fd;
-   static int cluster_file_offset;
-   static int plr_error_fd;
-   static int plr_error_offset;
+static int cluster_count_fd;
+static int cluster_file_offset;
+static int plr_error_fd;
+static int plr_error_offset;
 #endif
 
 template <class T>
@@ -24,8 +25,10 @@ class LearnedMerger {
                             IteratorBuilder<T> *result) {
 #if TRACK_STATS
     comparator = new CountingComparator<T>(comparator);
-    cluster_count_fd = open("./DB/cluster.txt", O_WRONLY | O_CREAT | O_TRUNC, 777);
-    plr_error_fd = open("./DB/plr_error.txt", O_WRONLY | O_CREAT | O_TRUNC, 777);
+    cluster_count_fd = open("./DB/cluster.txt", O_WRONLY | O_CREAT | O_TRUNC,
+                            S_IRUSR | S_IWUSR);
+    plr_error_fd = open("./DB/plr_error.txt", O_WRONLY | O_CREAT | O_TRUNC,
+                        S_IRUSR | S_IWUSR);
     cluster_file_offset = 0;
     plr_error_offset = 0;
 #endif
@@ -68,9 +71,7 @@ class LearnedMerger {
                                  Comparator<T> *comparator,
                                  IteratorBuilder<T> *merge_result_builder) {
 #if TRACK_STATS
-    std::string hello = "hello\n";
-    cluster_file_offset += pwrite(cluster_count_fd, hello.c_str(), hello.size(), cluster_file_offset);
-    plr_error_offset += pwrite(plr_error_fd, hello.c_str(), hello.size(), plr_error_offset);
+    int cluster_length = 0;
 #endif
     // approx_pos is always a valid position in iterator.
     float approx_pos = smallest->guessPosition(second_smallest->key());
@@ -92,9 +93,18 @@ class LearnedMerger {
     while (smallest->current_pos() <= approx_pos) {
       merge_result_builder->add(smallest->key());
       smallest->next();
+#if TRACK_STATS
+      cluster_length++;
+#endif
     }
     // If we overshot, we copied all the items we wanted for this cluster....
     if (is_overshoot) {
+#if TRACK_STATS
+      std::string entry = std::to_string(smallest->index()) + "," +
+                          std::to_string(cluster_length) + ",\n";
+      cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(),
+                                    entry.size(), cluster_file_offset);
+#endif
       return;
     }
     // ....else, there might still be items to be taken from this list.
@@ -102,7 +112,16 @@ class LearnedMerger {
            comparator->compare(smallest->key(), second_smallest->key()) <= 0) {
       merge_result_builder->add(smallest->key());
       smallest->next();
+#if TRACK_STATS
+      cluster_length++;
+#endif
     }
+#if TRACK_STATS
+    std::string entry = std::to_string(smallest->index()) + "," +
+                        std::to_string(cluster_length) + "\n";
+    cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
+                                  cluster_file_offset);
+#endif
   }
 
   static void findTwoSmallest(Iterator<T> **iterators, int n,

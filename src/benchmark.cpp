@@ -88,9 +88,9 @@ int main(int argc, char **argv) {
       std::string fileName = "./DB/" + std::to_string(i) + ".txt";
       std::cout<<fileName<<std::endl;
       builder = new FixedSizeSliceFileIteratorBuilder(
-          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes);
+          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
     } else {
-      builder = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes);
+      builder = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
@@ -105,10 +105,10 @@ int main(int argc, char **argv) {
   IteratorBuilder<Slice> *resultBuilder;
   if (FLAGS_disk_backed) {
     resultBuilder = new FixedSizeSliceFileIteratorBuilder(
-        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes);
+        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
   } else {
     resultBuilder =
-        new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes);
+        new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes, 0);
   }
 
   Iterator<Slice> *result;

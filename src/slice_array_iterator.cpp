@@ -2,14 +2,6 @@
 #include "math.h"
 #include "slice_comparator.h"
 
-SliceArrayIterator::SliceArrayIterator(char *a, int n, int key_size,
-                                       PLRModel *model) {
-  this->a = a;
-  this->cur = 0;
-  this->num_keys_ = n;
-  this->key_size = key_size;
-  this->model = model;
-}
 
 SliceArrayIterator::~SliceArrayIterator() { delete a; }
 bool SliceArrayIterator::valid() const { return cur < num_keys_; }
@@ -25,11 +17,12 @@ void SliceArrayIterator::seekToFirst() { cur = 0; }
 Slice SliceArrayIterator::key() { return Slice(a + cur * key_size, key_size); }
 uint64_t SliceArrayIterator::current_pos() const { return cur; }
 
-SliceArrayBuilder::SliceArrayBuilder(int n, int key_size) {
+SliceArrayBuilder::SliceArrayBuilder(int n, int key_size, int index) {
   this->a = new char[n * key_size];
   this->cur = 0;
   this->n = n;
   this->key_size = key_size;
+  this->index_ = index;
 #if LEARNED_MERGE
   plrBuilder = new PLRBuilder(10);
 #endif
@@ -45,8 +38,8 @@ void SliceArrayBuilder::add(const Slice &t) {
 }
 SliceArrayIterator *SliceArrayBuilder::finish() {
 #if LEARNED_MERGE
-  return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining());
+  return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining(), index_);
 #else
-  return new SliceArrayIterator(a, n, key_size, nullptr);
+  return new SliceArrayIterator(a, n, key_size, nullptr, index_);
 #endif
 }

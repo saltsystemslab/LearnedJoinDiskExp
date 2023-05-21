@@ -69,10 +69,10 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
   }
 #if LEARNED_MERGE
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        plrBuilder->finishTraining());
+                                        plrBuilder->finishTraining(), index_);
 #else
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        nullptr);
+                                        nullptr, index_);
 #endif
 }
 
