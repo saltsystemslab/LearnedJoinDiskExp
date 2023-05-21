@@ -84,10 +84,24 @@ class LearnedMerger {
     }
     // Correct the overshoot
     if (is_overshoot) {
+#if TRACK_STATS
+      int overshoot_error = 0;
+#endif
+
       while (comparator->compare(smallest->peek(approx_pos),
                                  second_smallest->key()) > 0) {
         approx_pos--;
+#if TRACK_STATS
+        overshoot_error++;
+#endif
       }
+#if TRACK_STATS
+      overshoot_error++;
+      std::string entry =
+          "overshoot," + std::to_string(overshoot_error) + ",\n";
+      plr_error_offset +=
+          pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
+#endif
     }
     // Blind copy until approx_pos
     while (smallest->current_pos() <= approx_pos) {
@@ -108,19 +122,23 @@ class LearnedMerger {
       return;
     }
     // ....else, there might still be items to be taken from this list.
+#if TRACK_STATS
+      int undershoot_error  = 0;
+#endif
     while (smallest->valid() &&
            comparator->compare(smallest->key(), second_smallest->key()) <= 0) {
       merge_result_builder->add(smallest->key());
       smallest->next();
 #if TRACK_STATS
       cluster_length++;
+      undershoot_error++;
 #endif
     }
 #if TRACK_STATS
-    std::string entry = std::to_string(smallest->index()) + "," +
-                        std::to_string(cluster_length) + "\n";
-    cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
-                                  cluster_file_offset);
+      std::string entry =
+          "undershoot," + std::to_string(undershoot_error) + "\n";
+      plr_error_offset +=
+          pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
 #endif
   }
 
