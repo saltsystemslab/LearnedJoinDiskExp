@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "learned_merge.h"
+#include "learned_merge_trust_bounds.h"
 #include "slice_array_iterator.h"
 #include "slice_comparator.h"
 #include "slice_file_iterator.h"
@@ -86,7 +87,7 @@ int main(int argc, char **argv) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + std::to_string(i) + ".txt";
-      std::cout<<fileName<<std::endl;
+      std::cout << fileName << std::endl;
       builder = new FixedSizeSliceFileIteratorBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
     } else {
@@ -113,9 +114,12 @@ int main(int argc, char **argv) {
 
   Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
-#if LEARNED_MERGE
+#if LEARNED_MERGE && !TRUST_ERROR_BOUNDS
   result =
       LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
+#elif LEARNED_MERGE && TRUST_ERROR_BOUNDS
+  result = LearnedMergerTrustBounds<Slice>::merge(iterators, num_of_lists, c,
+                                                  resultBuilder);
 #else
   result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
 #endif
@@ -134,6 +138,6 @@ int main(int argc, char **argv) {
       result->next();
     }
   }
-  std::cout<<"Merge duration: "<<duration<<" ns"<<std::endl;
+  std::cout << "Merge duration: " << duration << " ns" << std::endl;
   std::cout << "Ok!" << std::endl;
 }

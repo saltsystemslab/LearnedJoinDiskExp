@@ -1,7 +1,7 @@
 CXX=g++
 C_OPTIONS=-g
 INCLUDE=include
-LEARNED_MERGE=-DLEARNED_MERGE=1 -DTRACK_STATS=1
+LEARNED_MERGE=-DLEARNED_MERGE=0 -DTRACK_STATS=0 -DTRACK_PLR_TRAIN_TIME=1 -DTRUST_ERROR_BOUNDS=1 -DASSERT_SORT=1
 
 OBJDIR=obj
 _OBJ=slice_file_iterator.o slice_array_iterator.o plr.o slice_iterator.o
@@ -13,13 +13,13 @@ $(OBJDIR)/%.o: src/%.cpp
 
 benchmark: include/* src/*.cpp $(OBJ)
 		mkdir -p bin/
-		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) src/benchmark.cpp -o bin/benchmark -Iinclude
+		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) src/benchmark.cpp -o bin/benchmark -I$(INCLUDE)
 
 build_test: include/* tests/*.cpp $(OBJ) 
 		mkdir -p bin/
-		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_interfaces.cpp -o bin/test_interfaces -Iinclude
-		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_slice_comparator.cpp -o bin/test_slice_comparator -Iinclude
-		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_learned_merger.cpp -o bin/test_learned_merger -Iinclude
+		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_interfaces.cpp -o bin/test_interfaces -I$(INCLUDE)
+		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_slice_comparator.cpp -o bin/test_slice_comparator -I$(INCLUDE)
+		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_learned_merger.cpp -o bin/test_learned_merger -I$(INCLUDE)
 		$(CXX) $(OPTIONS) $(OBJ) $(LEARNED_MERGE) tests/test_slice_file_iterator.cpp -o bin/test_slice_file_iterator -I$(INCLUDE)
 
 test: build_test benchmark
