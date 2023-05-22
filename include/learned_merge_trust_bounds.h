@@ -38,17 +38,16 @@ class LearnedMergerTrustBounds {
     Iterator<T> *smallest = nullptr;
     Iterator<T> *second_smallest = nullptr;
 
-    while (larger_list->valid() &&
+    while (smaller_list->valid() &&
            comparator->compare(smaller_list->key(), larger_list->key()) <= 0) {
-      result->add(larger_list->key());
-      larger_list->next();
+      result->add(smaller_list->key());
+      smaller_list->next();
     }
 
     while (smaller_list->valid()) {
       float approx_pos = larger_list->guessPosition(smaller_list->key());
-      approx_pos -= 15;
       // Blind copy till approx_pos.
-      while (larger_list->valid() && larger_list->current_pos() <= approx_pos) {
+      while (larger_list->valid() && larger_list->current_pos() < approx_pos) {
         result->add(larger_list->key());
 #if ASSERT_SORT
         assert(comparator->compare(larger_list->key(), smaller_list->key()) <= 0);
@@ -65,6 +64,11 @@ class LearnedMergerTrustBounds {
       }
       result->add(smaller_list->key());
       smaller_list->next();
+    }
+
+    while (larger_list->valid()) {
+      result->add(larger_list->key());
+      larger_list->next();
     }
 
 #if TRACK_STATS

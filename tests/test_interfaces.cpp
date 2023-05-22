@@ -7,16 +7,6 @@
 
 using namespace std;
 
-class IntComparator : public Comparator<int> {
-public:
-  int compare(const int &a, const int &b) const override {
-    if (a == b)
-      return 0;
-    if (a > b)
-      return 1;
-    return -1;
-  }
-};
 
 int main() {
   IntArrayIteratorBuilder *builder1 = new IntArrayIteratorBuilder(10);

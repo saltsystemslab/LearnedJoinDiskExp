@@ -2,13 +2,32 @@
 #define INT_ITERATOR_H
 
 #include "iterator.h"
+#include "pgm/pgm_index.hpp"
+#include <chrono>
+#include <vector>
 
-class IntArrayIterator : public Iterator<int> {
+static const int epsilon = 2; // space-time trade-off parameter
+
+template <class T>
+class IntArrayIterator : public Iterator<T> {
 public:
-  IntArrayIterator(int *a, int n) {
+  IntArrayIterator(std::vector<T> *a, int n) {
     this->a = a;
     this->cur = 0;
     this->n = n;
+#if TRACK_PLR_TRAIN_TIME
+  auto train_start = std::chrono::high_resolution_clock::now();
+#endif
+#if LEARNED_MERGE
+    this->pgm_index = new pgm::PGMIndex<uint64_t, epsilon>(*a);
+#endif
+#if TRACK_PLR_TRAIN_TIME
+  auto train_end = std::chrono::high_resolution_clock::now();
+  auto training_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                      train_end - train_start)
+                      .count();
+  std::cout<<"Model Training time: "<< training_time<<std::endl;
+#endif
   }
   ~IntArrayIterator() { delete a; }
   bool valid() const override { return cur < n; }
@@ -16,10 +35,10 @@ public:
     assert(valid());
     cur++;
   }
-  int peek(uint64_t pos) const override { return a[pos]; }
-  void seek(int item) override {
+  T peek(uint64_t pos) const override { return a->at(pos); }
+  void seek(T item) override {
     for (int i = 0; i < n; i++) {
-      if (a[i] > item) {
+      if (a->at(i) > item) {
         cur = i;
         return;
       }
@@ -27,37 +46,51 @@ public:
     cur = n;
   }
   void seekToFirst() override { cur = 0; }
-  int key() override { return a[cur]; }
+  T key() override { return a->at(cur); }
   uint64_t current_pos() const override { return cur; }
-  double guessPosition(int target_key) {
-    for (int i = 0; i < n; i++) {
-      if (a[i] > target_key) {
-        return cur;
-      }
-    }
-    return cur;
+  double guessPosition(T target_key) {
+#if LEARNED_MERGE
+    return pgm_index->search(target_key).lo;
+#else
+    return 1.0;
+#endif
   }
 
 private:
-  int *a;
+  std::vector<T> *a;
   int cur;
   int n;
+#if LEARNED_MERGE
+  pgm::PGMIndex<uint64_t, epsilon> *pgm_index;
+#endif
 };
 
-class IntArrayIteratorBuilder : public IteratorBuilder<int> {
+template <class T>
+class IntArrayIteratorBuilder : public IteratorBuilder<T> {
 public:
   IntArrayIteratorBuilder(int n) {
-    this->a = new int[n];
+    this->a = new std::vector<T>(n);
     this->cur = 0;
     this->n = n;
   }
-  void add(const int &t) override { a[cur++] = t; }
-  IntArrayIterator *finish() override { return new IntArrayIterator(a, n); }
+  void add(const T &t) override { (*a)[cur++] = t; }
+  IntArrayIterator<T> *finish() override { return new IntArrayIterator<T>(a, n); }
 
 private:
-  int *a;
+  std::vector<T> *a;
   int n;
   int cur;
 };
 
+template <class T>
+class IntComparator : public Comparator<T> {
+public:
+  int compare(const T &a, const T &b) override {
+    if (a == b)
+      return 0;
+    if (a > b)
+      return 1;
+    return -1;
+  }
+};
 #endif
