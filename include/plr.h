@@ -73,7 +73,7 @@ private:
   Segment process__(struct point pt);
   Segment process(const struct point &pt);
   Segment finish();
-#if TRACK_STATS
+#if TRACK_PLR_TRAIN_TIME
   uint64_t training_time;
 #endif
 
