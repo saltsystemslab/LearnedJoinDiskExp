@@ -5,6 +5,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "learned_merge.h"
 #include "learned_merge_trust_bounds.h"
@@ -83,6 +84,7 @@ int main(int argc, char **argv) {
   int num_of_lists = num_keys.size();
   Iterator<Slice> **iterators = new Iterator<Slice> *[num_of_lists];
   int total_num_of_keys = 0;
+  std::vector<std::string> files{"src/117+118.txt", "src/105.txt"};
   for (int i = 0; i < num_of_lists; i++) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
@@ -93,11 +95,26 @@ int main(int argc, char **argv) {
     } else {
       builder = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
-    auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
-    for (int j = 0; j < num_keys[i]; j++) {
-      std::string key = to_fixed_size_key(keys[j], FLAGS_key_size_bytes);
-      builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
+    fstream new_file;
+    new_file.open(files[i], ios::in); 
+    std::cout<<"before file open"<<std::endl;
+    if (new_file.is_open()) { 
+      std::cout<<"after file open"<<std::endl;
+        string s;
+        // Read data from the file object and put it into a string.
+        while (getline(new_file, s)) { 
+            int strpos = s.find(" ");
+            string key = s.substr(0, strpos);
+            key.erase(remove(key.begin(), key.end(), '\'' ), key.end());
+            std::cout<<key<<std::endl;
+            builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
+        }
     }
+    //auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
+    // for (int j = 0; j < num_keys[i]; j++) {
+    //   std::string key = to_fixed_size_key(keys[j], FLAGS_key_size_bytes);
+    //   builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
+    // }
     iterators[i] = builder->finish();
     total_num_of_keys += num_keys[i];
   }
