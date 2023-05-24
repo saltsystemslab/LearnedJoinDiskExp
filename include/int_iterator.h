@@ -6,7 +6,7 @@
 #include <chrono>
 #include <vector>
 
-static const int epsilon = 2; // space-time trade-off parameter
+static const int epsilon = PGM_ERROR_BOUND; // space-time trade-off parameter
 
 template <class T>
 class IntArrayIterator : public Iterator<T> {

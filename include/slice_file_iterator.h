@@ -64,7 +64,7 @@ class FixedSizeSliceFileIteratorBuilder : public IteratorBuilder<Slice> {
     }
     buffer_ = new char[buffer_size_];
 #if LEARNED_MERGE
-    plrBuilder = new PLRBuilder(10);
+    plrBuilder = new PLRBuilder(PLR_ERROR_BOUND);
 #endif
   }
 

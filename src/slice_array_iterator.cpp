@@ -24,7 +24,7 @@ SliceArrayBuilder::SliceArrayBuilder(int n, int key_size, int index) {
   this->key_size = key_size;
   this->index_ = index;
 #if LEARNED_MERGE
-  plrBuilder = new PLRBuilder(10);
+  plrBuilder = new PLRBuilder(PLR_ERROR_BOUND);
 #endif
 }
 void SliceArrayBuilder::add(const Slice &t) {

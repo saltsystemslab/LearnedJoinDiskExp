@@ -14,7 +14,7 @@ double SliceIterator::guessPosition(Slice target_key) {
        i++) {
     if (segments[i].last > target_int) {
       setPLRLineSegmentIndex(i);
-      double result = target_int * segments[i].k + segments[i].b;
+      double result = target_int * segments[i].k + segments[i].b - PLR_ERROR_BOUND;
       if (result < 0) {
         result = 0;
       }
