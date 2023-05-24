@@ -57,6 +57,7 @@ class FixedSizeSliceFileIteratorBuilder : public IteratorBuilder<Slice> {
         index_(index),
         file_offset_(0) {
     memcpy(file_name_, file_name, strlen(file_name));
+    file_name_[strlen(file_name)] = '\0';
     file_descriptor_ = open(file_name_, O_WRONLY | O_CREAT, 0644);
     if (file_descriptor_ == -1) {
       perror("popen");
