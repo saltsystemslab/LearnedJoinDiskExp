@@ -6,7 +6,7 @@
 #include "slice_iterator.h"
 
 class SliceArrayIterator : public SliceIterator {
- public:
+public:
   SliceArrayIterator(char *a, int n, int key_size, PLRModel *model, int index) {
     this->a = a;
     this->cur = 0;
@@ -24,19 +24,19 @@ class SliceArrayIterator : public SliceIterator {
   Slice key() override;
   uint64_t current_pos() const override;
 
- private:
+private:
   char *a;
   int key_size;
   int cur;
 };
 
 class SliceArrayBuilder : public IteratorBuilder<Slice> {
- public:
+public:
   SliceArrayBuilder(int n, int key_size, int index);
   void add(const Slice &t) override;
   SliceArrayIterator *finish() override;
 
- private:
+private:
   char *a;
   int n;
   int cur;

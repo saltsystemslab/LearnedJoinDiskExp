@@ -11,14 +11,12 @@
 #include "slice_iterator.h"
 
 class FixedSizeSliceFileIterator : public SliceIterator {
- public:
+public:
   FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
                              int key_size, PLRModel *model, int index)
-      : file_descriptor_(file_descriptor),
-        key_size_(key_size),
+      : file_descriptor_(file_descriptor), key_size_(key_size),
         cur_key_buffer_(new char[key_size]),
-        peek_key_buffer_(new char[key_size]),
-        cur_key_loaded_(false) {
+        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false) {
     this->model = model;
     this->num_keys_ = num_keys;
     this->index_ = index;
@@ -36,7 +34,7 @@ class FixedSizeSliceFileIterator : public SliceIterator {
   void seek(Slice item) override;
   uint64_t current_pos() const override;
 
- private:
+private:
   int file_descriptor_;
   uint64_t cur_idx_;
   int key_size_;
@@ -46,15 +44,11 @@ class FixedSizeSliceFileIterator : public SliceIterator {
 };
 
 class FixedSizeSliceFileIteratorBuilder : public IteratorBuilder<Slice> {
- public:
+public:
   FixedSizeSliceFileIteratorBuilder(const char *file_name, size_t buffer_size,
                                     int key_size, int index)
-      : file_name_(new char[strlen(file_name)+1]),
-        buffer_size_(buffer_size),
-        key_size_(key_size),
-        num_keys_(0),
-        buffer_idx_(0),
-        index_(index),
+      : file_name_(new char[strlen(file_name) + 1]), buffer_size_(buffer_size),
+        key_size_(key_size), num_keys_(0), buffer_idx_(0), index_(index),
         file_offset_(0) {
     memcpy(file_name_, file_name, strlen(file_name));
     file_name_[strlen(file_name)] = '\0';
@@ -77,7 +71,7 @@ class FixedSizeSliceFileIteratorBuilder : public IteratorBuilder<Slice> {
   void add(const Slice &key) override;
   Iterator<Slice> *finish() override;
 
- private:
+private:
   void addKeyToBuffer(const Slice &key);
   void flushBufferToDisk();
   char *file_name_;

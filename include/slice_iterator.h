@@ -6,17 +6,17 @@
 #include "slice.h"
 
 class SliceIterator : public Iterator<Slice> {
- public:
+public:
   SliceIterator();
   double guessPosition(Slice target_key) override;
   int index() override { return index_; }
 
- protected:
+protected:
   PLRModel *model;
   uint64_t num_keys_;
   int index_;
 
- private:
+private:
   uint64_t plr_segment_index;
   uint64_t getPLRLineSegmentIndex();
   void setPLRLineSegmentIndex(uint64_t value);

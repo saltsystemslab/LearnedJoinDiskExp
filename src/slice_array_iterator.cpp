@@ -1,7 +1,7 @@
 #include "slice_array_iterator.h"
+#include "config.h"
 #include "math.h"
 #include "slice_comparator.h"
-
 
 SliceArrayIterator::~SliceArrayIterator() { delete a; }
 bool SliceArrayIterator::valid() const { return cur < num_keys_; }
@@ -31,14 +31,20 @@ void SliceArrayBuilder::add(const Slice &t) {
   for (int i = 0; i < key_size; i++) {
     a[cur * key_size + i] = t.data_[i];
   }
+  KEY_TYPE *val = (KEY_TYPE *)(a + cur * key_size);
   cur++;
 #if LEARNED_MERGE
+#if USE_STRING_KEYS
   plrBuilder->processKey(LdbKeyToInteger(t));
+#else
+  plrBuilder->processKey(*(KEY_TYPE *)(t.data_));
+#endif
 #endif
 }
 SliceArrayIterator *SliceArrayBuilder::finish() {
 #if LEARNED_MERGE
-  return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining(), index_);
+  return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining(),
+                                index_);
 #else
   return new SliceArrayIterator(a, n, key_size, nullptr, index_);
 #endif

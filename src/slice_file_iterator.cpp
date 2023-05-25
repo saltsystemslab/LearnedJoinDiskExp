@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "config.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -10,7 +11,11 @@
 void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
 #if LEARNED_MERGE
+#if USE_STRING_KEYS
   plrBuilder->processKey(LdbKeyToInteger(key));
+#else
+  plrBuilder->processKey(*(KEY_TYPE *)(key.data_));
+#endif
 #endif
   num_keys_++;
   if (key.size_ + buffer_idx_ < buffer_size_) {

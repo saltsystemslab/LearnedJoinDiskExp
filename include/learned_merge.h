@@ -17,9 +17,8 @@ static int plr_error_fd;
 static int plr_error_offset;
 #endif
 
-template <class T>
-class LearnedMerger {
- public:
+template <class T> class LearnedMerger {
+public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
@@ -65,7 +64,7 @@ class LearnedMerger {
     return result->finish();
   }
 
- private:
+private:
   static void addClusterToResult(Iterator<T> *smallest,
                                  Iterator<T> *second_smallest,
                                  Comparator<T> *comparator,
@@ -123,27 +122,26 @@ class LearnedMerger {
     }
     // ....else, there might still be items to be taken from this list.
 #if TRACK_STATS
-      int undershoot_error = 1; // 1 for the overshot check.
+    int undershoot_error = 1; // 1 for the overshot check.
 #endif
     while (smallest->valid() &&
            comparator->compare(smallest->key(), second_smallest->key()) <= 0) {
       merge_result_builder->add(smallest->key());
       smallest->next();
 #if TRACK_STATS
-      cluster_length++; 
+      cluster_length++;
       undershoot_error++;
 #endif
     }
 #if TRACK_STATS
-      undershoot_error++; // 1 for the exit.
-      std::string entry =
-          "undershoot," + std::to_string(undershoot_error) + "\n";
-      plr_error_offset +=
-          pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
-      entry = std::to_string(smallest->index()) + "," +
-                          std::to_string(cluster_length) + ",\n";
-      cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(),
-                                    entry.size(), cluster_file_offset);
+    undershoot_error++; // 1 for the exit.
+    std::string entry = "undershoot," + std::to_string(undershoot_error) + "\n";
+    plr_error_offset +=
+        pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
+    entry = std::to_string(smallest->index()) + "," +
+            std::to_string(cluster_length) + ",\n";
+    cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
+                                  cluster_file_offset);
 #endif
   }
 

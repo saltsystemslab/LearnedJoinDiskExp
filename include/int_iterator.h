@@ -1,32 +1,33 @@
 #ifndef INT_ITERATOR_H
 #define INT_ITERATOR_H
 
+#include "config.h"
 #include "iterator.h"
+
 #include "pgm/pgm_index.hpp"
 #include <chrono>
 #include <vector>
 
 static const int epsilon = PGM_ERROR_BOUND; // space-time trade-off parameter
 
-template <class T>
-class IntArrayIterator : public Iterator<T> {
+template <class T> class IntArrayIterator : public Iterator<T> {
 public:
   IntArrayIterator(std::vector<T> *a, int n) {
     this->a = a;
     this->cur = 0;
     this->n = n;
 #if TRACK_PLR_TRAIN_TIME
-  auto train_start = std::chrono::high_resolution_clock::now();
+    auto train_start = std::chrono::high_resolution_clock::now();
 #endif
 #if LEARNED_MERGE
-    this->pgm_index = new pgm::PGMIndex<uint64_t, epsilon>(*a);
+    this->pgm_index = new pgm::PGMIndex<KEY_TYPE, epsilon>(*a);
 #endif
 #if TRACK_PLR_TRAIN_TIME
-  auto train_end = std::chrono::high_resolution_clock::now();
-  auto training_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                      train_end - train_start)
-                      .count();
-  std::cout<<"Model Training time: "<< training_time<<std::endl;
+    auto train_end = std::chrono::high_resolution_clock::now();
+    auto training_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             train_end - train_start)
+                             .count();
+    std::cout << "Model Training time: " << training_time << std::endl;
 #endif
   }
   ~IntArrayIterator() { delete a; }
@@ -65,8 +66,7 @@ private:
 #endif
 };
 
-template <class T>
-class IntArrayIteratorBuilder : public IteratorBuilder<T> {
+template <class T> class IntArrayIteratorBuilder : public IteratorBuilder<T> {
 public:
   IntArrayIteratorBuilder(int n) {
     this->a = new std::vector<T>(n);
@@ -74,7 +74,9 @@ public:
     this->n = n;
   }
   void add(const T &t) override { (*a)[cur++] = t; }
-  IntArrayIterator<T> *finish() override { return new IntArrayIterator<T>(a, n); }
+  IntArrayIterator<T> *finish() override {
+    return new IntArrayIterator<T>(a, n);
+  }
 
 private:
   std::vector<T> *a;
@@ -82,8 +84,7 @@ private:
   int cur;
 };
 
-template <class T>
-class IntComparator : public Comparator<T> {
+template <class T> class IntComparator : public Comparator<T> {
 public:
   int compare(const T &a, const T &b) override {
     if (a == b)

@@ -2,6 +2,7 @@
 #define MERGE_H
 
 #include "comparator.h"
+#include "config.h"
 #include "iterator.h"
 #include <stdio.h>
 
@@ -24,8 +25,9 @@ public:
       smallest->next();
     }
 #if TRACK_STATS
-    CountingComparator<T> *count_comp = dynamic_cast<CountingComparator<T> *>(comparator);
-    std::cout<<"CompCount: "<<count_comp->get_count()<<std::endl;
+    CountingComparator<T> *count_comp =
+        dynamic_cast<CountingComparator<T> *>(comparator);
+    std::cout << "CompCount: " << count_comp->get_count() << std::endl;
 #endif
     return result->finish();
   }

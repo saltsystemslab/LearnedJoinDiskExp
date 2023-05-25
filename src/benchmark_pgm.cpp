@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "int_iterator.h"
 #include "learned_merge.h"
 #include "learned_merge_trust_bounds.h"
-#include "int_iterator.h"
 #include "standard_merge.h"
 
 using namespace std;
@@ -23,8 +23,8 @@ static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
 
 vector<uint64_t> generate_keys(uint64_t num_keys, uint64_t universe) {
-  std::random_device rd;   // a seed source for the random number engine
-  std::mt19937 gen(rd());  // mersenne_twister_engine seeded with rd()
+  std::random_device rd;  // a seed source for the random number engine
+  std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
   std::uniform_int_distribution<uint64_t> distrib(1, universe);
   vector<uint64_t> keys;
   for (int i = 0; i < num_keys; i++) {
@@ -75,7 +75,8 @@ int main(int argc, char **argv) {
   Iterator<uint64_t> **iterators = new Iterator<uint64_t> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
-    IteratorBuilder<uint64_t> *builder = new IntArrayIteratorBuilder<uint64_t>(num_keys[i]);
+    IteratorBuilder<uint64_t> *builder =
+        new IntArrayIteratorBuilder<uint64_t>(num_keys[i]);
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
       builder->add(keys[j]);
@@ -95,7 +96,7 @@ int main(int argc, char **argv) {
       LearnedMerger<uint64_t>::merge(iterators, num_of_lists, c, resultBuilder);
 #elif LEARNED_MERGE && TRUST_ERROR_BOUNDS
   result = LearnedMergerTrustBounds<uint64_t>::merge(iterators, num_of_lists, c,
-                                                  resultBuilder);
+                                                     resultBuilder);
 #else
   result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
 #endif

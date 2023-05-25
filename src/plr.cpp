@@ -1,10 +1,10 @@
 #include "plr.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <chrono>
 
 using std::string;
 
@@ -73,10 +73,10 @@ void PLRBuilder::reset() {
 
 int counter = 0;
 
-uint64_t LdbKeyToInteger(const Slice &key) {
+KEY_TYPE LdbKeyToInteger(const Slice &key) {
   const char *data = key.data_;
   size_t size = key.size_;
-  uint64_t num = 0;
+  KEY_TYPE num = 0;
   bool leading_zeros = true;
 
   for (int i = 0; i < size; ++i) {
@@ -171,7 +171,7 @@ Segment PLRBuilder::finish() {
   }
 }
 
-void PLRBuilder::processKey(uint64_t key) {
+void PLRBuilder::processKey(KEY_TYPE key) {
 #if TRACK_PLR_TRAIN_TIME
   auto train_start = std::chrono::high_resolution_clock::now();
 #endif
@@ -186,8 +186,8 @@ void PLRBuilder::processKey(uint64_t key) {
 #if TRACK_PLR_TRAIN_TIME
   auto train_end = std::chrono::high_resolution_clock::now();
   training_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                      train_end - train_start)
-                      .count();
+                       train_end - train_start)
+                       .count();
 #endif
 }
 
@@ -198,7 +198,7 @@ PLRModel *PLRBuilder::finishTraining() {
   }
   PLRModel *model = new PLRModel(this->segments, this->idx);
 #if TRACK_PLR_TRAIN_TIME
-  std::cout<<"PLR Training time: "<< training_time<<std::endl;
+  std::cout << "PLR Training time: " << training_time << std::endl;
 #endif
 
   return model;

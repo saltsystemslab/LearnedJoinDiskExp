@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "config.h"
 #include "slice.h"
 
 // Code modified from https://github.com/RyanMarcus/plr
@@ -25,10 +26,10 @@ struct line {
 class Segment {
 public:
   Segment() {}
-  Segment(uint64_t _x, uint64_t _last, double _k, double _b)
+  Segment(KEY_TYPE _x, KEY_TYPE _last, double _k, double _b)
       : x(_x), last(_last), k(_k), b(_b) {}
-  uint64_t x;
-  uint64_t last;
+  KEY_TYPE x;
+  KEY_TYPE last;
   double k;
   double b;
 };
@@ -52,7 +53,7 @@ bool is_below(struct point pt, struct line l);
 struct point get_upper_bound(struct point pt, double gamma);
 struct point get_lower_bound(struct point pt, double gamma);
 
-uint64_t LdbKeyToInteger(const Slice &key);
+KEY_TYPE LdbKeyToInteger(const Slice &key);
 
 class PLRBuilder {
 private:
@@ -64,8 +65,8 @@ private:
   struct line rho_lower;
   struct line rho_upper;
   struct point sint;
-  uint64_t prev_key;
-  uint64_t idx;
+  KEY_TYPE prev_key;
+  KEY_TYPE idx;
   std::vector<Segment> segments;
 
   void setup();
@@ -74,12 +75,12 @@ private:
   Segment process(const struct point &pt);
   Segment finish();
 #if TRACK_PLR_TRAIN_TIME
-  uint64_t training_time;
+  KEY_TYPE training_time;
 #endif
 
 public:
   PLRBuilder(double gamma);
-  void processKey(uint64_t key);
+  void processKey(const KEY_TYPE key);
   PLRModel *finishTraining();
   void reset();
 };

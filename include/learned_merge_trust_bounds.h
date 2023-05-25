@@ -4,19 +4,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <cassert>
 #include <cmath>
 #include <iostream>
-#include <cassert>
 
 #include "comparator.h"
 #include "iterator.h"
 
-template <class T>
-class LearnedMergerTrustBounds {
- public:
-  static Iterator<T> *test() {
-    return nullptr;
-  };
+template <class T> class LearnedMergerTrustBounds {
+public:
+  static Iterator<T> *test() { return nullptr; };
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
@@ -50,7 +47,8 @@ class LearnedMergerTrustBounds {
       while (larger_list->valid() && larger_list->current_pos() < approx_pos) {
         result->add(larger_list->key());
 #if ASSERT_SORT
-        assert(comparator->compare(larger_list->key(), smaller_list->key()) <= 0);
+        assert(comparator->compare(larger_list->key(), smaller_list->key()) <=
+               0);
 #endif
         larger_list->next();
       }
