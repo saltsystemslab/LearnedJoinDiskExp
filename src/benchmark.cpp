@@ -16,10 +16,12 @@
 
 using namespace std;
 
-#if USE_INT_128
+#if USE_INT_128 && !USE_STRING_KEYS
 static int FLAGS_key_size_bytes = 16;
-#else
+#elif !USE_STRING_KEYS
 static int FLAGS_key_size_bytes = 8;
+#else
+static int FLAGS_key_size_bytes = 20;
 #endif
 
 static const int BUFFER_SIZE = 1000;
@@ -31,8 +33,8 @@ static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
 
 vector<KEY_TYPE> generate_keys(uint64_t num_keys, KEY_TYPE universe) {
-  std::random_device rd;  // a seed source for the random number engine
-  std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
+  std::random_device rd;   // a seed source for the random number engine
+  std::mt19937 gen(rd());  // mersenne_twister_engine seeded with rd()
   std::uniform_int_distribution<KEY_TYPE> distrib(1, universe);
   vector<KEY_TYPE> keys;
   for (int i = 0; i < num_keys; i++) {
@@ -118,7 +120,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_of_lists; i++) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
-      std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
+      std::string fileName = "./DB/" + to_str(i+1) + ".txt";
       std::cout << fileName << std::endl;
       builder = new FixedSizeSliceFileIteratorBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
