@@ -2,6 +2,7 @@
 #define SLICE_FILE_ITERATOR_H
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <cstring>
 #include <iostream>
@@ -15,6 +16,7 @@ public:
   FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
                              int key_size, PLRModel *model, int index)
       : file_descriptor_(file_descriptor), key_size_(key_size),
+        bulk_key_buffer_(new char[key_size * MAX_KEYS_TO_BULK_COPY]),
         cur_key_buffer_(new char[key_size]),
         peek_key_buffer_(new char[key_size]), cur_key_loaded_(false) {
     this->model = model;
@@ -33,6 +35,8 @@ public:
   void seekToFirst() override;
   void seek(Slice item) override;
   uint64_t current_pos() const override;
+  virtual uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
+                                      uint64_t *len) override;
 
 private:
   int file_descriptor_;
@@ -40,6 +44,7 @@ private:
   int key_size_;
   char *cur_key_buffer_;
   char *peek_key_buffer_;
+  char *bulk_key_buffer_;
   bool cur_key_loaded_;
 };
 
@@ -70,6 +75,7 @@ public:
 
   void add(const Slice &key) override;
   Iterator<Slice> *finish() override;
+  virtual void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override;
 
 private:
   void addKeyToBuffer(const Slice &key);

@@ -17,11 +17,27 @@ public:
   virtual uint64_t current_pos() const = 0;
   virtual double guessPosition(T target_key) { return -1; }
   virtual int index() { return -1; }
+  /*
+   * Returns number of keys copied. Data must be valid until next bulkRead call.
+   */
+  virtual uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
+                                      uint64_t *len) {
+    printf("Not implemented!\n");
+    abort();
+  };
 };
 
 template <class T> class IteratorBuilder {
 public:
   virtual void add(const T &t) = 0;
+  /* Also advances the iterator. Assumes iterator will be valid for so many
+   * keys*/
+  virtual void bulkAdd(Iterator<T> *iter, uint64_t num_keys) {
+    for (int i = 0; i < num_keys; i++) {
+      add(iter->key());
+      iter->next();
+    }
+  }
   virtual Iterator<T> *finish() = 0;
 };
 

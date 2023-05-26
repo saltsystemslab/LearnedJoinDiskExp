@@ -22,11 +22,12 @@ public:
 #else
     KEY_TYPE *k1 = (KEY_TYPE *)a.data_;
     KEY_TYPE *k2 = (KEY_TYPE *)b.data_;
-    if (*k1 == *k2) return 0;
-    if (*k1 < *k2) return -1;
+    if (*k1 == *k2)
+      return 0;
+    if (*k1 < *k2)
+      return -1;
     return 1;
 #endif
-
   }
 };
 

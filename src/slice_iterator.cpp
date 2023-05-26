@@ -1,4 +1,5 @@
 #include "slice_iterator.h"
+
 #include "config.h"
 #include "math.h"
 
@@ -11,7 +12,8 @@ void SliceIterator::setPLRLineSegmentIndex(uint64_t value) {
 double SliceIterator::guessPosition(Slice target_key) {
   std::vector<Segment> &segments = model->lineSegments_;
 #if USE_STRING_KEYS
-  KEY_TYPE *target_int = &LdbKeyToInteger(target_key);
+  KEY_TYPE target_int_value = LdbKeyToInteger(target_key);
+  KEY_TYPE *target_int = &target_int_value;
 #else
   KEY_TYPE *target_int = (KEY_TYPE *)target_key.data_;
 #endif

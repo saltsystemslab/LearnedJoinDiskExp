@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_of_lists; i++) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
-      std::string fileName = "./DB/" + to_str(i) + ".txt";
+      std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
       std::cout << fileName << std::endl;
       builder = new FixedSizeSliceFileIteratorBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
@@ -145,6 +145,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_of_lists; i++) {
       Iterator<Slice> *iter = iterators[i];
       iter->seekToFirst();
+      printf("List %d\n", i);
       while (iter->valid()) {
 #if USE_STRING_KEYS
         for (int i = 0; i < FLAGS_key_size_bytes; i++) {
@@ -190,7 +191,9 @@ int main(int argc, char **argv) {
                       merge_end - merge_start)
                       .count();
 
+  result->seekToFirst();
   if (FLAGS_print_result) {
+    printf("Merged List: %d\n", result->valid());
     while (result->valid()) {
       Slice k = result->key();
 #if USE_STRING_KEYS
