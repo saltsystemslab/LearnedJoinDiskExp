@@ -1,16 +1,18 @@
 CXX=g++
 C_OPTIONS=-g -fopenmp
 INCLUDE=-Iinclude -I./PGM-index/include
-LEARNED_MERGE=-DLEARNED_MERGE=1 -DTRACK_STATS=0 -DTRACK_PLR_TRAIN_TIME=0 -DTRUST_ERROR_BOUNDS=1 -DASSERT_SORT=0 -DPLR_POS_OFFSET=5 -DPLR_ERROR_BOUND=5 -DPGM_ERROR_BOUND=1 -DUSE_STRING_KEYS=0 -DUSE_INT_128=0
+LEARNED_MERGE=-DLEARNED_MERGE=1 -DTRACK_STATS=0 -DTRACK_PLR_TRAIN_TIME=1 -DTRUST_ERROR_BOUNDS=1 -DASSERT_SORT=0 -DPLR_POS_OFFSET=5 -DPLR_ERROR_BOUND=${ERROR_BOUND} -DPGM_ERROR_BOUND=1 -DUSE_STRING_KEYS=0 -DUSE_INT_128=0
 
 OBJDIR=obj
 _OBJ=slice_file_iterator.o slice_array_iterator.o plr.o slice_iterator.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
+print_options:
+	echo $(LEARNED_MERGE)
+
 $(OBJDIR)/%.o: src/%.cpp
 		mkdir -p $(OBJDIR)
 		$(CXX) -c -o $@ $< $(C_OPTIONS) $(INCLUDE) $(LEARNED_MERGE)
-
 benchmark: include/* src/*.cpp $(OBJ)
 		mkdir -p bin/
 		$(CXX) $(C_OPTIONS) $(OBJ) $(LEARNED_MERGE) src/benchmark.cpp -o bin/benchmark $(INCLUDE)
