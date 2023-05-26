@@ -3,10 +3,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "config.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
+
+#include "config.h"
 
 void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
@@ -62,6 +63,23 @@ void FixedSizeSliceFileIterator::seekToFirst() {
   cur_key_loaded_ = false;
 }
 
+uint64_t FixedSizeSliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
+                                                        char **data,
+                                                        uint64_t *len) {
+  keys_to_copy = std::min(keys_to_copy, (uint64_t)MAX_KEYS_TO_BULK_COPY);
+  keys_to_copy = std::min(keys_to_copy, num_keys_ - cur_idx_);
+  ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
+                             keys_to_copy * key_size_, cur_idx_ * key_size_);
+  cur_idx_ += keys_to_copy;
+  if (bytes_read == -1) {
+    perror("pread");
+    abort();
+  }
+  *len = bytes_read;
+  *data = bulk_key_buffer_;
+  return keys_to_copy;
+}
+
 void FixedSizeSliceFileIterator::seek(Slice item) { abort(); }
 uint64_t FixedSizeSliceFileIterator::current_pos() const { return cur_idx_; }
 
@@ -96,4 +114,20 @@ void FixedSizeSliceFileIteratorBuilder::addKeyToBuffer(const Slice &key) {
   assert(key.size_ <= buffer_size_);
   memcpy(buffer_ + buffer_idx_, key.data_, key.size_);
   buffer_idx_ += key.size_;
+}
+
+void FixedSizeSliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
+                                                uint64_t keys_to_add) {
+  num_keys_ += keys_to_add;
+  char *data;
+  uint64_t len;
+  while (keys_to_add != 0) {
+    keys_to_add -= iter->bulkReadAndForward(keys_to_add, &data, &len);
+    ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
+    if (bytes_written == -1) {
+      perror("pwrite");
+      abort();
+    }
+    file_offset_ += bytes_written;
+  }
 }
