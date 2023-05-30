@@ -9,7 +9,7 @@ uint64_t SliceIterator::getPLRLineSegmentIndex() { return plr_segment_index; }
 void SliceIterator::setPLRLineSegmentIndex(uint64_t value) {
   plr_segment_index = value;
 }
-double SliceIterator::guessPosition(Slice target_key) {
+double SliceIterator::guessPositionMonotone(Slice target_key) {
   std::vector<Segment> &segments = model->lineSegments_;
 #if USE_STRING_KEYS
   KEY_TYPE target_int_value = LdbKeyToInteger(target_key);

@@ -93,7 +93,8 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
   std::string iterator_id = "identifier_" + std::to_string(index_);
 #if LEARNED_MERGE
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        plrBuilder->finishTraining(), iterator_id);
+                                        plrBuilder->finishTraining(),
+                                        iterator_id);
 #else
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
                                         nullptr, iterator_id);

@@ -49,7 +49,7 @@ public:
   void seekToFirst() override { cur = 0; }
   T key() override { return a->at(cur); }
   uint64_t current_pos() const override { return cur; }
-  double guessPosition(T target_key) {
+  double guessPositionMonotone(T target_key) {
 #if LEARNED_MERGE
     return pgm_index->search(target_key).lo;
 #else

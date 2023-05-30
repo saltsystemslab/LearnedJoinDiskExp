@@ -5,10 +5,12 @@
 #include "plr.h"
 #include "slice.h"
 
-class SliceIterator : public Iterator<Slice> {
+class SliceIterator: public Iterator<Slice> {
 public:
   SliceIterator();
-  double guessPosition(Slice target_key) override;
+  // This implementation always assumes consecutive targetKeys are always
+  // increasing in order.
+  double guessPositionMonotone(Slice target_key) override;
 
 protected:
   PLRModel *model;

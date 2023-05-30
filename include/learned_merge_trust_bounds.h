@@ -42,7 +42,8 @@ public:
     }
 
     while (smaller_list->valid()) {
-      float approx_pos = larger_list->guessPosition(smaller_list->key());
+      float approx_pos =
+          larger_list->guessPositionMonotone(smaller_list->key());
       // Blind copy till approx_pos.
       while (larger_list->valid() && larger_list->current_pos() < approx_pos) {
         result->add(larger_list->key());

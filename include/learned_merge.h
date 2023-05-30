@@ -77,7 +77,7 @@ private:
     int cluster_length = 0;
 #endif
     // approx_pos is always a valid position in iterator.
-    float approx_pos = smallest->guessPosition(second_smallest->key());
+    float approx_pos = smallest->guessPositionMonotone(second_smallest->key());
     approx_pos = std::max(approx_pos, (float)smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),
@@ -122,8 +122,8 @@ private:
     // If we overshot, we copied all the items we wanted for this cluster....
     if (is_overshoot) {
 #if TRACK_STATS
-      std::string entry = smallest->identifier() + "," +
-                          std::to_string(cluster_length) + ",\n";
+      std::string entry =
+          smallest->identifier() + "," + std::to_string(cluster_length) + ",\n";
       cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(),
                                     entry.size(), cluster_file_offset);
 #endif
@@ -151,8 +151,8 @@ private:
     std::string entry = "undershoot," + std::to_string(undershoot_error) + "\n";
     plr_error_offset +=
         pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
-    entry = smallest->identifier() + "," +
-            std::to_string(cluster_length) + ",\n";
+    entry =
+        smallest->identifier() + "," + std::to_string(cluster_length) + ",\n";
     cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
                                   cluster_file_offset);
 #endif
