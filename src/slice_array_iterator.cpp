@@ -42,10 +42,11 @@ void SliceArrayBuilder::add(const Slice &t) {
 #endif
 }
 SliceArrayIterator *SliceArrayBuilder::finish() {
+  std::string iterator_id = "identifier_" + std::to_string(index_);
 #if LEARNED_MERGE
   return new SliceArrayIterator(a, n, key_size, plrBuilder->finishTraining(),
-                                index_);
+                                iterator_id);
 #else
-  return new SliceArrayIterator(a, n, key_size, nullptr, index_);
+  return new SliceArrayIterator(a, n, key_size, nullptr, iterator_id);
 #endif
 }

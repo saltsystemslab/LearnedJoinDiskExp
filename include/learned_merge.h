@@ -122,7 +122,7 @@ private:
     // If we overshot, we copied all the items we wanted for this cluster....
     if (is_overshoot) {
 #if TRACK_STATS
-      std::string entry = std::to_string(smallest->index()) + "," +
+      std::string entry = smallest->identifier() + "," +
                           std::to_string(cluster_length) + ",\n";
       cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(),
                                     entry.size(), cluster_file_offset);
@@ -151,7 +151,7 @@ private:
     std::string entry = "undershoot," + std::to_string(undershoot_error) + "\n";
     plr_error_offset +=
         pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
-    entry = std::to_string(smallest->index()) + "," +
+    entry = smallest->identifier() + "," +
             std::to_string(cluster_length) + ",\n";
     cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
                                   cluster_file_offset);

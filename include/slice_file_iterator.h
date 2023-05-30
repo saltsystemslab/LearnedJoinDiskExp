@@ -14,14 +14,13 @@
 class FixedSizeSliceFileIterator : public SliceIterator {
 public:
   FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
-                             int key_size, PLRModel *model, int index)
+                             int key_size, PLRModel *model, std::string id)
       : file_descriptor_(file_descriptor), key_size_(key_size),
         bulk_key_buffer_(new char[key_size * MAX_KEYS_TO_BULK_COPY]),
         cur_key_buffer_(new char[key_size]),
-        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false) {
+        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false), id_(id) {
     this->model = model;
     this->num_keys_ = num_keys;
-    this->index_ = index;
   }
 
   ~FixedSizeSliceFileIterator() {
@@ -35,8 +34,10 @@ public:
   void seekToFirst() override;
   void seek(Slice item) override;
   uint64_t current_pos() const override;
-  virtual uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
+  uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
                                       uint64_t *len) override;
+  
+  std::string identifier() override {return id_;}
 
 private:
   int file_descriptor_;
@@ -46,6 +47,7 @@ private:
   char *peek_key_buffer_;
   char *bulk_key_buffer_;
   bool cur_key_loaded_;
+  std::string id_;
 };
 
 class FixedSizeSliceFileIteratorBuilder : public IteratorBuilder<Slice> {

@@ -7,13 +7,12 @@
 
 class SliceArrayIterator : public SliceIterator {
 public:
-  SliceArrayIterator(char *a, int n, int key_size, PLRModel *model, int index) {
+  SliceArrayIterator(char *a, int n, int key_size, PLRModel *model, std::string id): id_(id) {
     this->a = a;
     this->cur = 0;
     this->num_keys_ = n;
     this->key_size = key_size;
     this->model = model;
-    this->index_ = index;
   }
   ~SliceArrayIterator();
   bool valid() const override;
@@ -23,11 +22,13 @@ public:
   void seekToFirst() override;
   Slice key() override;
   uint64_t current_pos() const override;
+  std::string identifier() override {return id_;}
 
 private:
   char *a;
   int key_size;
   int cur;
+  std::string id_;
 };
 
 class SliceArrayBuilder : public IteratorBuilder<Slice> {
