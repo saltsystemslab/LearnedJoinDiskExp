@@ -19,6 +19,7 @@ public:
   virtual void seekToFirst() = 0;
   virtual T key() = 0;
   virtual uint64_t current_pos() const = 0;
+  virtual uint64_t num_keys() const = 0;
   // Assumes that the queries for guessPosition are monotonically increasing.
   // The model lookup can be optimized to take advantage of that.
   virtual double guessPositionMonotone(T target_key) {
@@ -41,7 +42,7 @@ public:
   virtual void add(const T &t) = 0;
   /* Also advances the iterator. Assumes iterator will be valid for so many
    * keys*/
-  virtual void bulkAdd(Iterator<T> *iter, uint64_t num_keys) {
+  virtual void bulkAdd(Iterator<T> *iter, int num_keys) {
     for (int i = 0; i < num_keys; i++) {
       add(iter->key());
       iter->next();

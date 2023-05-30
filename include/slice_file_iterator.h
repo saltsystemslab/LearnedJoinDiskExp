@@ -11,17 +11,15 @@
 #include "slice.h"
 #include "slice_iterator.h"
 
-class FixedSizeSliceFileIterator : public SliceIterator {
+class FixedSizeSliceFileIterator : public Iterator<Slice> {
 public:
-  FixedSizeSliceFileIterator(int file_descriptor, uint64_t num_keys,
-                             int key_size, PLRModel *model, std::string id)
+  FixedSizeSliceFileIterator(int file_descriptor, uint64_t n,
+                             int key_size, std::string id)
       : file_descriptor_(file_descriptor), key_size_(key_size),
         bulk_key_buffer_(new char[key_size * MAX_KEYS_TO_BULK_COPY]),
         cur_key_buffer_(new char[key_size]),
-        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false), id_(id) {
-    this->model = model;
-    this->num_keys_ = num_keys;
-  }
+        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false), id_(id),
+        num_keys_(n) {}
 
   ~FixedSizeSliceFileIterator() {
     delete cur_key_buffer_;
@@ -35,13 +33,15 @@ public:
   void seek(Slice item) override;
   uint64_t current_pos() const override;
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
-                              uint64_t *len) override;
+                                      uint64_t *len) override;
 
   std::string identifier() override { return id_; }
+  uint64_t num_keys() const override { return num_keys_; }
 
 private:
   int file_descriptor_;
   uint64_t cur_idx_;
+  uint64_t num_keys_;
   int key_size_;
   char *cur_key_buffer_;
   char *peek_key_buffer_;
@@ -77,7 +77,7 @@ public:
 
   void add(const Slice &key) override;
   Iterator<Slice> *finish() override;
-  virtual void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override;
+  virtual void bulkAdd(Iterator<Slice> *iter, int num_keys) override;
 
 private:
   void addKeyToBuffer(const Slice &key);

@@ -71,6 +71,7 @@ uint64_t FixedSizeSliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
   ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
                              keys_to_copy * key_size_, cur_idx_ * key_size_);
   cur_idx_ += keys_to_copy;
+  cur_key_loaded_ = false;
   if (bytes_read == -1) {
     perror("pread");
     abort();
@@ -91,14 +92,9 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
     abort();
   }
   std::string iterator_id = "identifier_" + std::to_string(index_);
-#if LEARNED_MERGE
+  printf("Num Keys: %ld\n", num_keys_);
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        plrBuilder->finishTraining(),
                                         iterator_id);
-#else
-  return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        nullptr, iterator_id);
-#endif
 }
 
 void FixedSizeSliceFileIteratorBuilder::flushBufferToDisk() {
@@ -119,12 +115,13 @@ void FixedSizeSliceFileIteratorBuilder::addKeyToBuffer(const Slice &key) {
 }
 
 void FixedSizeSliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
-                                                uint64_t keys_to_add) {
-  num_keys_ += keys_to_add;
+                                                int keys_to_add) {
   char *data;
   uint64_t len;
-  while (keys_to_add != 0) {
-    keys_to_add -= iter->bulkReadAndForward(keys_to_add, &data, &len);
+  while (keys_to_add > 0) {
+    uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
+    keys_to_add -= keys_added;
+    num_keys_ += keys_added;
     ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
     if (bytes_written == -1) {
       perror("pwrite");

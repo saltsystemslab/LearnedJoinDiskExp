@@ -5,17 +5,10 @@
 #include "slice.h"
 #include "slice_iterator.h"
 
-class SliceArrayIterator : public SliceIterator {
+class SliceArrayIterator : public Iterator<Slice> {
 public:
-  SliceArrayIterator(char *a, int n, int key_size, PLRModel *model,
-                     std::string id)
-      : id_(id) {
-    this->a = a;
-    this->cur = 0;
-    this->num_keys_ = n;
-    this->key_size = key_size;
-    this->model = model;
-  }
+  SliceArrayIterator(char *a, int n, int key_size, std::string id)
+      : id_(id), num_keys_(n), key_size_(key_size), cur_(0), a_(a) {}
   ~SliceArrayIterator();
   bool valid() const override;
   void next() override;
@@ -25,11 +18,13 @@ public:
   Slice key() override;
   uint64_t current_pos() const override;
   std::string identifier() override { return id_; }
+  uint64_t num_keys() const override { return num_keys_; }
 
 private:
-  char *a;
-  int key_size;
-  int cur;
+  char *a_;
+  int key_size_;
+  uint64_t num_keys_;
+  int cur_;
   std::string id_;
 };
 

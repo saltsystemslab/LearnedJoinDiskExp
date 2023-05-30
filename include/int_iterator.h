@@ -56,6 +56,7 @@ public:
     return 1.0;
 #endif
   }
+  uint64_t num_keys() const override() { return n; }
 
 private:
   std::vector<T> *a;

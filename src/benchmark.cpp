@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
     } else {
       builder = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
+    builder = new SliceIteratorBuilder(builder);
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
 #if ASSERT_SORT
@@ -176,6 +177,10 @@ int main(int argc, char **argv) {
     resultBuilder =
         new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes, 0);
   }
+
+#if TRAIN_RESULT
+  resultBuilder = new SliceIteratorBuilder(resultBuilder);
+#endif
 
   Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
