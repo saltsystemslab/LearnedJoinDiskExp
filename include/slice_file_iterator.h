@@ -13,8 +13,8 @@
 
 class FixedSizeSliceFileIterator : public Iterator<Slice> {
 public:
-  FixedSizeSliceFileIterator(int file_descriptor, uint64_t n,
-                             int key_size, std::string id)
+  FixedSizeSliceFileIterator(int file_descriptor, uint64_t n, int key_size,
+                             std::string id)
       : file_descriptor_(file_descriptor), key_size_(key_size),
         bulk_key_buffer_(new char[key_size * MAX_KEYS_TO_BULK_COPY]),
         cur_key_buffer_(new char[key_size]),
@@ -33,7 +33,7 @@ public:
   void seek(Slice item) override;
   uint64_t current_pos() const override;
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
-                                      uint64_t *len) override;
+                              uint64_t *len) override;
 
   std::string identifier() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
@@ -65,9 +65,6 @@ public:
       abort();
     }
     buffer_ = new char[buffer_size_];
-#if LEARNED_MERGE
-    plrBuilder = new PLRBuilder(PLR_ERROR_BOUND);
-#endif
   }
 
   ~FixedSizeSliceFileIteratorBuilder() {
@@ -79,7 +76,7 @@ public:
   Iterator<Slice> *finish() override;
   virtual void bulkAdd(Iterator<Slice> *iter, int num_keys) override;
 
-private:
+protected:
   void addKeyToBuffer(const Slice &key);
   void flushBufferToDisk();
   char *file_name_;
@@ -91,9 +88,35 @@ private:
   off_t file_offset_;
   uint64_t num_keys_;
   int index_;
-#if LEARNED_MERGE
-  PLRBuilder *plrBuilder;
+};
+
+class FixedSizeSliceFileIteratorWithModelBuilder
+    : public FixedSizeSliceFileIteratorBuilder {
+public:
+  FixedSizeSliceFileIteratorWithModelBuilder(const char *file_name,
+                                             size_t buffer_size, int key_size,
+                                             int index)
+      : FixedSizeSliceFileIteratorBuilder(file_name, buffer_size, key_size,
+                                          index),
+        plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
+
+  void add(const Slice &key) override {
+    FixedSizeSliceFileIteratorBuilder::add(key);
+#if USE_STRING_KEYS
+    plrBuilder_->processKey(LdbKeyToInteger(key));
+#else
+    plrBuilder_->processKey(*(KEY_TYPE *)(key.data_));
 #endif
+  };
+  Iterator<Slice> *finish() override {
+    return new SliceIteratorWithModel(
+        FixedSizeSliceFileIteratorBuilder::finish(),
+        plrBuilder_->finishTraining());
+  };
+  virtual void bulkAdd(Iterator<Slice> *iter, int num_keys) override;
+
+private:
+  PLRBuilder *plrBuilder_;
 };
 
 #endif

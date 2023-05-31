@@ -5,9 +5,9 @@
 #include "plr.h"
 #include "slice.h"
 
-class SliceIterator : public Iterator<Slice> {
- public:
-  SliceIterator(Iterator<Slice> *iterator, PLRModel *model)
+class SliceIteratorWithModel : public Iterator<Slice> {
+public:
+  SliceIteratorWithModel(Iterator<Slice> *iterator, PLRModel *model)
       : iterator_(iterator), model_(model), plr_segment_index_(0){};
   bool valid() const override { return iterator_->valid(); }
   void next() override { iterator_->next(); }
@@ -22,7 +22,7 @@ class SliceIterator : public Iterator<Slice> {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };
 
- private:
+private:
   PLRModel *model_;
   Iterator<Slice> *iterator_;
   uint64_t plr_segment_index_;
@@ -30,27 +30,4 @@ class SliceIterator : public Iterator<Slice> {
   void setPLRLineSegmentIndex(uint64_t value);
 };
 
-class SliceIteratorBuilder : public IteratorBuilder<Slice> {
- public:
-  SliceIteratorBuilder(IteratorBuilder<Slice> *iteratorBuilder)
-      : iteratorBuilder_(iteratorBuilder),
-        plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
-  void add(const Slice &key) override {
-    iteratorBuilder_->add(key);
-#if USE_STRING_KEYS
-    plrBuilder_->processKey(LdbKeyToInteger(key));
-#else
-    plrBuilder_->processKey(*(KEY_TYPE *)(key.data_));
-#endif
-  }
-
-  Iterator<Slice> *finish() override {
-    return new SliceIterator(iteratorBuilder_->finish(),
-                             plrBuilder_->finishTraining());
-  };
-
- private:
-  PLRBuilder *plrBuilder_;
-  IteratorBuilder<Slice> *iteratorBuilder_;
-};
 #endif

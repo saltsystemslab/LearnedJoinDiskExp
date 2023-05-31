@@ -3,12 +3,14 @@
 #include "config.h"
 #include "math.h"
 
-uint64_t SliceIterator::getPLRLineSegmentIndex() { return plr_segment_index_; }
+uint64_t SliceIteratorWithModel::getPLRLineSegmentIndex() {
+  return plr_segment_index_;
+}
 
-void SliceIterator::setPLRLineSegmentIndex(uint64_t value) {
+void SliceIteratorWithModel::setPLRLineSegmentIndex(uint64_t value) {
   plr_segment_index_ = value;
 }
-double SliceIterator::guessPositionMonotone(Slice target_key) {
+double SliceIteratorWithModel::guessPositionMonotone(Slice target_key) {
   std::vector<Segment> &segments = model_->lineSegments_;
 #if USE_STRING_KEYS
   KEY_TYPE target_int_value = LdbKeyToInteger(target_key);

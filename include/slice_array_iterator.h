@@ -32,7 +32,7 @@ class SliceArrayBuilder : public IteratorBuilder<Slice> {
 public:
   SliceArrayBuilder(int n, int key_size, int index);
   void add(const Slice &t) override;
-  SliceArrayIterator *finish() override;
+  Iterator<Slice> *finish() override;
 
 private:
   char *a;
@@ -40,8 +40,28 @@ private:
   int cur;
   int key_size;
   int index_;
-#if LEARNED_MERGE
-  PLRBuilder *plrBuilder;
+};
+
+class SliceArrayWithModelBuilder : public SliceArrayBuilder {
+public:
+  SliceArrayWithModelBuilder(int n, int key_size, int index)
+      : SliceArrayBuilder(n, key_size, index),
+        plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
+
+  void add(const Slice &key) override {
+    SliceArrayBuilder::add(key);
+#if USE_STRING_KEYS
+    plrBuilder_->processKey(LdbKeyToInteger(key));
+#else
+    plrBuilder_->processKey(*(KEY_TYPE *)(key.data_));
 #endif
+  };
+  Iterator<Slice> *finish() override {
+    return new SliceIteratorWithModel(SliceArrayBuilder::finish(),
+                                      plrBuilder_->finishTraining());
+  };
+
+private:
+  PLRBuilder *plrBuilder_;
 };
 #endif

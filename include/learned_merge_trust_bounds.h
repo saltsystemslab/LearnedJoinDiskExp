@@ -10,9 +10,8 @@
 #include "comparator.h"
 #include "iterator.h"
 
-template <class T>
-class LearnedMergerTrustBounds {
- public:
+template <class T> class LearnedMergerTrustBounds {
+public:
   static Iterator<T> *test() { return nullptr; };
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
