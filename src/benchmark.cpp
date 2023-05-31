@@ -194,6 +194,20 @@ int main(int argc, char **argv) {
                       .count();
 
   result->seekToFirst();
+//   #if ASSERT_SORT
+//   for(int i=0; i< correct.size();i++) {
+//     #if USE_STRING_KEYS
+//       std::string key = to_fixed_size_key(correct[i], FLAGS_key_size_bytes);
+//       Slice k = Slice(key.c_str(), FLAGS_key_size_bytes);
+// #else
+//       Slice k = Slice((char *)(&correct[i]), FLAGS_key_size_bytes);
+// #endif
+//     if(c->compare(k, result->peek(i)) != 0) {
+//       std::cout<<"Assert sort failed"<<std::endl;
+//       abort();
+//     }
+//   }
+//   #endif
   if (FLAGS_print_result) {
     printf("Merged List: %d\n", result->valid());
     while (result->valid()) {

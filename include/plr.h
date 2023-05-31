@@ -75,7 +75,7 @@ private:
   Segment process(const struct point &pt);
   Segment finish();
 #if TRACK_PLR_TRAIN_TIME
-  KEY_TYPE training_time;
+  uint64_t training_time;
 #endif
 
 public:

@@ -1,7 +1,13 @@
 CXX=g++
 C_OPTIONS=-g -fopenmp
 INCLUDE=-Iinclude -I./PGM-index/include
-LEARNED_MERGE=-DLEARNED_MERGE=1 -DTRACK_STATS=0 -DTRACK_PLR_TRAIN_TIME=1 -DTRUST_ERROR_BOUNDS=1 -DASSERT_SORT=0 -DPLR_POS_OFFSET=5 -DPLR_ERROR_BOUND=${ERROR_BOUND} -DPGM_ERROR_BOUND=1 -DUSE_STRING_KEYS=${USE_STRING_KEYS} -DUSE_INT_128=${USE_INT_128} -DUSE_BULK_COPY=${USE_BULK_COPY} -DMAX_KEYS_TO_BULK_COPY=1000000
+LEARNED_MERGE=-DLEARNED_MERGE=1 -DTRACK_STATS=0 -DTRACK_PLR_TRAIN_TIME=1 -DTRUST_ERROR_BOUNDS=1 -DASSERT_SORT=0 -DPLR_POS_OFFSET=5 -DPLR_ERROR_BOUND=${ERROR_BOUND} -DPLR_ERROR_BOUND_FACTOR=${ERROR_BOUND_FACTOR} -DPGM_ERROR_BOUND=1 -DUSE_STRING_KEYS=${USE_STRING_KEYS} -DUSE_INT_128=${USE_INT_128} -DUSE_BULK_COPY=${USE_BULK_COPY} -DMAX_KEYS_TO_BULK_COPY=1000000
+
+ERROR_BOUND ?=10
+ERROR_BOUND_FACTOR ?=1
+USE_STRING_KEYS ?=1
+USE_INT_128 ?=0
+USE_BULK_COPY ?=0
 
 OBJDIR=obj
 _OBJ=slice_file_iterator.o slice_array_iterator.o plr.o slice_iterator.o
@@ -18,6 +24,10 @@ benchmark: include/* src/*.cpp $(OBJ)
 benchmark_pgm: include/* src/*.cpp $(OBJ)
 		mkdir -p bin/
 		$(CXX) $(C_OPTIONS) $(OBJ) $(LEARNED_MERGE) src/benchmark_pgm.cpp -o bin/benchmark_pgm $(INCLUDE)
+
+benchmark_lookup: include/* src/*.cpp $(OBJ)
+		mkdir -p bin/
+		$(CXX) $(C_OPTIONS) $(OBJ) $(LEARNED_MERGE) src/benchmark_lookup.cpp -o bin/benchmark_lookup $(INCLUDE)
 
 build_test: include/* tests/*.cpp $(OBJ) 
 		mkdir -p bin/

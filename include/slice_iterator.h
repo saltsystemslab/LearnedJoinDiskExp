@@ -9,6 +9,7 @@ class SliceIterator : public Iterator<Slice> {
 public:
   SliceIterator();
   double guessPosition(Slice target_key) override;
+  double guessPositionUsingBinarySearch(Slice target_key) override;
   int index() override { return index_; }
 
 protected:
