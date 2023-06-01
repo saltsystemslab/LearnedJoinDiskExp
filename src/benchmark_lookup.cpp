@@ -166,6 +166,7 @@ int main(int argc, char **argv)
             rightAnswer++;
         }
         else {
+            std::cout<<"query:"<<query.toString()<<std::endl;
             wrongAnswer++;
         }
 #else

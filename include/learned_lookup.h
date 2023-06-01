@@ -16,8 +16,8 @@ public:
         comparator = new CountingComparator<T>(comparator);
 #if LEARNED_MERGE
         float approx_pos = iterator->guessPositionUsingBinarySearch(target_key);
-        uint64_t start = approx_pos - PLR_ERROR_BOUND_FACTOR * PLR_ERROR_BOUND;
-        uint64_t end = approx_pos + PLR_ERROR_BOUND_FACTOR * PLR_ERROR_BOUND;
+        float start = approx_pos - PLR_ERROR_BOUND_FACTOR * PLR_ERROR_BOUND;
+        float end = approx_pos + PLR_ERROR_BOUND_FACTOR * PLR_ERROR_BOUND;
         if (start < 0)
         {
             start = 0;
@@ -27,7 +27,11 @@ public:
             end = num_keys - 1;
         }
 
-        return binary_search(start, end, target_key, iterator, comparator);
+        bool status = binary_search(start, end, target_key, iterator, comparator);
+        if(status == false) {
+            std::cout<<"start:"<<start<<" end:"<<end<<"approx_pos:"<<approx_pos<< " ";
+            std::cout<<"element at start:"<<iterator->peek(start).toString()<<"element at end:"<<iterator->peek(end).toString()<<" ";
+       }
 #endif
     }
 

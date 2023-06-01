@@ -5,16 +5,10 @@
 #include "slice.h"
 #include "slice_iterator.h"
 
-class SliceArrayIterator : public SliceIterator {
+class SliceArrayIterator : public Iterator<Slice> {
 public:
-  SliceArrayIterator(char *a, int n, int key_size, PLRModel *model, int index) {
-    this->a = a;
-    this->cur = 0;
-    this->num_keys_ = n;
-    this->key_size = key_size;
-    this->model = model;
-    this->index_ = index;
-  }
+  SliceArrayIterator(char *a, int n, int key_size, std::string id)
+      : id_(id), num_keys_(n), key_size_(key_size), cur_(0), a_(a) {}
   ~SliceArrayIterator();
   bool valid() const override;
   void next() override;
@@ -23,18 +17,22 @@ public:
   void seekToFirst() override;
   Slice key() override;
   uint64_t current_pos() const override;
+  std::string identifier() override { return id_; }
+  uint64_t num_keys() const override { return num_keys_; }
 
 private:
-  char *a;
-  int key_size;
-  int cur;
+  char *a_;
+  int key_size_;
+  uint64_t num_keys_;
+  int cur_;
+  std::string id_;
 };
 
 class SliceArrayBuilder : public IteratorBuilder<Slice> {
 public:
   SliceArrayBuilder(int n, int key_size, int index);
   void add(const Slice &t) override;
-  SliceArrayIterator *finish() override;
+  Iterator<Slice> *finish() override;
 
 private:
   char *a;
@@ -42,8 +40,28 @@ private:
   int cur;
   int key_size;
   int index_;
-#if LEARNED_MERGE
-  PLRBuilder *plrBuilder;
+};
+
+class SliceArrayWithModelBuilder : public SliceArrayBuilder {
+public:
+  SliceArrayWithModelBuilder(int n, int key_size, int index)
+      : SliceArrayBuilder(n, key_size, index),
+        plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
+
+  void add(const Slice &key) override {
+    SliceArrayBuilder::add(key);
+#if USE_STRING_KEYS
+    plrBuilder_->processKey(LdbKeyToInteger(key));
+#else
+    plrBuilder_->processKey(*(KEY_TYPE *)(key.data_));
 #endif
+  };
+  Iterator<Slice> *finish() override {
+    return new SliceIteratorWithModel(SliceArrayBuilder::finish(),
+                                      plrBuilder_->finishTraining());
+  };
+
+private:
+  PLRBuilder *plrBuilder_;
 };
 #endif

@@ -11,13 +11,6 @@
 
 void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
-#if LEARNED_MERGE
-#if USE_STRING_KEYS
-  plrBuilder->processKey(LdbKeyToInteger(key));
-#else
-  plrBuilder->processKey(*(KEY_TYPE *)(key.data_));
-#endif
-#endif
   num_keys_++;
   if (key.size_ + buffer_idx_ < buffer_size_) {
     addKeyToBuffer(key);
@@ -71,6 +64,7 @@ uint64_t FixedSizeSliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
   ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
                              keys_to_copy * key_size_, cur_idx_ * key_size_);
   cur_idx_ += keys_to_copy;
+  cur_key_loaded_ = false;
   if (bytes_read == -1) {
     perror("pread");
     abort();
@@ -90,13 +84,10 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
     perror("popen");
     abort();
   }
-#if LEARNED_MERGE
+  std::string iterator_id = "identifier_" + std::to_string(index_);
+  printf("Num Keys: %ld\n", num_keys_);
   return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        plrBuilder->finishTraining(), index_);
-#else
-  return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        nullptr, index_);
-#endif
+                                        iterator_id);
 }
 
 void FixedSizeSliceFileIteratorBuilder::flushBufferToDisk() {
@@ -117,13 +108,35 @@ void FixedSizeSliceFileIteratorBuilder::addKeyToBuffer(const Slice &key) {
 }
 
 void FixedSizeSliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
-                                                uint64_t keys_to_add) {
-  num_keys_ += keys_to_add;
+                                                int keys_to_add) {
   char *data;
   uint64_t len;
-  while (keys_to_add != 0) {
-    keys_to_add -= iter->bulkReadAndForward(keys_to_add, &data, &len);
+  while (keys_to_add > 0) {
+    uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
+    keys_to_add -= keys_added;
+    num_keys_ += keys_added;
     ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
+    if (bytes_written == -1) {
+      perror("pwrite");
+      abort();
+    }
+    file_offset_ += bytes_written;
+  }
+}
+
+void FixedSizeSliceFileIteratorWithModelBuilder::bulkAdd(Iterator<Slice> *iter,
+                                                         int keys_to_add) {
+  char *data;
+  uint64_t len;
+  while (keys_to_add > 0) {
+    uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
+    keys_to_add -= keys_added;
+    num_keys_ += keys_added;
+    ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
+    for (ssize_t i = 0; i < bytes_written; i += sizeof(KEY_TYPE)) {
+      KEY_TYPE *k = (KEY_TYPE *)(data + i);
+      plrBuilder_->processKey(*k);
+    }
     if (bytes_written == -1) {
       perror("pwrite");
       abort();

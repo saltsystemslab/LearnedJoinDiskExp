@@ -3,16 +3,15 @@
 #include "config.h"
 #include "math.h"
 
-SliceIterator::SliceIterator() : model(nullptr), plr_segment_index(0) {}
-uint64_t SliceIterator::getPLRLineSegmentIndex() { return plr_segment_index; }
-
-void SliceIterator::setPLRLineSegmentIndex(uint64_t value)
-{
-  plr_segment_index = value;
+uint64_t SliceIteratorWithModel::getPLRLineSegmentIndex() {
+  return plr_segment_index_;
 }
-double SliceIterator::guessPosition(Slice target_key)
-{
-  std::vector<Segment> &segments = model->lineSegments_;
+
+void SliceIteratorWithModel::setPLRLineSegmentIndex(uint64_t value) {
+  plr_segment_index_ = value;
+}
+double SliceIteratorWithModel::guessPositionMonotone(Slice target_key) {
+  std::vector<Segment> &segments = model_->lineSegments_;
 #if USE_STRING_KEYS
   KEY_TYPE target_int_value = LdbKeyToInteger(target_key);
   KEY_TYPE *target_int = &target_int_value;
@@ -31,19 +30,18 @@ double SliceIterator::guessPosition(Slice target_key)
       {
         result = 0;
       }
-      if (result >= num_keys_)
-      {
-        result = num_keys_ - 1;
+      if (result >= iterator_->num_keys()) {
+        result = iterator_->num_keys() - 1;
       }
       return result;
     }
   }
-  return num_keys_ - 1;
+  return iterator_->num_keys() - 1;
 }
 
-double SliceIterator::guessPositionUsingBinarySearch(Slice target_key)
+double SliceIteratorWithModel::guessPositionUsingBinarySearch(Slice target_key)
 {
-  std::vector<Segment> &segments = model->lineSegments_;
+  std::vector<Segment> &segments = model_->lineSegments_;
 #if USE_STRING_KEYS
   KEY_TYPE target_int_value = LdbKeyToInteger(target_key);
   KEY_TYPE *target_int = &target_int_value;
@@ -70,3 +68,4 @@ double SliceIterator::guessPositionUsingBinarySearch(Slice target_key)
   }
   return floor(result);
 }
+

@@ -6,7 +6,6 @@
 
 #include <cassert>
 #include <cmath>
-#include <iostream>
 
 #include "comparator.h"
 #include "iterator.h"
@@ -37,36 +36,54 @@ public:
 
     while (smaller_list->valid() &&
            comparator->compare(smaller_list->key(), larger_list->key()) <= 0) {
+      KEY_TYPE *k1 = (KEY_TYPE *)smaller_list->key().data_;
+      KEY_TYPE *k2 = (KEY_TYPE *)larger_list->key().data_;
+#if USE_BULK_COPY
+      result->bulkAdd(smaller_list, 1);
+#else
       result->add(smaller_list->key());
       smaller_list->next();
+#endif
     }
 
     while (smaller_list->valid()) {
-      float approx_pos = larger_list->guessPosition(smaller_list->key());
+      float approx_pos =
+          larger_list->guessPositionMonotone(smaller_list->key());
       // Blind copy till approx_pos.
+#if USE_BULK_COPY
+      result->bulkAdd(larger_list, approx_pos - larger_list->current_pos());
+#else
       while (larger_list->valid() && larger_list->current_pos() < approx_pos) {
         result->add(larger_list->key());
-#if ASSERT_SORT
-        assert(comparator->compare(larger_list->key(), smaller_list->key()) <=
-               0);
-#endif
         larger_list->next();
       }
-
+#endif
       // Copy the rest of the cluster.
       while (larger_list->valid() &&
              comparator->compare(larger_list->key(), smaller_list->key()) <=
                  0) {
+#if USE_BULK_COPY
+        result->bulkAdd(larger_list, 1);
+#else
         result->add(larger_list->key());
         larger_list->next();
+#endif
       }
+#if USE_BULK_COPY
+      result->bulkAdd(smaller_list, 1);
+#else
       result->add(smaller_list->key());
       smaller_list->next();
+#endif
     }
 
     while (larger_list->valid()) {
+#if USE_BULK_COPY
+      result->bulkAdd(larger_list, 1);
+#else
       result->add(larger_list->key());
       larger_list->next();
+#endif
     }
 
 #if TRACK_STATS

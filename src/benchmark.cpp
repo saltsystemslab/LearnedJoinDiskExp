@@ -33,8 +33,8 @@ static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
 
 vector<KEY_TYPE> generate_keys(uint64_t num_keys, KEY_TYPE universe) {
-  std::random_device rd;   // a seed source for the random number engine
-  std::mt19937 gen(rd());  // mersenne_twister_engine seeded with rd()
+  std::random_device rd;  // a seed source for the random number engine
+  std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
   std::uniform_int_distribution<KEY_TYPE> distrib(1, universe);
   vector<KEY_TYPE> keys;
   for (int i = 0; i < num_keys; i++) {
@@ -120,12 +120,13 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_of_lists; i++) {
     IteratorBuilder<Slice> *builder;
     if (FLAGS_disk_backed) {
-      std::string fileName = "./DB/" + to_str(i+1) + ".txt";
+      std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
       std::cout << fileName << std::endl;
-      builder = new FixedSizeSliceFileIteratorBuilder(
+      builder = new FixedSizeSliceFileIteratorWithModelBuilder(
           fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
     } else {
-      builder = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
+      builder =
+          new SliceArrayWithModelBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
@@ -170,12 +171,23 @@ int main(int argc, char **argv) {
   Comparator<Slice> *c = new SliceComparator();
   IteratorBuilder<Slice> *resultBuilder;
   if (FLAGS_disk_backed) {
+#if TRAIN_RESULT && LEARNED_MERGE
+    resultBuilder = new FixedSizeSliceFileIteratorWithModelBuilder(
+        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
+#else
     resultBuilder = new FixedSizeSliceFileIteratorBuilder(
         "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
+#endif
   } else {
+#if TRAIN_RESULT && LEARNED_MERGE
+    resultBuilder = new SliceArrayWithModelBuilder(total_num_of_keys,
+                                                   FLAGS_key_size_bytes, 0);
+#else
     resultBuilder =
         new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes, 0);
+#endif
   }
+
 
   Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
