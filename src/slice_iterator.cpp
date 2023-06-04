@@ -25,7 +25,7 @@ double SliceIteratorWithModel::guessPositionMonotone(Slice target_key) {
     {
       setPLRLineSegmentIndex(i);
       double result =
-          (*target_int) * segments[i].k + segments[i].b - PLR_ERROR_BOUND;
+          (*target_int) * segments[i].k + segments[i].b - 10;
       if (result < 0)
       {
         result = 0;

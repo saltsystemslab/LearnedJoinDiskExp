@@ -48,7 +48,7 @@ for a in no_of_items:
                     trust_error = "NA"
                     training_result = "NA"
                     merge = "standard"
-                    os.system("echo -n "+use_disk+","+use_128_bit+","+bulk_copy+"," +str(l)+ ","+trust_error+","+training_result+","+merge+",>> result1.txt")
+                    os.system("echo -n "+use_disk+","+use_128_bit+","+bulk_copy+","+trust_error+","+training_result+","+merge+",>> result1.txt")
 
                     result = subprocess.run(["./bin/benchmark", '--num_keys='+str(l)+','+str(r), '--use_disk='+str(j), "--universe_log="+universe_log], capture_output=True, text=True)
                     for line in result.stdout.splitlines():
@@ -84,7 +84,7 @@ for a in no_of_items:
 
                                         merge = "learned merge"
 
-                                        os.system("echo -n "+use_disk+","+use_128_bit+","+bulk_copy+"," +str(l)+ ","+trust_error+","+training_result+","+merge+",>> result1.txt")
+                                        os.system("echo -n "+use_disk+","+use_128_bit+","+bulk_copy+","+trust_error+","+training_result+","+merge+",>> result1.txt")
                                         os.environ["USE_INT_128"] = str(k)
                                         os.environ["USE_BULK_COPY"] = str(m)
                                         os.environ["TRUST_ERROR_BOUNDS"] = str(n)

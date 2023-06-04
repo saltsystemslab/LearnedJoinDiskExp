@@ -46,7 +46,7 @@ class SliceArrayWithModelBuilder : public SliceArrayBuilder {
 public:
   SliceArrayWithModelBuilder(int n, int key_size, int index)
       : SliceArrayBuilder(n, key_size, index),
-        plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
+        plrBuilder_(new PLRBuilder(10)) {}
 
   void add(const Slice &key) override {
     SliceArrayBuilder::add(key);
