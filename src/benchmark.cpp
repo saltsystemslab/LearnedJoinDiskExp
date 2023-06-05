@@ -66,6 +66,10 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 int main(int argc, char **argv) {
+  FLAGS_universe_size = 1;
+  for (int i = 0; i < FLAGS_key_size_bytes*8-1; i++) {
+    FLAGS_universe_size = FLAGS_universe_size << 1;
+  }
   for (int i = 1; i < argc; i++) {
     double m;
     long long n;
@@ -201,7 +205,7 @@ int main(int argc, char **argv) {
   result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
 #endif
   auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                       merge_end - merge_start)
                       .count();
 
@@ -236,7 +240,19 @@ int main(int argc, char **argv) {
       result->next();
     }
   }
+#if ASSERT_SORT
+  result->seekToFirst();
+  auto correctIterator = correct.begin();
+  while(result->valid()) {
+    KEY_TYPE *k1 = (KEY_TYPE *)result->key().data_;
+    KEY_TYPE k2 = *correctIterator;
+    assert(*k1 == k2);
+    result->next();
+    correctIterator++;
+  }
+#endif
 
-  std::cout << "Merge duration: " << duration << " ns" << std::endl;
+  float duration_sec = duration_ns / 1e9;
+  printf("Merge duration: %.3lf s\n", duration_sec); 
   std::cout << "Ok!" << std::endl;
 }
