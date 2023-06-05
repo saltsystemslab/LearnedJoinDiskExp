@@ -66,6 +66,10 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 int main(int argc, char **argv) {
+  FLAGS_universe_size = 1;
+  for (int i = 0; i < FLAGS_key_size_bytes*8-1; i++) {
+    FLAGS_universe_size = FLAGS_universe_size << 1;
+  }
   for (int i = 1; i < argc; i++) {
     double m;
     long long n;
