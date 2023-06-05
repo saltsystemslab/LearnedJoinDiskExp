@@ -226,6 +226,17 @@ int main(int argc, char **argv) {
       result->next();
     }
   }
+#if ASSERT_SORT
+  result->seekToFirst();
+  auto correctIterator = correct.begin();
+  while(result->valid()) {
+    KEY_TYPE *k1 = (KEY_TYPE *)result->key().data_;
+    KEY_TYPE k2 = *correctIterator;
+    assert(*k1 == k2);
+    result->next();
+    correctIterator++;
+  }
+#endif
 
   std::cout << "Merge duration: " << duration << " ns" << std::endl;
   std::cout << "Ok!" << std::endl;
