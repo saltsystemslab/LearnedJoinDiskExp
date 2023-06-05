@@ -77,7 +77,7 @@ private:
     int cluster_length = 0;
 #endif
     // approx_pos is always a valid position in iterator.
-    uint64_t approx_pos = (uint64_t)smallest->guessPositionMonotone(second_smallest->key());
+    uint64_t approx_pos = std::ceil(smallest->guessPositionMonotone(second_smallest->key()));
     approx_pos = std::max(approx_pos, smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),
