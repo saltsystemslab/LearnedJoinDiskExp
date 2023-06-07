@@ -19,11 +19,11 @@ public:
 
 private:
     template <class T>
-    static bool binary_search(uint64_t start, uint64_t end, T target_key, Iterator<T> *iterator, Comparator<T> *comparator)
+    static bool binary_search(int64_t start, int64_t end, T target_key, Iterator<T> *iterator, Comparator<T> *comparator)
     {
         while (start <= end)
         {
-            uint64_t mid = (start + end) / 2;
+            int64_t mid = (start + end) / 2;
             if (comparator->compare(iterator->peek(mid), target_key) == 0)
             {
                 return true;

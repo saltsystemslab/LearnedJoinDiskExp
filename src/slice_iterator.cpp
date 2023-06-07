@@ -49,13 +49,13 @@ double SliceIteratorWithModel::guessPositionUsingBinarySearch(Slice target_key)
   KEY_TYPE *target_int = (KEY_TYPE *)target_key.data_;
 #endif
 
-  uint32_t left = 0, right = (uint32_t)segments.size() - 1;
-  while (left != right - 1)
+  int32_t left = 0, right = (int32_t)segments.size() - 1;
+  while (left < right)
   {
 
-    uint32_t mid = (right + left) / 2;
+    int32_t mid = (right + left + 1) / 2;
     if ((*target_int) < segments[mid].x)
-      right = mid;
+      right = mid-1;
     else
       left = mid;
   }

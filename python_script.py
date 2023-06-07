@@ -1,7 +1,7 @@
 import os
 import csv
 import subprocess
-no_of_items=[100000000]
+no_of_items=[1000000]
 size_skewness=[9, 99, 999, 9999, 99999]
 # size = []
 # for i in no_of_items:
@@ -18,8 +18,8 @@ size=[]
 disk=[0, 1]
 use_128=[0,1]
 use_bulk_copy=[0,1]
-trust_error_bounds = [0,1]
-train_result = [0,1]
+trust_error_bounds = [0]
+train_result = [0]
 learned_merge=[0,1]
 os.system("echo no_of_items,size_skewness,use_disk,use_int_128,use_bulk_copy,trust error bound,train result,merge type,merge_duration >> result1.txt")
 for a in no_of_items:

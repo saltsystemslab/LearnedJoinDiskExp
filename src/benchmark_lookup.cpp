@@ -24,10 +24,11 @@ static int FLAGS_key_size_bytes = 20;
 #endif
 
 static const int BUFFER_SIZE = 1000;
-static KEY_TYPE FLAGS_universe_size = 2000000000000000;
+static KEY_TYPE FLAGS_universe_size = 2000000000;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
 static const char *FLAGS_num_keys = "10000";
+static const char *FLAGS_num_queries = "10000";
 static const char *FLAGS_DB_dir = "./DB";
 
 vector<KEY_TYPE> generate_keys(uint64_t num_keys, KEY_TYPE universe)
@@ -71,6 +72,12 @@ bool is_flag(const char *arg, const char *flag)
 
 int main(int argc, char **argv)
 {
+    FLAGS_universe_size = 1;
+    for (int i = 0; i < FLAGS_key_size_bytes*8-1; i++)
+    {
+        FLAGS_universe_size = FLAGS_universe_size << 1;
+    }
+
     for (int i = 1; i < argc; i++)
     {
         double m;
@@ -79,6 +86,10 @@ int main(int argc, char **argv)
         if (is_flag(argv[i], "--num_keys="))
         {
             FLAGS_num_keys = argv[i] + strlen("--num_keys=");
+        }
+        else if (is_flag(argv[i], "--num_queries="))
+        {
+            FLAGS_num_queries = argv[i] + strlen("--num_queries=");
         }
         else if (sscanf(argv[i], "--key_size_bytes=%lld%c", &n, &junk) == 1)
         {
@@ -126,15 +137,18 @@ int main(int argc, char **argv)
     {
         std::string fileName = "./DB/" + to_str(1) + ".txt";
         std::cout << fileName << std::endl;
-        builder = new FixedSizeSliceFileIteratorBuilder(
+        builder = new FixedSizeSliceFileIteratorWithModelBuilder(
             fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, 0);
     }
     else
     {
-        builder = new SliceArrayBuilder(stoi(FLAGS_num_keys), FLAGS_key_size_bytes, 0);
+        builder = new SliceArrayWithModelBuilder(stoi(FLAGS_num_keys), FLAGS_key_size_bytes, 0);
     }
     auto keys = generate_keys(stoi(FLAGS_num_keys), FLAGS_universe_size);
-    auto queries = keys;
+    //auto queries=keys;
+    auto queries = generate_keys(stoi(FLAGS_num_queries), FLAGS_universe_size);
+    queries.insert( queries.end(), keys.begin(), keys.end() );
+    
     for (int j = 0; j < stoi(FLAGS_num_keys); j++)
     {
 
@@ -149,9 +163,8 @@ int main(int argc, char **argv)
     iterator = builder->finish();
     Comparator<Slice> *c = new SliceComparator();
    // auto queries = generate_keys(100, FLAGS_universe_size);
+   
     auto lookup_start = std::chrono::high_resolution_clock::now();
-    int rightAnswer = 0;
-    int wrongAnswer = 0;
     for (int i = 0; i < queries.size(); i++)
     {
 #if USE_STRING_KEYS
@@ -162,31 +175,28 @@ int main(int argc, char **argv)
 #endif
 #if LEARNED_MERGE
         bool status = LearnedLookup::lookup(iterator, stoi(FLAGS_num_keys), c, query);
-        if(status == true) {
-            rightAnswer++;
-        }
-        else {
-            std::cout<<"query:"<<query.toString()<<std::endl;
-            wrongAnswer++;
-        }
+        // if(status == true) {
+        //     assert(std::find(keys.begin(), keys.end(), queries[i]) != keys.end());
+        // }
+        // else {
+        //     assert(std::find(keys.begin(), keys.end(), queries[i]) == keys.end());
+        // }
 #else
         bool status = StandardLookup::lookup(iterator, stoi(FLAGS_num_keys), c, query);
-        if(status == true) {
-            rightAnswer++;
-        }
-        else {
-            wrongAnswer++;
-        }
+        // if(status == true) {
+        //     assert(std::find(keys.begin(), keys.end(), queries[i]) != keys.end());
+        // }
+        // else {
+            
+        //     assert(std::find(keys.begin(), keys.end(), queries[i]) == keys.end());
+        // }
 #endif
     }
-
-    std::cout << "right answer count:" << rightAnswer<<std::endl;
-    std::cout << "wrong answer count:" << wrongAnswer<<std::endl;
 
     auto lookup_end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
                         lookup_end - lookup_start)
                         .count();
-    std::cout << "Lookup duration:" << duration<<std::endl;
+    std::cout << "Lookup duration: " << duration<<std::endl;
     std::cout << "Ok!" << std::endl;
 }
