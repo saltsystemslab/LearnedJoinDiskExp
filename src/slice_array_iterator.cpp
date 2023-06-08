@@ -20,8 +20,9 @@ Slice SliceArrayIterator::key() {
 }
 uint64_t SliceArrayIterator::current_pos() const { return cur_; }
 
-SliceArrayBuilder::SliceArrayBuilder(int n, int key_size, int index) {
-  this->a = new char[n * key_size];
+SliceArrayBuilder::SliceArrayBuilder(uint64_t n, int key_size, int index) {
+  uint64_t bytes_to_allocate = n * key_size;
+  this->a = new char[bytes_to_allocate];
   this->cur = 0;
   this->n = n;
   this->key_size = key_size;
@@ -29,12 +30,14 @@ SliceArrayBuilder::SliceArrayBuilder(int n, int key_size, int index) {
 }
 void SliceArrayBuilder::add(const Slice &t) {
   for (int i = 0; i < key_size; i++) {
-    a[cur * key_size + i] = t.data_[i];
+    uint64_t idx = cur * key_size + i;
+    a[idx] = t.data_[i];
   }
   KEY_TYPE *val = (KEY_TYPE *)(a + cur * key_size);
   cur++;
 }
 Iterator<Slice> *SliceArrayBuilder::finish() {
+  printf("Num Keys: %ld\n", n);
   std::string iterator_id = "identifier_" + std::to_string(index_);
   return new SliceArrayIterator(a, n, key_size, iterator_id);
 }

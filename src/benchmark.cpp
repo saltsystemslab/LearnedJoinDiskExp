@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <openssl/rand.h>
 
 #include <cassert>
 #include <cstring>
@@ -32,16 +33,26 @@ static bool FLAGS_print_result = false;
 static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
 
+void rand_bytes(unsigned char *v, size_t n) {
+  uint64_t i = 0;
+  int fd = open("/dev/random", O_RDONLY);
+  read(fd, v, n);
+}
+
 vector<KEY_TYPE> generate_keys(uint64_t num_keys, KEY_TYPE universe) {
-  std::random_device rd;  // a seed source for the random number engine
-  std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<KEY_TYPE> distrib(1, universe);
+  uint64_t bytes_to_alloc = num_keys * sizeof(universe);
+  unsigned char *rand_nums = new unsigned char[bytes_to_alloc];
+  rand_bytes(rand_nums, bytes_to_alloc);
+
   vector<KEY_TYPE> keys;
-  for (int i = 0; i < num_keys; i++) {
-    KEY_TYPE key = distrib(gen);
-    keys.push_back(key);
+  for (uint64_t i = 0; i < bytes_to_alloc; i+=sizeof(universe)) {
+   KEY_TYPE k = *(KEY_TYPE *)(rand_nums + i);
+    keys.push_back(k);
   }
+  delete rand_nums;
+  printf("Done generating random bytes\n");
   sort(keys.begin(), keys.end());
+  printf("Done adding to vector and sorting!\n");
   return keys;
 }
 
@@ -66,8 +77,9 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 int main(int argc, char **argv) {
+  printf("=============================\n");
   FLAGS_universe_size = 1;
-  for (int i = 0; i < FLAGS_key_size_bytes*8-1; i++) {
+  for (int i = 0; i < FLAGS_key_size_bytes * 8 - 1; i++) {
     FLAGS_universe_size = FLAGS_universe_size << 1;
   }
   for (int i = 1; i < argc; i++) {
@@ -192,7 +204,6 @@ int main(int argc, char **argv) {
 #endif
   }
 
-
   Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
 #if LEARNED_MERGE && !TRUST_ERROR_BOUNDS
@@ -206,8 +217,8 @@ int main(int argc, char **argv) {
 #endif
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                      merge_end - merge_start)
-                      .count();
+                         merge_end - merge_start)
+                         .count();
 
   result->seekToFirst();
   if (FLAGS_print_result) {
@@ -229,7 +240,7 @@ int main(int argc, char **argv) {
 #if ASSERT_SORT
   result->seekToFirst();
   auto correctIterator = correct.begin();
-  while(result->valid()) {
+  while (result->valid()) {
     KEY_TYPE *k1 = (KEY_TYPE *)result->key().data_;
     KEY_TYPE k2 = *correctIterator;
     assert(*k1 == k2);
@@ -239,6 +250,7 @@ int main(int argc, char **argv) {
 #endif
 
   float duration_sec = duration_ns / 1e9;
-  printf("Merge duration: %.3lf s\n", duration_sec); 
+  printf("Merge duration: %.3lf s\n", duration_sec);
   std::cout << "Ok!" << std::endl;
+  printf("=============================\n");
 }

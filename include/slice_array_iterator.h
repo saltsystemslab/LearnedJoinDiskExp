@@ -7,7 +7,7 @@
 
 class SliceArrayIterator : public Iterator<Slice> {
 public:
-  SliceArrayIterator(char *a, int n, int key_size, std::string id)
+  SliceArrayIterator(char *a, uint64_t n, int key_size, std::string id)
       : id_(id), num_keys_(n), key_size_(key_size), cur_(0), a_(a) {}
   ~SliceArrayIterator();
   bool valid() const override;
@@ -24,27 +24,27 @@ private:
   char *a_;
   int key_size_;
   uint64_t num_keys_;
-  int cur_;
+  uint64_t cur_;
   std::string id_;
 };
 
 class SliceArrayBuilder : public IteratorBuilder<Slice> {
 public:
-  SliceArrayBuilder(int n, int key_size, int index);
+  SliceArrayBuilder(uint64_t n, int key_size, int index);
   void add(const Slice &t) override;
   Iterator<Slice> *finish() override;
 
 private:
   char *a;
-  int n;
-  int cur;
+  uint64_t n;
+  uint64_t cur;
   int key_size;
   int index_;
 };
 
 class SliceArrayWithModelBuilder : public SliceArrayBuilder {
 public:
-  SliceArrayWithModelBuilder(int n, int key_size, int index)
+  SliceArrayWithModelBuilder(uint64_t n, int key_size, int index)
       : SliceArrayBuilder(n, key_size, index),
         plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
 
