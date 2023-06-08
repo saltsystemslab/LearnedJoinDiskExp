@@ -98,7 +98,7 @@ public:
                                              int index)
       : FixedSizeSliceFileIteratorBuilder(file_name, buffer_size, key_size,
                                           index),
-        plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)) {}
+        plrBuilder_(new PLRBuilder(10)) {}
 
   void add(const Slice &key) override {
     FixedSizeSliceFileIteratorBuilder::add(key);

@@ -18,6 +18,7 @@ public:
   uint64_t current_pos() const override { return iterator_->current_pos(); }
   uint64_t num_keys() const { return iterator_->num_keys(); }
   double guessPositionMonotone(Slice target_key) override;
+  double guessPositionUsingBinarySearch(Slice target_key) override;
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data, uint64_t *len) {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };

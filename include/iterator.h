@@ -19,6 +19,7 @@ public:
   virtual void seekToFirst() = 0;
   virtual T key() = 0;
   virtual uint64_t current_pos() const = 0;
+
   virtual uint64_t num_keys() const = 0;
   // Assumes that the queries for guessPosition are monotonically increasing.
   // The model lookup can be optimized to take advantage of that.
@@ -26,6 +27,7 @@ public:
     printf("Uninmplemented guessPositionMonotone\n");
     abort();
   }
+  virtual double guessPositionUsingBinarySearch(T target_key) { return -1; }
   virtual std::string identifier() { return "unnamed_iterator"; }
   /*
    * Returns number of keys copied. Data must be valid until next bulkRead call.
