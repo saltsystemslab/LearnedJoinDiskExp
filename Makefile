@@ -1,12 +1,12 @@
 CXX=g++
-C_OPTIONS=-g
+C_OPTIONS=-g -Ofast
 INCLUDE=-Iinclude/algos -Iinclude/impl -Iinclude/interfaces -Iinclude/types -Iinclude -I./PGM-index/include
 
 USE_LEARNED_MERGE?= 1
 TRAIN_RESULT ?= 0
 ERROR_BOUND ?= 10
 USE_STRING_KEYS ?= 0
-USE_INT_128 ?= 0
+USE_INT_128 ?= 1
 USE_BULK_COPY ?= 1
 TRUST_ERROR_BOUNDS ?= 0
 
