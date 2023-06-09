@@ -19,6 +19,7 @@
 #include "slice_file_iterator.h"
 #include "standard_merge.h"
 #include "plr_model.h"
+#include "pgm_index.h"
 using namespace std;
 
 #if USE_INT_128 && !USE_STRING_KEYS
@@ -148,7 +149,7 @@ int main(int argc, char **argv) {
     } else {
       iterator = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
-    ModelBuilder<Slice> *m = new PLRModelBuilder();
+    ModelBuilder<Slice> *m = new PGMIndexBuilder(num_keys[i]);
     builder = new IteratorWithModelBuilder(iterator, m);
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
