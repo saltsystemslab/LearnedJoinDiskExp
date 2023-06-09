@@ -1,0 +1,16 @@
+#ifndef SLICE_H
+#define SLICE_H
+
+#include <cstddef>
+#include <string>
+
+class Slice {
+public:
+  Slice() : data_(""), size_(0) {}
+  Slice(const char *data, int len) : data_(data), size_(len){};
+  const char *data_;
+  size_t size_;
+  std::string toString() const { return std::string(data_, size_); }
+};
+
+#endif
