@@ -1,6 +1,6 @@
 CXX=g++
 C_OPTIONS=-g
-INCLUDE=-Iinclude -I./PGM-index/include
+INCLUDE=-Iinclude/algos -Iinclude/impl -Iinclude/interfaces -Iinclude/types -Iinclude -I./PGM-index/include
 
 
 USE_LEARNED_MERGE?= 1
@@ -15,7 +15,7 @@ LEARNED_MERGE=-DLEARNED_MERGE=${USE_LEARNED_MERGE} -DTRACK_STATS=0 -DTRACK_PLR_T
 
 
 OBJDIR=obj
-_OBJ=slice_file_iterator.o slice_array_iterator.o plr.o slice_iterator.o
+_OBJ=slice_file_iterator.o plr.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
 $(OBJDIR)/%.o: src/%.cpp

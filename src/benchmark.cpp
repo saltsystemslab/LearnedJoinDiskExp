@@ -6,6 +6,10 @@
 #include <string>
 #include <vector>
 
+#include "slice_array_iterator.h"
+
+#include "iterator.h"
+#include "slice.h"
 #include "config.h"
 #include "learned_merge.h"
 #include "learned_merge_trust_bounds.h"
@@ -13,7 +17,7 @@
 #include "slice_comparator.h"
 #include "slice_file_iterator.h"
 #include "standard_merge.h"
-
+#include "plr_model.h"
 using namespace std;
 
 #if USE_INT_128 && !USE_STRING_KEYS
@@ -66,6 +70,7 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 int main(int argc, char **argv) {
+
   FLAGS_universe_size = 1;
   for (int i = 0; i < FLAGS_key_size_bytes*8-1; i++) {
     FLAGS_universe_size = FLAGS_universe_size << 1;
@@ -119,19 +124,21 @@ int main(int argc, char **argv) {
     num_keys.push_back(stoi(substr));
   }
   int num_of_lists = num_keys.size();
-  Iterator<Slice> **iterators = new Iterator<Slice> *[num_of_lists];
+  IteratorWithModel<Slice> **iterators = new IteratorWithModel<Slice> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
-    IteratorBuilder<Slice> *builder;
+    IteratorWithModelBuilder<Slice> *builder;
+    IteratorBuilder<Slice> *iterator;
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
       std::cout << fileName << std::endl;
-      builder = new FixedSizeSliceFileIteratorWithModelBuilder(
-          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
+      iterator = new FixedSizeSliceFileIteratorBuilder(fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
+      
     } else {
-      builder =
-          new SliceArrayWithModelBuilder(num_keys[i], FLAGS_key_size_bytes, i);
+      iterator = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
+    ModelBuilder<Slice> *m = new PLRModelBuilder();
+    builder = new IteratorWithModelBuilder(iterator, m);
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
 #if ASSERT_SORT
@@ -167,7 +174,6 @@ int main(int argc, char **argv) {
       }
     }
   }
-
 #if ASSERT_SORT
   sort(correct.begin(), correct.end());
 #endif
@@ -255,4 +261,5 @@ int main(int argc, char **argv) {
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec); 
   std::cout << "Ok!" << std::endl;
+  
 }

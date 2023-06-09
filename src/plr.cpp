@@ -121,8 +121,8 @@ void PLRBuilder::setup() {
 }
 
 Segment PLRBuilder::current_segment() {
-  uint64_t segment_start = this->s0.x;
-  uint64_t segment_stop = this->last_pt.x;
+  KEY_TYPE segment_start = this->s0.x;
+  KEY_TYPE segment_stop = this->last_pt.x;
   double avg_slope = (this->rho_lower.a + this->rho_upper.a) / 2.0;
   double intercept = -avg_slope * this->sint.x + this->sint.y;
   Segment s = {segment_start, segment_stop, avg_slope, intercept};
