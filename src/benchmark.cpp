@@ -12,22 +12,28 @@
 #include "comparator.h"
 #include "config.h"
 #include "int_array_iterator.h"
+#include "int_disk_iterator.h"
 #include "int_comparator.h"
 #include "iterator.h"
 #include "iterator_with_model.h"
 #include "learned_merge.h"
+#include "learned_merge_bulk.h"
 #include "model.h"
 #include "plr_model.h"
 #include "standard_merge.h"
 
 using namespace std;
 
-#if USE_INT_128 && !USE_STRING_KEYS
+enum MERGE_MODE {
+  STANDARD_MERGE,
+  MERGE_WITH_MODEL,
+  MERGE_WITH_MODEL_BULK,
+};
+
+#if USE_INT_128 
 static int FLAGS_key_size_bytes = 16;
-#elif !USE_STRING_KEYS
-static int FLAGS_key_size_bytes = 8;
 #else
-static int FLAGS_key_size_bytes = 20;
+static int FLAGS_key_size_bytes = 8;
 #endif
 
 static const int BUFFER_SIZE = 1000;
@@ -37,6 +43,7 @@ static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
 static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
+static int FLAGS_merge_mode = STANDARD_MERGE;
 
 void rand_bytes(unsigned char *v, size_t n) {
   uint64_t i = 0;
@@ -90,12 +97,11 @@ int main(int argc, char **argv) {
     double m;
     long long n;
     char junk;
+    char str[100];
     if (sscanf(argv[i], "--num_of_lists=%lld%c", &n, &junk) == 1) {
       FLAGS_num_of_lists = n;
     } else if (is_flag(argv[i], "--num_keys=")) {
       FLAGS_num_keys = argv[i] + strlen("--num_keys=");
-    } else if (sscanf(argv[i], "--key_size_bytes=%lld%c", &n, &junk) == 1) {
-      FLAGS_key_size_bytes = n;
     } else if (sscanf(argv[i], "--universe_log=%lld%c", &n, &junk) == 1) {
       FLAGS_universe_size = 1;
       for (int i = 0; i < n; i++) {
@@ -105,6 +111,19 @@ int main(int argc, char **argv) {
       FLAGS_disk_backed = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
       FLAGS_print_result = n;
+    } else if (sscanf(argv[i], "--merge_mode=%s", &str) == 1) {
+      if (strcmp(str, "standard") == 0) {
+        FLAGS_merge_mode = STANDARD_MERGE;
+      } 
+      else if (strcmp(str, "learned") == 0) {
+        FLAGS_merge_mode = MERGE_WITH_MODEL;
+      } 
+      else if (strcmp(str, "learned_bulk") == 0) {
+        FLAGS_merge_mode = MERGE_WITH_MODEL_BULK;
+      } 
+      else {
+        abort();
+      }
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
     }
@@ -114,26 +133,20 @@ int main(int argc, char **argv) {
     system("mkdir -p DB");
   }
 
-#if !USE_STRING_KEYS
-  if (FLAGS_key_size_bytes != sizeof(KEY_TYPE)) {
-    abort();
-  }
-#endif
-
   std::cout << "Universe Size: " << to_str(FLAGS_universe_size) << std::endl;
 
   vector<int> num_keys;
   stringstream ss(FLAGS_num_keys);
-
-#if ASSERT_SORT
-  vector<KEY_TYPE> correct;
-#endif
 
   while (ss.good()) {
     string substr;
     getline(ss, substr, ',');
     num_keys.push_back(stoi(substr));
   }
+
+#if ASSERT_SORT
+  vector<KEY_TYPE> correct;
+#endif
   int num_of_lists = num_keys.size();
   IteratorWithModel<KEY_TYPE> **iterators = new IteratorWithModel<KEY_TYPE> *[num_of_lists];
   int total_num_of_keys = 0;
@@ -141,30 +154,20 @@ int main(int argc, char **argv) {
     ModelBuilder<KEY_TYPE> *m = new PLRModelBuilder<KEY_TYPE>();
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
-      abort();
-      /*
       std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
       std::cout << fileName << std::endl;
-      iterator = new FixedSizeSliceFileIteratorBuilder(
-          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
-          */
-
+      iterator_builder = new IntDiskBuilder<KEY_TYPE>(
+          fileName.c_str(), BUFFER_SIZE, "hello");
     } else {
       iterator_builder = new IntArrayBuilder<KEY_TYPE>(num_keys[i], "hello");
     }
     IteratorWithModelBuilder<KEY_TYPE> *builder =
         new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
-
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
+      iterator_builder->add(keys[j]);
 #if ASSERT_SORT
       correct.push_back(keys[j]);
-#endif
-#if USE_STRING_KEYS
-      std::string key = to_fixed_size_key(keys[j], FLAGS_key_size_bytes);
-      builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
-#else
-      iterator_builder->add(keys[j]);
 #endif
     }
     iterators[i] = builder->finish();
@@ -177,15 +180,8 @@ int main(int argc, char **argv) {
       iter->seekToFirst();
       printf("List %d\n", i);
       while (iter->valid()) {
-#if USE_STRING_KEYS
-        for (int i = 0; i < FLAGS_key_size_bytes; i++) {
-          printf("%c", iter->key().data_[i]);
-        }
-        printf("\n");
-#else
-        KEY_TYPE k = iter->key();
-        printf("%d Key: %llu\n", i, k);
-#endif
+        std::string key_str = to_str(iter->key());
+        printf("%d Key: %llu %s\n", i, iter->current_pos(), key_str.c_str());
         iter->next();
       }
     }
@@ -197,81 +193,43 @@ int main(int argc, char **argv) {
   Comparator<KEY_TYPE> *c = new IntComparator<KEY_TYPE>();
   IteratorBuilder<KEY_TYPE> *resultBuilder;
   if (FLAGS_disk_backed) {
-    abort();
-#if 0
-#if TRAIN_RESULT && LEARNED_MERGE
-    resultBuilder = new FixedSizeSliceFileIteratorWithModelBuilder(
-        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
-#else
-    resultBuilder = new FixedSizeSliceFileIteratorBuilder(
-        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
-#endif
-#endif
+    resultBuilder = new IntDiskBuilder<KEY_TYPE>(
+        "./DB/result.txt", BUFFER_SIZE, "result");
   } else {
-#if TRAIN_RESULT && LEARNED_MERGE
-    abort();
-    resultBuilder = new SliceArrayWithModelBuilder(total_num_of_keys,
-                                                   FLAGS_key_size_bytes, "0");
-#else
     resultBuilder = new IntArrayBuilder<KEY_TYPE>(total_num_of_keys, "0");
-#endif
   }
 
   Iterator<KEY_TYPE> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
-#if LEARNED_MERGE && !TRUST_ERROR_BOUNDS
-  result =
-      LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c, resultBuilder);
-#elif LEARNED_MERGE && TRUST_ERROR_BOUNDS
-  result = LearnedMergerTrustBounds<KEY_TYPE>::merge(iterators, num_of_lists, c,
-                                                  resultBuilder);
-#else
-  result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
-#endif
+  switch (FLAGS_merge_mode) {
+    case STANDARD_MERGE:
+      result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c, resultBuilder);
+      break;
+    case MERGE_WITH_MODEL:
+      result =
+        LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c, resultBuilder);
+        break;
+  }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
                          .count();
-
-  result->seekToFirst();
-  //   #if ASSERT_SORT
-  //   for(int i=0; i< correct.size();i++) {
-  //     #if USE_STRING_KEYS
-  //       std::string key = to_fixed_size_key(correct[i],
-  //       FLAGS_key_size_bytes); Slice k = Slice(key.c_str(),
-  //       FLAGS_key_size_bytes);
-  // #else
-  //       Slice k = Slice((char *)(&correct[i]), FLAGS_key_size_bytes);
-  // #endif
-  //     if(c->compare(k, result->peek(i)) != 0) {
-  //       std::cout<<"Assert sort failed"<<std::endl;
-  //       abort();
-  //     }
-  //   }
-  //   #endif
   if (FLAGS_print_result) {
     printf("Merged List: %d\n", result->valid());
     while (result->valid()) {
-      KEY_TYPE k = result->key();
-#if USE_STRING_KEYS
-      for (int i = 0; i < FLAGS_key_size_bytes; i++) {
-        printf("%c", k.data_[i]);
-      }
-      printf("\n");
-#else
-      KEY_TYPE val = result->key();
-      printf("%llu\n", val);
-#endif
+      std::string key_str = to_str(result->key());
+      printf("%s\n", key_str.c_str());
       result->next();
     }
   }
+
 #if ASSERT_SORT
   result->seekToFirst();
   auto correctIterator = correct.begin();
   while (result->valid()) {
-    KEY_TYPE *k1 = (KEY_TYPE *)result->key().data_;
+    KEY_TYPE k1 = result->key();
     KEY_TYPE k2 = *correctIterator;
-    assert(*k1 == k2);
+    assert(k1 == k2);
     result->next();
     correctIterator++;
   }

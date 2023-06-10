@@ -6,10 +6,10 @@
 #include "iterator.h"
 #include <stdio.h>
 
+  template <class T>
 class StandardMerger {
 public:
-  template <class T>
-  static Iterator<T> *merge(Iterator<T> **iterators, int n,
+  static Iterator<T> *merge(IteratorWithModel<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
 #if TRACK_STATS
@@ -19,7 +19,7 @@ public:
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
-    Iterator<T> *smallest;
+    IteratorWithModel<T> *smallest;
     while ((smallest = findSmallest(iterators, n, comparator)) != nullptr) {
       result->add(smallest->key());
       smallest->next();
@@ -29,14 +29,13 @@ public:
         dynamic_cast<CountingComparator<T> *>(comparator);
     std::cout << "CompCount: " << count_comp->get_count() << std::endl;
 #endif
-    return result->finish();
+    return result->build();
   }
 
 private:
-  template <class T>
-  static Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
+  static IteratorWithModel<T> *findSmallest(IteratorWithModel<T> **iterators, int n,
                                    Comparator<T> *comparator) {
-    Iterator<T> *smallest = nullptr;
+    IteratorWithModel<T> *smallest = nullptr;
     for (int i = 0; i < n; i++) {
       auto child = iterators[i];
       if (child->valid()) {

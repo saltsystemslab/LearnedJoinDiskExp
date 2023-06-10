@@ -6,7 +6,7 @@
 #include "plr.h"
 
 template <class T>
-class IteratorWithModel : public Iterator<T>, Model<T> {
+class IteratorWithModel : public Iterator<T>, public Model<T> {
  public:
   IteratorWithModel(Iterator<T> *iterator, Model<T> *model)
       : iterator_(iterator), model_(model){};
