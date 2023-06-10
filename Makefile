@@ -14,7 +14,7 @@ LEARNED_MERGE=-DLEARNED_MERGE=${USE_LEARNED_MERGE} -DTRACK_STATS=0 -DTRACK_PLR_T
 
 
 OBJDIR=obj
-_OBJ=plr.o plr_model.o
+_OBJ=plr.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
 $(OBJDIR)/%.o: src/%.cpp

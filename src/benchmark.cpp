@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   }
 
   if (FLAGS_disk_backed) {
-    system("mkdir -p DB");
+    system("rm -rf DB && mkdir -p DB");
   }
 
   std::cout << "Universe Size: " << to_str(FLAGS_universe_size) << std::endl;
@@ -145,7 +145,9 @@ int main(int argc, char **argv) {
   vector<KEY_TYPE> correct;
 #endif
   int num_of_lists = num_keys.size();
-  IteratorWithModel<KEY_TYPE> **iterators =
+  Iterator<KEY_TYPE> **iterators =
+      new Iterator<KEY_TYPE> *[num_of_lists];
+  IteratorWithModel<KEY_TYPE> **iterators_with_model =
       new IteratorWithModel<KEY_TYPE> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
@@ -168,13 +170,14 @@ int main(int argc, char **argv) {
       correct.push_back(keys[j]);
 #endif
     }
-    iterators[i] = builder->finish();
+    iterators_with_model[i] = builder->finish();
+    iterators[i] = iterators_with_model[i]->get_iterator();
     total_num_of_keys += num_keys[i];
   }
 
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
-      IteratorWithModel<KEY_TYPE> *iter = iterators[i];
+      Iterator<KEY_TYPE> *iter = iterators[i];
       iter->seekToFirst();
       printf("List %d\n", i);
       while (iter->valid()) {
@@ -205,11 +208,11 @@ int main(int argc, char **argv) {
                                              resultBuilder);
     break;
   case MERGE_WITH_MODEL:
-    result = LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
+    result = LearnedMerger<KEY_TYPE>::merge(iterators_with_model, num_of_lists, c,
                                             resultBuilder);
     break;
   case MERGE_WITH_MODEL_BULK:
-    result = LearnedMergerBulk<KEY_TYPE>::merge(iterators, num_of_lists, c,
+    result = LearnedMergerBulk<KEY_TYPE>::merge(iterators_with_model, num_of_lists, c,
                                             resultBuilder);
   }
   auto merge_end = std::chrono::high_resolution_clock::now();

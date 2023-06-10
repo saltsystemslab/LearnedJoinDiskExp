@@ -6,10 +6,10 @@
 #include "iterator.h"
 #include <stdio.h>
 
-  template <class T>
+template <class T>
 class StandardMerger {
 public:
-  static Iterator<T> *merge(IteratorWithModel<T> **iterators, int n,
+  static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
 #if TRACK_STATS
@@ -19,7 +19,7 @@ public:
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
-    IteratorWithModel<T> *smallest;
+    Iterator<T> *smallest;
     while ((smallest = findSmallest(iterators, n, comparator)) != nullptr) {
       result->add(smallest->key());
       smallest->next();
@@ -33,9 +33,9 @@ public:
   }
 
 private:
-  static IteratorWithModel<T> *findSmallest(IteratorWithModel<T> **iterators, int n,
+  static Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
                                    Comparator<T> *comparator) {
-    IteratorWithModel<T> *smallest = nullptr;
+    Iterator<T> *smallest = nullptr;
     for (int i = 0; i < n; i++) {
       auto child = iterators[i];
       if (child->valid()) {

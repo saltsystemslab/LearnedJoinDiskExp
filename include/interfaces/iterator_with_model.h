@@ -26,6 +26,7 @@ class IteratorWithModel : public Iterator<T> {
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data, uint64_t *len) {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };
+  Iterator<T> * get_iterator() { return iterator_; }
 
  private:
   Model<T> *model_;
