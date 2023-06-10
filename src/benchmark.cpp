@@ -12,8 +12,8 @@
 #include "comparator.h"
 #include "config.h"
 #include "int_array_iterator.h"
-#include "int_disk_iterator.h"
 #include "int_comparator.h"
+#include "int_disk_iterator.h"
 #include "iterator.h"
 #include "iterator_with_model.h"
 #include "learned_merge.h"
@@ -29,7 +29,7 @@ enum MERGE_MODE {
   MERGE_WITH_MODEL_BULK,
 };
 
-#if USE_INT_128 
+#if USE_INT_128
 static int FLAGS_key_size_bytes = 16;
 #else
 static int FLAGS_key_size_bytes = 8;
@@ -113,14 +113,11 @@ int main(int argc, char **argv) {
     } else if (sscanf(argv[i], "--merge_mode=%s", &str) == 1) {
       if (strcmp(str, "standard") == 0) {
         FLAGS_merge_mode = STANDARD_MERGE;
-      } 
-      else if (strcmp(str, "learned") == 0) {
+      } else if (strcmp(str, "learned") == 0) {
         FLAGS_merge_mode = MERGE_WITH_MODEL;
-      } 
-      else if (strcmp(str, "learned_bulk") == 0) {
+      } else if (strcmp(str, "learned_bulk") == 0) {
         FLAGS_merge_mode = MERGE_WITH_MODEL_BULK;
-      } 
-      else {
+      } else {
         abort();
       }
     } else {
@@ -147,7 +144,8 @@ int main(int argc, char **argv) {
   vector<KEY_TYPE> correct;
 #endif
   int num_of_lists = num_keys.size();
-  IteratorWithModel<KEY_TYPE> **iterators = new IteratorWithModel<KEY_TYPE> *[num_of_lists];
+  IteratorWithModel<KEY_TYPE> **iterators =
+      new IteratorWithModel<KEY_TYPE> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
     ModelBuilder<KEY_TYPE> *m = new PLRModelBuilder<KEY_TYPE>();
@@ -155,8 +153,8 @@ int main(int argc, char **argv) {
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
       std::cout << fileName << std::endl;
-      iterator_builder = new IntDiskBuilder<KEY_TYPE>(
-          fileName.c_str(), BUFFER_SIZE, "hello");
+      iterator_builder =
+          new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, "hello");
     } else {
       iterator_builder = new IntArrayBuilder<KEY_TYPE>(num_keys[i], "hello");
     }
@@ -192,8 +190,8 @@ int main(int argc, char **argv) {
   Comparator<KEY_TYPE> *c = new IntComparator<KEY_TYPE>();
   IteratorBuilder<KEY_TYPE> *resultBuilder;
   if (FLAGS_disk_backed) {
-    resultBuilder = new IntDiskBuilder<KEY_TYPE>(
-        "./DB/result.txt", BUFFER_SIZE, "result");
+    resultBuilder =
+        new IntDiskBuilder<KEY_TYPE>("./DB/result.txt", BUFFER_SIZE, "result");
   } else {
     resultBuilder = new IntArrayBuilder<KEY_TYPE>(total_num_of_keys, "0");
   }
@@ -201,13 +199,14 @@ int main(int argc, char **argv) {
   Iterator<KEY_TYPE> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
   switch (FLAGS_merge_mode) {
-    case STANDARD_MERGE:
-      result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c, resultBuilder);
-      break;
-    case MERGE_WITH_MODEL:
-      result =
-        LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c, resultBuilder);
-        break;
+  case STANDARD_MERGE:
+    result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
+                                             resultBuilder);
+    break;
+  case MERGE_WITH_MODEL:
+    result = LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
+                                            resultBuilder);
+    break;
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(

@@ -17,31 +17,13 @@ class IntArrayIterator : public Iterator<T> {
   uint64_t current_pos() const override { return cur_; };
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
-
- private:
-  T *a_;
-  uint64_t num_keys_;
-  uint64_t cur_;
-  std::string id_;
-};
-
-template <class T>
-class BulkReadIntArrayIterator : public BulkReadIterator<T> {
- public:
-  BulkReadIntArrayIterator(T *a, uint64_t num_keys, std::string id)
-      : id_(id), num_keys_(num_keys), cur_(0), a_(a) {}
-  virtual bool valid() const override { return cur_ < num_keys_; }
-  virtual uint64_t current_pos() const override { return cur_; }
-  virtual uint64_t num_keys() const override { return num_keys_; }
-  virtual T key() override { return a_[cur_]; }
-  virtual uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
+  virtual uint64_t bulkReadAndForward(uint64_t num_keys_to_read, char **data,
                                       uint64_t *len) {
     *data = (char *)(a_ + cur_);
-    *len = num_keys_ * sizeof(T);
-    cur_ += num_keys_;
-    return num_keys_;
+    *len = num_keys_to_read * sizeof(T);
+    cur_ += num_keys_to_read;
+    return num_keys_to_read;
   };
-  virtual std::string id() { return id_; }
 
  private:
   T *a_;
@@ -63,37 +45,17 @@ class IntArrayBuilder : public IteratorBuilder<T> {
   Iterator<T> *build() override {
     return new IntArrayIterator<T>(a_, num_keys_, id_);
   };
-  BulkReadIterator<T> *buildBulkIterator() override {
-    return new BulkReadIntArrayIterator<T>(a_, num_keys_, id_);
-  };
-
- private:
-  T *a_;
-  uint64_t num_keys_;
-  uint64_t cur_;
-  std::string id_;
-  bool finished_;
-};
-
-template <class T>
-class BulkAddIntArrayIteratorBuilder : public BulkAddIteratorBuilder<T> {
- public:
-  BulkAddIntArrayIteratorBuilder(uint64_t num_keys_, std::string id)
-      : a_(new T[num_keys_]), id_(id) {}
-  void bulkAdd(BulkReadIterator<T> *iter, uint64_t keys_to_add) override {
-    T *buffer;
+  void bulkAdd(Iterator<T> *iter, uint64_t keys_to_add) override {
+    char *buffer;
     uint64_t len;
     while (keys_to_add > 0) {
       uint64_t keys_added =
           iter->bulkReadAndForward(keys_to_add, &buffer, &len);
+      printf("%llu\n", len);
       keys_to_add -= keys_added;
-      for (uint64_t i = 0; i < keys_added; i++) {
-        a_[cur_++] = buffer[i];
-      }
+      memcpy(a_ + cur_, buffer, len);
+      cur_ += keys_added;
     }
-  }
-  Iterator<T> *finish() override {
-    return new IntArrayBuilder<T>(a_, num_keys_, id_);
   }
 
  private:

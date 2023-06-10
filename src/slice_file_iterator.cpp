@@ -123,24 +123,3 @@ void FixedSizeSliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
     file_offset_ += bytes_written;
   }
 }
-
-// void FixedSizeSliceFileIteratorWithModelBuilder::bulkAdd(Iterator<Slice> *iter,
-//                                                          int keys_to_add) {
-//   char *data;
-//   uint64_t len;
-//   while (keys_to_add > 0) {
-//     uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
-//     keys_to_add -= keys_added;
-//     num_keys_ += keys_added;
-//     ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
-//     for (ssize_t i = 0; i < bytes_written; i += sizeof(KEY_TYPE)) {
-//       KEY_TYPE *k = (KEY_TYPE *)(data + i);
-//       plrBuilder_->processKey(*k);
-//     }
-//     if (bytes_written == -1) {
-//       perror("pwrite");
-//       abort();
-//     }
-//     file_offset_ += bytes_written;
-//   }
-// }

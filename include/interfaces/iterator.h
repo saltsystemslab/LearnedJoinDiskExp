@@ -17,16 +17,6 @@ class Iterator {
   virtual uint64_t current_pos() const = 0;
   virtual uint64_t num_keys() const = 0;
   virtual std::string id() { return "unnamed_iterator"; }
-};
-
-template <class T>
-class BulkReadIterator {
- public:
-  virtual bool valid() const = 0;
-  virtual uint64_t current_pos() const = 0;
-  virtual uint64_t num_keys() const = 0;
-  virtual T key() = 0;
-  virtual std::string id() { return "unnamed_iterator"; }
   // Attempts to load upto num_keys into a buffer.
   // data is set to point to this buffer, and len is actual number of bytes
   // read. data is valid until next call to bulkReadAndForward. Returns the
@@ -40,15 +30,7 @@ class IteratorBuilder {
  public:
   virtual void add(const T &t) = 0;
   virtual Iterator<T> *build() = 0;
-  virtual BulkReadIterator<T> *buildBulkIterator() = 0;
-};
-
-template <class T>
-class BulkAddIteratorBuilder {
-  // Add num_keys from iter. Advnaces the iter by num_keys.
-  // Assumes iter is valid for num_keys.
-  virtual void bulkAdd(BulkReadIterator<T> *iter, uint64_t num_keys) override;
-  virtual Iterator<T> *buildIterator() = 0;
+  virtual void bulkAdd(Iterator<T> *iter, uint64_t num_keys) = 0;
 };
 
 #endif

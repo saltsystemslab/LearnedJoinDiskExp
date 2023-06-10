@@ -10,6 +10,7 @@ class IntDiskIterator : public Iterator<T> {
       : file_descriptor_(file_descriptor),
         cur_key_buffer_(new char[sizeof(T)]),
         peek_key_buffer_(new char[sizeof(T)]),
+        bulk_key_buffer_(new char[sizeof(T) * MAX_KEYS_TO_BULK_COPY]),
         cur_key_loaded_(false),
         id_(id),
         key_size_(sizeof(T)),
@@ -45,6 +46,22 @@ class IntDiskIterator : public Iterator<T> {
   uint64_t current_pos() const override { return cur_idx_; };
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
+  virtual uint64_t bulkReadAndForward(uint64_t keys_to_copy, char **data,
+                                      uint64_t *len) {
+    keys_to_copy = std::min(keys_to_copy, (uint64_t)MAX_KEYS_TO_BULK_COPY);
+    keys_to_copy = std::min(keys_to_copy, num_keys_ - cur_idx_);
+    ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
+                               keys_to_copy * key_size_, cur_idx_ * key_size_);
+    cur_idx_ += keys_to_copy;
+    cur_key_loaded_ = false;
+    if (bytes_read == -1) {
+      perror("pread");
+      abort();
+    }
+    *len = bytes_read;
+    *data = bulk_key_buffer_;
+    return keys_to_copy;
+  };
 
  private:
   int file_descriptor_;
@@ -53,36 +70,10 @@ class IntDiskIterator : public Iterator<T> {
   uint64_t num_keys_;
   char *cur_key_buffer_;
   char *peek_key_buffer_;
+  char *bulk_key_buffer_;
   bool cur_key_loaded_;
   std::string id_;
 };
-
-#if 0
-template <class T>
-class BulkReadIntDiskIterator : public BulkReadIterator<T> {
- public:
-  BulkReadIntDiskIterator(T *a, uint64_t num_keys, std::string id)
-      : id_(id), num_keys_(num_keys), cur_(0), a_(a) {}
-  virtual bool valid() const override { return cur_ < num_keys_; }
-  virtual uint64_t current_pos() const override { return cur_; }
-  virtual uint64_t num_keys() const override { return num_keys_; }
-  virtual T key() override { return a_[cur_]; }
-  virtual uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
-                                      uint64_t *len) {
-    *data = (char *)(a_ + cur_);
-    *len = num_keys_ * sizeof(T);
-    cur_ += num_keys_;
-    return num_keys_;
-  };
-  virtual std::string id() { return id_; }
-
- private:
-  T *a_;
-  uint64_t num_keys_;
-  uint64_t cur_;
-  std::string id_;
-};
-#endif
 
 template <class T>
 class IntDiskBuilder : public IteratorBuilder<T> {
@@ -121,11 +112,24 @@ class IntDiskBuilder : public IteratorBuilder<T> {
       abort();
     }
     return new IntDiskIterator<T>(read_only_fd, num_keys_, id_);
-  };
-  BulkReadIterator<T> *buildBulkIterator() override {
-    abort();
-    return nullptr;
-  };
+  }
+
+  virtual void bulkAdd(Iterator<T> *iter, uint64_t keys_to_add) override {
+    flushBufferToDisk();
+    char *data;
+    uint64_t len;
+    while (keys_to_add > 0) {
+      uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
+      keys_to_add -= keys_added;
+      num_keys_ += keys_added;
+      ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
+      if (bytes_written == -1) {
+        perror("pwrite");
+        abort();
+      }
+      file_offset_ += bytes_written;
+    }
+  }
 
  private:
   char *file_name_;
@@ -142,7 +146,9 @@ class IntDiskBuilder : public IteratorBuilder<T> {
     memcpy(buffer_ + buffer_idx_, (char *)&key, key_size_);
     buffer_idx_ += key_size_;
   }
+
   void flushBufferToDisk() {
+    if (buffer_idx_ == 0) return;
     ssize_t bytes_written =
         pwrite(file_descriptor_, buffer_, buffer_idx_, file_offset_);
     if (bytes_written == -1) {
@@ -153,36 +159,5 @@ class IntDiskBuilder : public IteratorBuilder<T> {
     buffer_idx_ = 0;
   }
 };
-
-#if 0
-template <class T>
-class BulkAddIntDiskIteratorBuilder : public BulkAddIteratorBuilder<T> {
- public:
-  BulkAddIntDiskIteratorBuilder(uint64_t num_keys_, std::string id)
-      : a_(new T[num_keys_]), id_(id) {}
-  void bulkAdd(BulkReadIterator<T> *iter, uint64_t keys_to_add) override {
-    T *buffer;
-    uint64_t len;
-    while (keys_to_add > 0) {
-      uint64_t keys_added =
-          iter->bulkReadAndForward(keys_to_add, &buffer, &len);
-      keys_to_add -= keys_added;
-      for (uint64_t i = 0; i < keys_added; i++) {
-        a_[cur_++] = buffer[i];
-      }
-    }
-  }
-  Iterator<T> *finish() override {
-    return new IntDiskBuilder<T>(a_, num_keys_, id_);
-  }
-
- private:
-  T *a_;
-  uint64_t num_keys_;
-  uint64_t cur_;
-  std::string id_;
-  bool finished_;
-};
-#endif
 
 #endif
