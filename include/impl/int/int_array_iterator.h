@@ -51,7 +51,6 @@ class IntArrayBuilder : public IteratorBuilder<T> {
     while (keys_to_add > 0) {
       uint64_t keys_added =
           iter->bulkReadAndForward(keys_to_add, &buffer, &len);
-      printf("%llu\n", len);
       keys_to_add -= keys_added;
       memcpy(a_ + cur_, buffer, len);
       cur_ += keys_added;

@@ -17,6 +17,7 @@
 #include "iterator.h"
 #include "iterator_with_model.h"
 #include "learned_merge.h"
+#include "learned_merge_bulk.h"
 #include "model.h"
 #include "plr_model.h"
 #include "standard_merge.h"
@@ -207,6 +208,9 @@ int main(int argc, char **argv) {
     result = LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
                                             resultBuilder);
     break;
+  case MERGE_WITH_MODEL_BULK:
+    result = LearnedMergerBulk<KEY_TYPE>::merge(iterators, num_of_lists, c,
+                                            resultBuilder);
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(

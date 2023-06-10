@@ -1,6 +1,6 @@
 CXX=g++
-C_OPTIONS=-g -Ofast
-INCLUDE=-Iinclude/algos -Iinclude/impl -Iinclude/interfaces -Iinclude/types -Iinclude -I./PGM-index/include
+C_OPTIONS=-g -Ofast 
+INCLUDE=-Iinclude/algos -Iinclude/impl/int -Iinclude/impl/slice -Iinclude/impl/plr -Iinclude/interfaces -Iinclude/types -Iinclude -I./PGM-index/include
 
 USE_LEARNED_MERGE?= 1
 TRAIN_RESULT ?= 0
