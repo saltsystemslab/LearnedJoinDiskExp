@@ -44,12 +44,8 @@ public:
       // There's only one list left, so let's fill up all the way.
       if (second_smallest == nullptr) {
         while (smallest->valid()) {
-#if USE_BULK_COPY
-          result->bulkAdd(smallest, 1);
-#else
           result->add(smallest->key());
           smallest->next();
-#endif
         }
         smallest = nullptr;
         continue;
@@ -107,10 +103,6 @@ private:
           pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
 #endif
     }
-#if USE_BULK_COPY
-    merge_result_builder->bulkAdd(smallest,
-                                  approx_pos - smallest->current_pos() + 1);
-#else
     // Blind copy until approx_pos
     while (smallest->current_pos() <= approx_pos) {
       merge_result_builder->add(smallest->key());
@@ -119,7 +111,6 @@ private:
       cluster_length++;
 #endif
     }
-#endif
     // If we overshot, we copied all the items we wanted for this cluster....
     if (is_overshoot) {
 #if TRACK_STATS
@@ -136,12 +127,8 @@ private:
 #endif
     while (smallest->valid() &&
            comparator->compare(smallest->key(), second_smallest->key()) <= 0) {
-#if USE_BULK_COPY
-      merge_result_builder->bulkAdd(smallest, 1);
-#else
       merge_result_builder->add(smallest->key());
       smallest->next();
-#endif
 #if TRACK_STATS
       cluster_length++;
       undershoot_error++;

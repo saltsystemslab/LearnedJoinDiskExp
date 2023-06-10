@@ -6,16 +6,16 @@
 #include "plr.h"
 
 template <class T>
-class IteratorWithModel : public Iterator<T>, public Model<T> {
+class IteratorWithModel {
  public:
   IteratorWithModel(Iterator<T> *iterator, Model<T> *model)
       : iterator_(iterator), model_(model){};
-  bool valid() const override { return iterator_->valid(); }
-  void next() override { iterator_->next(); }
-  T peek(uint64_t pos) const override { return iterator_->peek(pos); }
-  void seekToFirst() override { iterator_->seekToFirst(); }
-  T key() override { return iterator_->key(); }
-  uint64_t current_pos() const override { return iterator_->current_pos(); }
+  bool valid() const  { return iterator_->valid(); }
+  void next()  { iterator_->next(); }
+  T peek(uint64_t pos) const  { return iterator_->peek(pos); }
+  void seekToFirst()  { iterator_->seekToFirst(); }
+  T key()  { return iterator_->key(); }
+  uint64_t current_pos() const  { return iterator_->current_pos(); }
   uint64_t num_keys() const { return iterator_->num_keys(); }
   double guessPositionMonotone(T target_key) {
     return model_->guessPositionMonotone(target_key);

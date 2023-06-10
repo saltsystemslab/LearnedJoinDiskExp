@@ -17,7 +17,6 @@
 #include "iterator.h"
 #include "iterator_with_model.h"
 #include "learned_merge.h"
-#include "learned_merge_bulk.h"
 #include "model.h"
 #include "plr_model.h"
 #include "standard_merge.h"
@@ -176,7 +175,7 @@ int main(int argc, char **argv) {
 
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
-      Iterator<KEY_TYPE> *iter = iterators[i];
+      IteratorWithModel<KEY_TYPE> *iter = iterators[i];
       iter->seekToFirst();
       printf("List %d\n", i);
       while (iter->valid()) {

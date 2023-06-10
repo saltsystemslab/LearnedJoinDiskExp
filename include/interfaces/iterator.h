@@ -17,11 +17,6 @@ class Iterator {
   virtual uint64_t current_pos() const = 0;
   virtual uint64_t num_keys() const = 0;
   virtual std::string id() { return "unnamed_iterator"; }
-  virtual uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
-                                      uint64_t *len) {
-    printf("Unimplemented bulkReadAndForward!\n");
-    abort();
-  };
 };
 
 template <class T>
@@ -44,12 +39,6 @@ template <class T>
 class IteratorBuilder {
  public:
   virtual void add(const T &t) = 0;
-  virtual void bulkAdd(Iterator<T> *iter, int num_keys) {
-    for (int i = 0; i < num_keys; i++) {
-      add(iter->key());
-      iter->next();
-    }
-  }
   virtual Iterator<T> *build() = 0;
   virtual BulkReadIterator<T> *buildBulkIterator() = 0;
 };
