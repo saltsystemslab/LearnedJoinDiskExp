@@ -63,6 +63,16 @@ class IntDiskIterator : public Iterator<T> {
     return keys_to_copy;
   };
 
+  Iterator<T> *subRange(uint64_t start, uint64_t end) override {
+    abort();
+    return nullptr;
+  }
+
+  uint64_t lower_bound(const T &x) override {
+    abort();
+    return -1;
+  }
+
  private:
   int file_descriptor_;
   int key_size_;
@@ -114,7 +124,7 @@ class IntDiskBuilder : public IteratorBuilder<T> {
     return new IntDiskIterator<T>(read_only_fd, num_keys_, id_);
   }
 
-  virtual void bulkAdd(Iterator<T> *iter, uint64_t keys_to_add) override {
+  void bulkAdd(Iterator<T> *iter, uint64_t keys_to_add) override {
     flushBufferToDisk();
     char *data;
     uint64_t len;
@@ -129,6 +139,11 @@ class IntDiskBuilder : public IteratorBuilder<T> {
       }
       file_offset_ += bytes_written;
     }
+  }
+
+  IteratorBuilder<T> *subRange(uint64_t start, uint64_t end) override {
+    abort();
+    return nullptr;
   }
 
  private:

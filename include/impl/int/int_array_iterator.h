@@ -9,22 +9,34 @@ class IntArrayIterator : public Iterator<T> {
   IntArrayIterator(T *a, uint64_t num_keys, std::string id)
       : id_(id), num_keys_(num_keys), cur_(0), a_(a) {}
   ~IntArrayIterator() { delete a_; }
-  bool valid() const override { return cur_ < num_keys_; };
-  void next() override { cur_++; };
-  T peek(uint64_t pos) const override { return a_[pos]; };
-  void seekToFirst() override { cur_ = 0; };
-  T key() override { return a_[cur_]; };
-  uint64_t current_pos() const override { return cur_; };
+  bool valid() const override { return cur_ < num_keys_; }
+  void next() override { cur_++; }
+  T peek(uint64_t pos) const override { return a_[pos]; }
+  void seekToFirst() override { cur_ = 0; }
+  T key() override { return a_[cur_]; }
+  uint64_t current_pos() const override { return cur_; }
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
-  virtual uint64_t bulkReadAndForward(uint64_t num_keys_to_read, char **data,
+  uint64_t bulkReadAndForward(uint64_t num_keys_to_read, char **data,
                                       uint64_t *len) {
     *data = (char *)(a_ + cur_);
     *len = num_keys_to_read * sizeof(T);
     cur_ += num_keys_to_read;
     return num_keys_to_read;
-  };
-
+  }
+  Iterator<T> *subRange(uint64_t start, uint64_t end) override {
+    return new IntArrayIterator(a_ + start, end-start, 
+      id_ + "_[" + std::to_string(start) + "," + std::to_string(end)+"]");
+  }
+  uint64_t lower_bound(const T &x) override {
+    uint64_t idx;
+    printf("x:%llu\n",x);
+    for (idx=0; idx < num_keys_; idx++) {
+      if (a_[idx] < x) continue;
+      return idx;
+    }
+    return idx;
+  }
  private:
   T *a_;
   uint64_t num_keys_;
@@ -37,6 +49,12 @@ class IntArrayBuilder : public IteratorBuilder<T> {
  public:
   IntArrayBuilder(uint64_t num_keys, std::string id)
       : a_(new T[num_keys]),
+        cur_(0),
+        num_keys_(num_keys),
+        id_(id),
+        finished_(false){};
+  IntArrayBuilder(T *a, uint64_t num_keys, std::string id)
+      : a_(a),
         cur_(0),
         num_keys_(num_keys),
         id_(id),
@@ -55,6 +73,10 @@ class IntArrayBuilder : public IteratorBuilder<T> {
       memcpy(a_ + cur_, buffer, len);
       cur_ += keys_added;
     }
+  }
+  IteratorBuilder<T> *subRange(uint64_t start, uint64_t end) override {
+    return new IntArrayBuilder(a_ + start, end-start,  
+      id_ + "_[" + std::to_string(start) + "," + std::to_string(end) + "]");
   }
 
  private:

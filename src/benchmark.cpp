@@ -21,11 +21,13 @@
 #include "model.h"
 #include "plr_model.h"
 #include "standard_merge.h"
+#include "parallel_standard_merge.h"
 
 using namespace std;
 
 enum MERGE_MODE {
   STANDARD_MERGE,
+  PARALLEL_STANDARD_MERGE,
   MERGE_WITH_MODEL,
   MERGE_WITH_MODEL_BULK,
 };
@@ -114,6 +116,8 @@ int main(int argc, char **argv) {
     } else if (sscanf(argv[i], "--merge_mode=%s", &str) == 1) {
       if (strcmp(str, "standard") == 0) {
         FLAGS_merge_mode = STANDARD_MERGE;
+      } else if (strcmp(str, "parallel_standard") == 0) {
+        FLAGS_merge_mode = PARALLEL_STANDARD_MERGE;
       } else if (strcmp(str, "learned") == 0) {
         FLAGS_merge_mode = MERGE_WITH_MODEL;
       } else if (strcmp(str, "learned_bulk") == 0) {
@@ -205,6 +209,14 @@ int main(int argc, char **argv) {
   switch (FLAGS_merge_mode) {
   case STANDARD_MERGE:
     result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
+                                             resultBuilder);
+    break;
+  case PARALLEL_STANDARD_MERGE:
+    if (num_of_lists != 2) {
+      printf("Currently only 2 lists can be merged in parallel");
+      abort();
+    }
+    result = ParallelStandardMerger::merge<KEY_TYPE>(iterators[0], iterators[1], 3, c,
                                              resultBuilder);
     break;
   case MERGE_WITH_MODEL:

@@ -70,7 +70,7 @@ private:
         approx_pos--;
       }
     }
-    merge_result_builder->bulkAdd(smallest,
+    merge_result_builder->bulkAdd(smallest->get_iterator(),
                                   approx_pos - smallest->current_pos() + 1);
     // If we overshot, we copied all the items we wanted for this cluster....
     if (is_overshoot) {
