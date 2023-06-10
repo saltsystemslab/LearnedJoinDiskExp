@@ -13,7 +13,6 @@ public:
   bool valid() const override;
   void next() override;
   Slice peek(uint64_t pos) const override;
-  void seek(Slice item) override;
   void seekToFirst() override;
   Slice key() override;
   uint64_t current_pos() const override;
@@ -68,7 +67,6 @@ void SliceArrayBuilder::add(const Slice &t) {
   for (int i = 0; i < key_size; i++) {
     a[cur * key_size + i] = t.data_[i];
   }
-  KEY_TYPE *val = (KEY_TYPE *)(a + cur * key_size);
   cur++;
 }
 Iterator<Slice> *SliceArrayBuilder::finish() {

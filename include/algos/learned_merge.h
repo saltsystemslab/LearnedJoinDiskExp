@@ -66,7 +66,7 @@ public:
     close(cluster_count_fd);
     close(plr_error_fd);
 #endif
-    return result->finish();
+    return result->build();
   }
 
 private:

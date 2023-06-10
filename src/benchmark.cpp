@@ -1,5 +1,7 @@
 #include <bits/stdc++.h>
+#include <fcntl.h>
 #include <openssl/rand.h>
+#include <stdio.h>
 
 #include <cassert>
 #include <cstring>
@@ -7,18 +9,17 @@
 #include <string>
 #include <vector>
 
-#include "slice_array_iterator.h"
-
-#include "iterator.h"
-#include "slice.h"
+#include "comparator.h"
 #include "config.h"
+#include "int_array_iterator.h"
+#include "int_comparator.h"
+#include "iterator.h"
+#include "iterator_with_model.h"
 #include "learned_merge.h"
-#include "learned_merge_trust_bounds.h"
-#include "slice_array_iterator.h"
-#include "slice_comparator.h"
-#include "slice_file_iterator.h"
-#include "standard_merge.h"
+#include "model.h"
 #include "plr_model.h"
+#include "standard_merge.h"
+
 using namespace std;
 
 #if USE_INT_128 && !USE_STRING_KEYS
@@ -49,8 +50,8 @@ vector<KEY_TYPE> generate_keys(uint64_t num_keys, KEY_TYPE universe) {
   rand_bytes(rand_nums, bytes_to_alloc);
 
   vector<KEY_TYPE> keys;
-  for (uint64_t i = 0; i < bytes_to_alloc; i+=sizeof(universe)) {
-   KEY_TYPE k = *(KEY_TYPE *)(rand_nums + i);
+  for (uint64_t i = 0; i < bytes_to_alloc; i += sizeof(universe)) {
+    KEY_TYPE k = *(KEY_TYPE *)(rand_nums + i);
     keys.push_back(k);
   }
   delete rand_nums;
@@ -81,7 +82,6 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 int main(int argc, char **argv) {
-
   FLAGS_universe_size = 1;
   for (int i = 0; i < FLAGS_key_size_bytes * 8 - 1; i++) {
     FLAGS_universe_size = FLAGS_universe_size << 1;
@@ -135,21 +135,26 @@ int main(int argc, char **argv) {
     num_keys.push_back(stoi(substr));
   }
   int num_of_lists = num_keys.size();
-  IteratorWithModel<Slice> **iterators = new IteratorWithModel<Slice> *[num_of_lists];
+  IteratorWithModel<KEY_TYPE> **iterators = new IteratorWithModel<KEY_TYPE> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
-    IteratorWithModelBuilder<Slice> *builder;
-    IteratorBuilder<Slice> *iterator;
+    ModelBuilder<KEY_TYPE> *m = new PLRModelBuilder<KEY_TYPE>();
+    IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
+      abort();
+      /*
       std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
       std::cout << fileName << std::endl;
-      iterator = new FixedSizeSliceFileIteratorBuilder(fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
-      
+      iterator = new FixedSizeSliceFileIteratorBuilder(
+          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, i);
+          */
+
     } else {
-      iterator = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
+      iterator_builder = new IntArrayBuilder<KEY_TYPE>(num_keys[i], "hello");
     }
-    ModelBuilder<Slice> *m = new PLRModelBuilder();
-    builder = new IteratorWithModelBuilder(iterator, m);
+    IteratorWithModelBuilder<KEY_TYPE> *builder =
+        new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
+
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
 #if ASSERT_SORT
@@ -159,7 +164,7 @@ int main(int argc, char **argv) {
       std::string key = to_fixed_size_key(keys[j], FLAGS_key_size_bytes);
       builder->add(Slice(key.c_str(), FLAGS_key_size_bytes));
 #else
-      builder->add(Slice((char *)(&keys[j]), FLAGS_key_size_bytes));
+      iterator_builder->add(keys[j]);
 #endif
     }
     iterators[i] = builder->finish();
@@ -168,7 +173,7 @@ int main(int argc, char **argv) {
 
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
-      Iterator<Slice> *iter = iterators[i];
+      Iterator<KEY_TYPE> *iter = iterators[i];
       iter->seekToFirst();
       printf("List %d\n", i);
       while (iter->valid()) {
@@ -178,8 +183,8 @@ int main(int argc, char **argv) {
         }
         printf("\n");
 #else
-        KEY_TYPE *k = (KEY_TYPE *)iter->key().data_;
-        printf("%d Key: %s\n", i, to_str(*k).c_str());
+        KEY_TYPE k = iter->key();
+        printf("%d Key: %llu\n", i, k);
 #endif
         iter->next();
       }
@@ -189,9 +194,11 @@ int main(int argc, char **argv) {
   sort(correct.begin(), correct.end());
 #endif
 
-  Comparator<Slice> *c = new SliceComparator();
-  IteratorBuilder<Slice> *resultBuilder;
+  Comparator<KEY_TYPE> *c = new IntComparator<KEY_TYPE>();
+  IteratorBuilder<KEY_TYPE> *resultBuilder;
   if (FLAGS_disk_backed) {
+    abort();
+#if 0
 #if TRAIN_RESULT && LEARNED_MERGE
     resultBuilder = new FixedSizeSliceFileIteratorWithModelBuilder(
         "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
@@ -199,23 +206,24 @@ int main(int argc, char **argv) {
     resultBuilder = new FixedSizeSliceFileIteratorBuilder(
         "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, 0);
 #endif
+#endif
   } else {
 #if TRAIN_RESULT && LEARNED_MERGE
+    abort();
     resultBuilder = new SliceArrayWithModelBuilder(total_num_of_keys,
-                                                   FLAGS_key_size_bytes, 0);
+                                                   FLAGS_key_size_bytes, "0");
 #else
-    resultBuilder =
-        new SliceArrayBuilder(total_num_of_keys, FLAGS_key_size_bytes, 0);
+    resultBuilder = new IntArrayBuilder<KEY_TYPE>(total_num_of_keys, "0");
 #endif
   }
 
-  Iterator<Slice> *result;
+  Iterator<KEY_TYPE> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
 #if LEARNED_MERGE && !TRUST_ERROR_BOUNDS
   result =
-      LearnedMerger<Slice>::merge(iterators, num_of_lists, c, resultBuilder);
+      LearnedMerger<KEY_TYPE>::merge(iterators, num_of_lists, c, resultBuilder);
 #elif LEARNED_MERGE && TRUST_ERROR_BOUNDS
-  result = LearnedMergerTrustBounds<Slice>::merge(iterators, num_of_lists, c,
+  result = LearnedMergerTrustBounds<KEY_TYPE>::merge(iterators, num_of_lists, c,
                                                   resultBuilder);
 #else
   result = StandardMerger::merge(iterators, num_of_lists, c, resultBuilder);
@@ -226,32 +234,33 @@ int main(int argc, char **argv) {
                          .count();
 
   result->seekToFirst();
-//   #if ASSERT_SORT
-//   for(int i=0; i< correct.size();i++) {
-//     #if USE_STRING_KEYS
-//       std::string key = to_fixed_size_key(correct[i], FLAGS_key_size_bytes);
-//       Slice k = Slice(key.c_str(), FLAGS_key_size_bytes);
-// #else
-//       Slice k = Slice((char *)(&correct[i]), FLAGS_key_size_bytes);
-// #endif
-//     if(c->compare(k, result->peek(i)) != 0) {
-//       std::cout<<"Assert sort failed"<<std::endl;
-//       abort();
-//     }
-//   }
-//   #endif
+  //   #if ASSERT_SORT
+  //   for(int i=0; i< correct.size();i++) {
+  //     #if USE_STRING_KEYS
+  //       std::string key = to_fixed_size_key(correct[i],
+  //       FLAGS_key_size_bytes); Slice k = Slice(key.c_str(),
+  //       FLAGS_key_size_bytes);
+  // #else
+  //       Slice k = Slice((char *)(&correct[i]), FLAGS_key_size_bytes);
+  // #endif
+  //     if(c->compare(k, result->peek(i)) != 0) {
+  //       std::cout<<"Assert sort failed"<<std::endl;
+  //       abort();
+  //     }
+  //   }
+  //   #endif
   if (FLAGS_print_result) {
     printf("Merged List: %d\n", result->valid());
     while (result->valid()) {
-      Slice k = result->key();
+      KEY_TYPE k = result->key();
 #if USE_STRING_KEYS
       for (int i = 0; i < FLAGS_key_size_bytes; i++) {
         printf("%c", k.data_[i]);
       }
       printf("\n");
 #else
-      KEY_TYPE *val = (KEY_TYPE *)result->key().data_;
-      printf("%s\n", to_str(*val).c_str());
+      KEY_TYPE val = result->key();
+      printf("%llu\n", val);
 #endif
       result->next();
     }
@@ -271,5 +280,4 @@ int main(int argc, char **argv) {
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);
   std::cout << "Ok!" << std::endl;
-  
 }

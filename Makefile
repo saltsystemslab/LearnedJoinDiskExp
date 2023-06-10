@@ -6,7 +6,7 @@ USE_LEARNED_MERGE?= 1
 TRAIN_RESULT ?= 0
 ERROR_BOUND ?= 10
 USE_STRING_KEYS ?= 0
-USE_INT_128 ?= 1
+USE_INT_128 ?= 0
 USE_BULK_COPY ?= 1
 TRUST_ERROR_BOUNDS ?= 0
 
@@ -14,7 +14,7 @@ LEARNED_MERGE=-DLEARNED_MERGE=${USE_LEARNED_MERGE} -DTRACK_STATS=0 -DTRACK_PLR_T
 
 
 OBJDIR=obj
-_OBJ=slice_file_iterator.o plr.o plr_model.o
+_OBJ=plr.o plr_model.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(_OBJ))
 
 $(OBJDIR)/%.o: src/%.cpp
