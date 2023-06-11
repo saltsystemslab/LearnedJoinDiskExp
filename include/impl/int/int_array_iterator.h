@@ -30,7 +30,6 @@ class IntArrayIterator : public Iterator<T> {
   }
   uint64_t lower_bound(const T &x) override {
     uint64_t idx;
-    printf("x:%llu\n",x);
     for (idx=0; idx < num_keys_; idx++) {
       if (a_[idx] < x) continue;
       return idx;

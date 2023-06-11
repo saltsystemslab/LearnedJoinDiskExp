@@ -6,10 +6,7 @@
 #include <cassert>
 #include <string>
 
-/**
-Maybe this should actually be called is IteratorWithModel. But we need models
-almost always, so model querying is exposed as an method.
-*/
+/* Represents a CDF. */
 template <class T>
 class Model {
  public:
