@@ -5,6 +5,7 @@
 #include "config.h"
 #include "iterator.h"
 #include "standard_merge.h"
+#include "standard_lookup.h"
 
 class ParallelStandardMerger {
 public:
@@ -33,7 +34,7 @@ public:
       }
 
       Iterator<T> *iter1_subrange = iter1->subRange(iter1_start, iter1_end);
-      uint64_t iter2_end = iter2->lower_bound(iter1->peek(iter1_end-1));
+      uint64_t iter2_end = StandardLookup::lower_bound<T>(iter2, comparator, iter1->peek(iter1_end-1));
       Iterator<T> *iter2_subrange = iter2->subRange(iter2_start, iter2_end);
 
       uint64_t result_end = result_start + (iter2_end - iter2_start) + (iter1_end - iter1_start);

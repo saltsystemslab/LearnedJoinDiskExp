@@ -25,9 +25,6 @@ class Iterator {
                                       uint64_t *len) = 0;
   // Return an iterator that serves items from [start, end).                               
   virtual Iterator<T> *subRange(uint64_t start, uint64_t end) = 0;
-  // Return the position of the first item not less than x.                               
-  // If no such item exists, num_keys is returned.
-  virtual uint64_t lower_bound(const T &x) = 0;
 };
 
 template <class T>

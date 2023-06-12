@@ -5,17 +5,15 @@
 #include "config.h"
 #include "iterator.h"
 #include "learned_merge.h"
+#include "learned_lookup.h"
 
 class ParallelLearnedMergerBulk {
-public:
+ public:
   template <class T>
-  static Iterator<T> *merge(
-    IteratorWithModel<T> *iter1, 
-    IteratorWithModel<T> *iter2, 
-    int num_threads,
-    Comparator<T> *comparator, 
-    IteratorBuilder<T> *result) {
-
+  static Iterator<T> *merge(IteratorWithModel<T> *iter1,
+                            IteratorWithModel<T> *iter2, int num_threads,
+                            Comparator<T> *comparator,
+                            IteratorBuilder<T> *result) {
     uint64_t num_items = iter1->num_keys();
     uint64_t block_size = num_items / num_threads;
     uint64_t spill = num_items % num_threads;
@@ -24,7 +22,7 @@ public:
     uint64_t iter2_start = 0;
     uint64_t result_start = 0;
 
-    printf("Parallelized Learned Merge!\n");
+    printf("Parallelized Learned Merge Bulk!\n");
     for (int i = 0; i < num_threads; i++) {
       uint64_t iter1_end = iter1_start + block_size;
       if (spill) {
@@ -32,12 +30,17 @@ public:
         spill--;
       }
 
-      IteratorWithModel<T> *iter1_subrange = iter1->subRange(iter1_start, iter1_end);
-      uint64_t iter2_end = iter2->lower_bound(iter1->peek(iter1_end-1));
-      IteratorWithModel<T> *iter2_subrange = iter2->subRange(iter2_start, iter2_end);
+      IteratorWithModel<T> *iter1_subrange =
+          iter1->subRange(iter1_start, iter1_end);
+      uint64_t iter2_end = LearnedLookup::lower_bound<T>(
+          iter2, comparator, iter1->peek(iter1_end - 1));
+      IteratorWithModel<T> *iter2_subrange =
+          iter2->subRange(iter2_start, iter2_end);
 
-      uint64_t result_end = result_start + (iter2_end - iter2_start) + (iter1_end - iter1_start);
-      IteratorBuilder<T> *result_subrange = result->subRange(result_start, result_end);
+      uint64_t result_end =
+          result_start + (iter2_end - iter2_start) + (iter1_end - iter1_start);
+      IteratorBuilder<T> *result_subrange =
+          result->subRange(result_start, result_end);
       IteratorWithModel<T> *iterators[2] = {iter1_subrange, iter2_subrange};
       LearnedMergerBulk<T>::merge(iterators, 2, comparator, result_subrange);
 
@@ -47,10 +50,13 @@ public:
     }
 
     if (iter2_start != iter2->num_keys()) {
-      IteratorWithModel<T> *iter1_subrange = iter1->subRange(iter1_start, iter1_start);
-      IteratorWithModel<T> *iter2_subrange = iter2->subRange(iter2_start, iter2->num_keys());
+      IteratorWithModel<T> *iter1_subrange =
+          iter1->subRange(iter1_start, iter1_start);
+      IteratorWithModel<T> *iter2_subrange =
+          iter2->subRange(iter2_start, iter2->num_keys());
       uint64_t result_end = (iter2->num_keys() - iter2_start);
-      IteratorBuilder<T> *result_subrange = result->subRange(result_start, result_end);
+      IteratorBuilder<T> *result_subrange =
+          result->subRange(result_start, result_end);
       IteratorWithModel<T> *iterators[2] = {iter1_subrange, iter2_subrange};
       LearnedMerger<T>::merge(iterators, 2, comparator, result_subrange);
     }

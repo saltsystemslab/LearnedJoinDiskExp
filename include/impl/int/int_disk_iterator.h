@@ -84,16 +84,6 @@ class IntDiskIterator : public Iterator<T> {
         id_ + "[" + std::to_string(start) + "," + std::to_string(end) + "]");
   }
 
-  uint64_t lower_bound(const T &x) override {
-    uint64_t i;
-    for (i = 0; i < num_keys_; i++) {
-      T k = peek(i);
-      if (k < x) continue;
-      return k;
-    }
-    return i;
-  }
-
  private:
   int file_descriptor_;
   int key_size_;

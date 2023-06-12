@@ -37,7 +37,6 @@ class IteratorWithModel {
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data, uint64_t *len) {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };
-  uint64_t lower_bound(const T &t) { return iterator_->lower_bound(t); }
   Iterator<T> *get_iterator() { return iterator_; }
   IteratorWithModel<T> *subRange(uint64_t start, uint64_t end) {
     return new IteratorWithModel<T>(iterator_->subRange(start, end), model_,

@@ -28,14 +28,6 @@ class IntArrayIterator : public Iterator<T> {
     return new IntArrayIterator(a_ + start, end-start, 
       id_ + "_[" + std::to_string(start) + "," + std::to_string(end)+"]");
   }
-  uint64_t lower_bound(const T &x) override {
-    uint64_t idx;
-    for (idx=0; idx < num_keys_; idx++) {
-      if (a_[idx] < x) continue;
-      return idx;
-    }
-    return idx;
-  }
  private:
   T *a_;
   uint64_t num_keys_;

@@ -273,7 +273,10 @@ int main(int argc, char **argv) {
   while (result->valid()) {
     KEY_TYPE k1 = result->key();
     KEY_TYPE k2 = *correctIterator;
-    assert(k1 == k2);
+    if (k1 != k2) {
+      std::cout<<correctIterator - correct.begin()<<std::endl;
+      abort();
+    }
     result->next();
     correctIterator++;
   }
