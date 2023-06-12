@@ -16,6 +16,7 @@ public:
   {}
   double guessPositionMonotone(Slice target_key) override;
   double guessPositionUsingBinarySearch(Slice target_key) override;
+  uint64_t getNumberOfSegments() override;
 private:
   pgm::PGMIndex<KEY_TYPE, epsilon> *(a_);
   

@@ -20,6 +20,9 @@
 #include "standard_merge.h"
 #include "plr_model.h"
 #include "pgm_index.h"
+#include "binary_search.h"
+#include "model.h"
+
 using namespace std;
 
 #if USE_INT_128 && !USE_STRING_KEYS
@@ -35,7 +38,7 @@ static int FLAGS_num_of_lists = 2;
 static KEY_TYPE FLAGS_universe_size = 2000000000000000;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
-static const char *FLAGS_num_keys = "10,10";
+static const char *FLAGS_num_keys = "100,100";
 static const char *FLAGS_DB_dir = "./DB";
 
 void rand_bytes(unsigned char *v, size_t n) {
@@ -136,8 +139,11 @@ int main(int argc, char **argv) {
     num_keys.push_back(stoi(substr));
   }
   int num_of_lists = num_keys.size();
+  
   IteratorWithModel<Slice> **iterators = new IteratorWithModel<Slice> *[num_of_lists];
   int total_num_of_keys = 0;
+  size_t segmentCount=0;
+  size_t training_duration_ns=0;
   for (int i = 0; i < num_of_lists; i++) {
     IteratorWithModelBuilder<Slice> *builder;
     IteratorBuilder<Slice> *iterator;
@@ -149,7 +155,16 @@ int main(int argc, char **argv) {
     } else {
       iterator = new SliceArrayBuilder(num_keys[i], FLAGS_key_size_bytes, i);
     }
-    ModelBuilder<Slice> *m = new PGMIndexBuilder(num_keys[i]);
+    ModelBuilder<Slice> *m;
+    #if USE_PLR_MODEL
+    m = new PLRModelBuilder();
+    #endif
+    #if USE_PGM_INDEX
+    m = new PGMIndexBuilder(num_keys[i]);
+    #endif
+    #if USE_BINARY_SEARCH
+    m = new BinarySearchBuilder(num_keys[i]);
+    #endif
     builder = new IteratorWithModelBuilder(iterator, m);
     auto keys = generate_keys(num_keys[i], FLAGS_universe_size);
     for (int j = 0; j < num_keys[i]; j++) {
@@ -164,8 +179,16 @@ int main(int argc, char **argv) {
 #endif
     }
     iterators[i] = builder->finish();
+    training_duration_ns = builder->training_time_;
+    segmentCount += iterators[i]->getNumberOfSegments();
     total_num_of_keys += num_keys[i];
   }
+  
+  
+  float training_duration_sec = training_duration_ns / 1e9;
+  printf("Training duration: %.3lf s\n", training_duration_sec);
+  printf("Number of segments:%ld\n", segmentCount);
+  std::cout << "Training done" << std::endl;
 
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
@@ -272,5 +295,4 @@ int main(int argc, char **argv) {
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);
   std::cout << "Ok!" << std::endl;
-  
 }

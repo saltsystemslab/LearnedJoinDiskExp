@@ -2,6 +2,7 @@
 #include "plr_model.h"
 #include "config.h"
 #include "math.h"
+#include <iostream>
 
 uint64_t PLR_Model::getPLRLineSegmentIndex() {
   return plr_segment_index_;
@@ -67,5 +68,10 @@ double PLR_Model::guessPositionUsingBinarySearch(Slice target_key)
     result = 0;
   }
   return floor(result);
+}
+
+uint64_t PLR_Model::getNumberOfSegments() {
+    std::cout<<"soemthing"<<std::endl;
+    return (model_->lineSegments_).size() * sizeof(Segment);
 }
 

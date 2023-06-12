@@ -15,6 +15,7 @@ public:
   {}
   double guessPositionMonotone(Slice target_key) override;
   double guessPositionUsingBinarySearch(Slice target_key) override;
+  uint64_t getNumberOfSegments() override;
 private:
   PLRModel *model_;
   uint64_t plr_segment_index_;

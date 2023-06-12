@@ -9,7 +9,7 @@
 #include "plr.h"
 
 template <class T>
-class IteratorWithModel : public Iterator<T>, Model<T> {
+class IteratorWithModel : public Iterator<T>, public Model<T> {
 public:
   IteratorWithModel(Iterator<T> *iterator, Model<T> *model)
       : iterator_(iterator), model_(model){};
@@ -26,6 +26,9 @@ public:
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data, uint64_t *len) {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };
+  uint64_t getNumberOfSegments() { 
+     return model_->getNumberOfSegments();
+  };
 
 private:
   Model<T> *model_;
@@ -35,22 +38,39 @@ private:
 template <class T>
 class IteratorWithModelBuilder {
 public:
+  size_t training_time_;
   IteratorWithModelBuilder(IteratorBuilder<T>* iterator, ModelBuilder<T>* model)
       :
       iterator_(iterator),
-      model_(model){}
+      model_(model),
+      training_time_(0)
+      {}
 
   void add(const T &key) {
     iterator_->add(key);
+
+    auto training_time_start = std::chrono::high_resolution_clock::now();
     model_->add(key);
+    auto training_time_stop = std::chrono::high_resolution_clock::now();
+    training_time_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       training_time_stop - training_time_start)
+                       .count();
   };
   IteratorWithModel<T> *finish() {
-    return new IteratorWithModel(iterator_->finish(),
-                                      model_->finish());
+    Iterator<T> *it = iterator_->finish();
+
+    auto training_time_start = std::chrono::high_resolution_clock::now();
+    Model<T>* m = model_->finish();
+    auto training_time_stop = std::chrono::high_resolution_clock::now();
+    training_time_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       training_time_stop - training_time_start)
+                       .count();
+    return new IteratorWithModel(it, m);
   };
 
 private:
   IteratorBuilder<T>* iterator_;
   ModelBuilder<T>* model_;
+  
 };
 #endif

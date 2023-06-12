@@ -19,6 +19,7 @@ public:
     abort();
   }
   virtual double guessPositionUsingBinarySearch(T target_key) { return -1; }
+  virtual uint64_t getNumberOfSegments() {return 0;}
 };
 
 template <class T> class ModelBuilder {
