@@ -14,7 +14,21 @@ class IntDiskIterator : public Iterator<T> {
         cur_key_loaded_(false),
         id_(id),
         key_size_(sizeof(T)),
-        num_keys_(num_keys) {}
+        num_keys_(num_keys),
+        start_offset_byte_(0) {}
+
+  IntDiskIterator(int file_descriptor, uint64_t start_offset_byte,
+                  uint64_t num_keys, std::string id)
+      : file_descriptor_(file_descriptor),
+        cur_key_buffer_(new char[sizeof(T)]),
+        peek_key_buffer_(new char[sizeof(T)]),
+        bulk_key_buffer_(new char[sizeof(T) * MAX_KEYS_TO_BULK_COPY]),
+        cur_key_loaded_(false),
+        id_(id),
+        key_size_(sizeof(T)),
+        num_keys_(num_keys),
+        start_offset_byte_(start_offset_byte) {}
+
   ~IntDiskIterator() {}
   bool valid() const override { return cur_idx_ < num_keys_; }
   void next() override {
@@ -23,7 +37,7 @@ class IntDiskIterator : public Iterator<T> {
   }
   T peek(uint64_t pos) const override {
     ssize_t bytes_read = pread(file_descriptor_, peek_key_buffer_, key_size_,
-                               cur_idx_ * key_size_);
+                               cur_idx_ * key_size_ + start_offset_byte_);
     if (bytes_read == -1) {
       perror("pread");
       abort();
@@ -34,7 +48,7 @@ class IntDiskIterator : public Iterator<T> {
   T key() override {
     if (!cur_key_loaded_) {
       ssize_t bytes_read = pread(file_descriptor_, cur_key_buffer_, key_size_,
-                                 cur_idx_ * key_size_);
+                                 cur_idx_ * key_size_ + start_offset_byte_);
       if (bytes_read == -1) {
         perror("pread");
         abort();
@@ -50,8 +64,9 @@ class IntDiskIterator : public Iterator<T> {
                                       uint64_t *len) {
     keys_to_copy = std::min(keys_to_copy, (uint64_t)MAX_KEYS_TO_BULK_COPY);
     keys_to_copy = std::min(keys_to_copy, num_keys_ - cur_idx_);
-    ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
-                               keys_to_copy * key_size_, cur_idx_ * key_size_);
+    ssize_t bytes_read =
+        pread(file_descriptor_, bulk_key_buffer_, keys_to_copy * key_size_,
+              cur_idx_ * key_size_ + start_offset_byte_);
     cur_idx_ += keys_to_copy;
     cur_key_loaded_ = false;
     if (bytes_read == -1) {
@@ -64,13 +79,19 @@ class IntDiskIterator : public Iterator<T> {
   };
 
   Iterator<T> *subRange(uint64_t start, uint64_t end) override {
-    abort();
-    return nullptr;
+    return new IntDiskIterator(
+        file_descriptor_, start * key_size_, end - start,
+        id_ + "[" + std::to_string(start) + "," + std::to_string(end) + "]");
   }
 
   uint64_t lower_bound(const T &x) override {
-    abort();
-    return -1;
+    uint64_t i;
+    for (i = 0; i < num_keys_; i++) {
+      T k = peek(i);
+      if (k < x) continue;
+      return k;
+    }
+    return i;
   }
 
  private:
@@ -78,6 +99,7 @@ class IntDiskIterator : public Iterator<T> {
   int key_size_;
   uint64_t cur_idx_;
   uint64_t num_keys_;
+  uint64_t start_offset_byte_;
   char *cur_key_buffer_;
   char *peek_key_buffer_;
   char *bulk_key_buffer_;
@@ -95,7 +117,8 @@ class IntDiskBuilder : public IteratorBuilder<T> {
         num_keys_(0),
         buffer_idx_(0),
         id_(id),
-        file_offset_(0) {
+        file_offset_(0),
+        start_offset_byte_(0) {
     memcpy(file_name_, file_name, strlen(file_name));
     file_name_[strlen(file_name)] = '\0';
     file_descriptor_ = open(file_name_, O_WRONLY | O_CREAT, 0644);
@@ -105,6 +128,27 @@ class IntDiskBuilder : public IteratorBuilder<T> {
     }
     buffer_ = new char[buffer_size_];
   }
+
+  IntDiskBuilder(const char *file_name, size_t buffer_size,
+                 uint64_t start_offset_byte, std::string id)
+      : file_name_(new char[strlen(file_name) + 1]),
+        buffer_size_(buffer_size),
+        key_size_(sizeof(T)),
+        num_keys_(0),
+        buffer_idx_(0),
+        id_(id),
+        file_offset_(0),
+        start_offset_byte_(start_offset_byte) {
+    memcpy(file_name_, file_name, strlen(file_name));
+    file_name_[strlen(file_name)] = '\0';
+    file_descriptor_ = open(file_name_, O_WRONLY | O_CREAT, 0644);
+    if (file_descriptor_ == -1) {
+      perror("popen");
+      abort();
+    }
+    buffer_ = new char[buffer_size_];
+  }
+
   void add(const T &t) override {
     num_keys_++;
     if (key_size_ + buffer_idx_ < buffer_size_) {
@@ -132,7 +176,8 @@ class IntDiskBuilder : public IteratorBuilder<T> {
       uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
       keys_to_add -= keys_added;
       num_keys_ += keys_added;
-      ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
+      ssize_t bytes_written = pwrite(file_descriptor_, data, len,
+                                     file_offset_ + start_offset_byte_);
       if (bytes_written == -1) {
         perror("pwrite");
         abort();
@@ -142,8 +187,9 @@ class IntDiskBuilder : public IteratorBuilder<T> {
   }
 
   IteratorBuilder<T> *subRange(uint64_t start, uint64_t end) override {
-    abort();
-    return nullptr;
+    return new IntDiskBuilder(
+        file_name_, buffer_size_, start * key_size_,
+        id_ + "[" + std::to_string(start) + "," + std::to_string(end) + "]");
   }
 
  private:
@@ -154,6 +200,7 @@ class IntDiskBuilder : public IteratorBuilder<T> {
   size_t buffer_idx_;
   size_t buffer_size_;
   off_t file_offset_;
+  uint64_t start_offset_byte_;
   uint64_t num_keys_;
   std::string id_;
 
@@ -164,8 +211,8 @@ class IntDiskBuilder : public IteratorBuilder<T> {
 
   void flushBufferToDisk() {
     if (buffer_idx_ == 0) return;
-    ssize_t bytes_written =
-        pwrite(file_descriptor_, buffer_, buffer_idx_, file_offset_);
+    ssize_t bytes_written = pwrite(file_descriptor_, buffer_, buffer_idx_,
+                                   file_offset_ + start_offset_byte_);
     if (bytes_written == -1) {
       perror("pwrite");
       abort();
