@@ -37,7 +37,7 @@ class IntDiskIterator : public Iterator<T> {
   }
   T peek(uint64_t pos) const override {
     ssize_t bytes_read = pread(file_descriptor_, peek_key_buffer_, key_size_,
-                               cur_idx_ * key_size_ + start_offset_byte_);
+                               pos * key_size_ + start_offset_byte_);
     if (bytes_read == -1) {
       perror("pread");
       abort();

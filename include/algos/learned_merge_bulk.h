@@ -55,7 +55,7 @@ private:
                                  Comparator<T> *comparator,
                                  IteratorBuilder<T> *merge_result_builder) {
     // approx_pos is always a valid position in iterator.
-    uint64_t approx_pos = std::ceil(smallest->guessPositionMonotone(second_smallest->key()));
+    uint64_t approx_pos = smallest->guessPositionMonotone(second_smallest->key());
     approx_pos = std::max(approx_pos, smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),

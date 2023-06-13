@@ -9,14 +9,9 @@ template <class T>
 class IteratorWithModel {
  public:
   IteratorWithModel(Iterator<T> *iterator, Model<T> *model)
-      : iterator_(iterator), model_(model), model_pos_offset_(0), num_keys_(iterator->num_keys()){};
-  IteratorWithModel(Iterator<T> *iterator, Model<T> *model,
-                    uint64_t model_pos_offset)
       : iterator_(iterator),
         model_(model),
-        model_pos_offset_(model_pos_offset),
-        num_keys_(iterator->num_keys())
-        {};
+        num_keys_(iterator->num_keys()){};
   bool valid() const { return iterator_->valid(); }
   void next() { iterator_->next(); }
   T peek(uint64_t pos) const { return iterator_->peek(pos); }
@@ -25,28 +20,24 @@ class IteratorWithModel {
   uint64_t current_pos() const { return iterator_->current_pos(); }
   uint64_t num_keys() const { return iterator_->num_keys(); }
   double guessPositionMonotone(T target_key) {
-    double pos = model_->guessPositionMonotone(target_key) - model_pos_offset_;
-    if (pos < 0.0) pos = 0.0;
-    if (pos > num_keys_) pos = num_keys_-1;
-    return pos;
+    return model_->guessPositionMonotone(target_key);
   };
   double guessPositionUsingBinarySearch(T target_key) {
-    return model_->guessPositionUsingBinarySearch(target_key) -
-           model_pos_offset_;
+    return model_->guessPositionUsingBinarySearch(target_key);
   };
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data, uint64_t *len) {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };
   Iterator<T> *get_iterator() { return iterator_; }
-  IteratorWithModel<T> *subRange(uint64_t start, uint64_t end) {
-    return new IteratorWithModel<T>(iterator_->subRange(start, end), model_,
-                                        start);
+  IteratorWithModel<T> *subRange(T start, T end) {
+    return new IteratorWithModel<T>(iterator_->subRange(start, end),
+                                    model_->get_model_for_subrange(start, end));
   }
+  std::string id() { return iterator_->id(); }
 
  private:
   Model<T> *model_;
   Iterator<T> *iterator_;
-  uint64_t model_pos_offset_;
   uint64_t num_keys_;
 };
 

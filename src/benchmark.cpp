@@ -50,6 +50,7 @@ static bool FLAGS_print_result = false;
 static const char *FLAGS_num_keys = "10,10";
 static const char *FLAGS_DB_dir = "./DB";
 static int FLAGS_merge_mode = STANDARD_MERGE;
+static int FLAGS_num_threads = 3;
 
 void rand_bytes(unsigned char *v, size_t n) {
   uint64_t i = 0;
@@ -115,6 +116,8 @@ int main(int argc, char **argv) {
       }
     } else if (sscanf(argv[i], "--use_disk=%lld%c", &n, &junk) == 1) {
       FLAGS_disk_backed = n;
+    } else if (sscanf(argv[i], "--num_threads=%lld%c", &n, &junk) == 1) {
+      FLAGS_num_threads = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
       FLAGS_print_result = n;
     } else if (sscanf(argv[i], "--merge_mode=%s", str) == 1) {
@@ -204,6 +207,7 @@ int main(int argc, char **argv) {
   sort(correct.begin(), correct.end());
 #endif
 
+  printf("Finished training models!\n");
   Comparator<KEY_TYPE> *c = new IntComparator<KEY_TYPE>();
   IteratorBuilder<KEY_TYPE> *resultBuilder;
   if (FLAGS_disk_backed) {
@@ -225,24 +229,24 @@ int main(int argc, char **argv) {
         printf("Currently only 2 lists can be merged in parallel");
         abort();
       }
-      result = ParallelStandardMerger::merge<KEY_TYPE>(
-          iterators[0], iterators[1], 3, c, resultBuilder);
+      result = ParallelStandardMerger<KEY_TYPE>::merge(
+          iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
       break;
     case PARALLEL_LEARNED_MERGE:
       if (num_of_lists != 2) {
         printf("Currently only 2 lists can be merged in parallel");
         abort();
       }
-      result = ParallelLearnedMerger::merge<KEY_TYPE>(iterators_with_model[0],
+      result = ParallelLearnedMerger<KEY_TYPE>::merge(iterators_with_model[0],
                                                       iterators_with_model[1],
-                                                      3, c, resultBuilder);
+                                                      FLAGS_num_threads, c, resultBuilder);
       break;
     case PARALLEL_LEARNED_MERGE_BULK:
       if (num_of_lists != 2) {
         printf("Currently only 2 lists can be merged in parallel");
         abort();
       }
-      result = ParallelLearnedMergerBulk::merge<KEY_TYPE>(iterators_with_model[0],
+      result = ParallelLearnedMergerBulk<KEY_TYPE>::merge(iterators_with_model[0],
                                                       iterators_with_model[1],
                                                       3, c, resultBuilder);
       break;

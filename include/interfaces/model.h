@@ -12,11 +12,12 @@ class Model {
  public:
   // Assumes that the queries for guessPosition are monotonically increasing.
   // The model lookup can be optimized to take advantage of that.
-  virtual double guessPositionMonotone(T target_key) {
+  virtual uint64_t guessPositionMonotone(T target_key) {
     printf("Uninmplemented guessPositionMonotone\n");
     abort();
   }
-  virtual double guessPositionUsingBinarySearch(T target_key) { return -1; }
+  virtual uint64_t guessPositionUsingBinarySearch(T target_key) { return -1; }
+  virtual Model<T> *get_model_for_subrange(const T& start, const T& end) = 0;
 };
 
 template <class T>
