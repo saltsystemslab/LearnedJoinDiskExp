@@ -1,9 +1,8 @@
 #ifndef FILE_KEY_BLOCK_H
 #define FILE_KEY_BLOCK_H
 
-
 class FileKeyBlock {
-  public:
+ public:
   FileKeyBlock(int file_descriptor, uint32_t block_size, uint32_t key_size)
       : fd_(file_descriptor),
         block_size_(block_size),
