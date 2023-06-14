@@ -11,6 +11,7 @@ class FileKeyBlock {
         buffer_(new char[block_size]),
         buffer_loaded_(false) {
     if (keys_per_block_ * key_size != block_size) {
+      printf("Key size does not align with block_size\n");
       abort();
     }
   }

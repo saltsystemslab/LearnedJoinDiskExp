@@ -15,18 +15,18 @@ class IntDiskIterator : public Iterator<T> {
         cur_idx_(0),
         id_(id),
         num_keys_(num_keys),
-        start_offset_byte_(0) {}
+        start_key_idx_offest_(0) {}
 
-  IntDiskIterator(int file_descriptor, uint64_t start_offset_byte,
+  IntDiskIterator(int file_descriptor, uint64_t start_key_idx_offest,
                   uint64_t num_keys, std::string id)
       : file_descriptor_(file_descriptor),
-        cur_key_block_(file_descriptor, 4096, sizeof(T)),
-        peek_key_block_(file_descriptor, 4096, sizeof(T)),
-        bulk_key_buffer_(new char[sizeof(T) * MAX_KEYS_TO_BULK_COPY]),
+        cur_key_block_(new FileKeyBlock(file_descriptor, 4096, sizeof(T))),
+        peek_key_block_(new FileKeyBlock(file_descriptor, 4096, sizeof(T))),
         cur_idx_(0),
         id_(id),
         num_keys_(num_keys),
-        start_offset_byte_(start_offset_byte) {}
+        start_key_idx_offest_(start_key_idx_offest) {
+        }
 
   ~IntDiskIterator() {}
   bool valid() const override { return cur_idx_ < num_keys_; }
@@ -34,14 +34,14 @@ class IntDiskIterator : public Iterator<T> {
     cur_idx_++;
   }
   T peek(uint64_t pos) const override {
-    T *t = (T *)peek_key_block_->read(pos);
+    T *t = (T *)peek_key_block_->read(pos + start_key_idx_offest_);
     return *t;
   };
   void seekToFirst() override {
     cur_idx_ = 0;
   }
   T key() override {
-    T *t = (T *)cur_key_block_->read(cur_idx_);
+    T *t = (T *)cur_key_block_->read(cur_idx_ + start_key_idx_offest_);
     return *t;
   };
   uint64_t current_pos() const override { return cur_idx_; };
@@ -70,24 +70,20 @@ class IntDiskIterator : public Iterator<T> {
 #endif
   };
 
-  Iterator<T> *subRange(uint64_t start, uint64_t end) override {
-    abort();
-    return nullptr;
-#if 0
+  Iterator<T> *subRange(uint64_t start_key_idx, uint64_t end_key_idx) override {
     return new IntDiskIterator(
-        file_descriptor_, start * key_size_, end - start,
-        id_ + "[" + std::to_string(start) + "," + std::to_string(end) + "]");
-#endif
+        file_descriptor_, start_key_idx, end_key_idx - start_key_idx,
+        id_ + "[" + std::to_string(start_key_idx) + "," + std::to_string(end_key_idx) + "]");
   }
 
  private:
   int file_descriptor_;
   uint64_t cur_idx_;
   uint64_t num_keys_;
-  uint64_t start_offset_byte_;
+  uint64_t start_key_idx_offest_;
   FileKeyBlock *cur_key_block_;
   FileKeyBlock *peek_key_block_;
-  char *bulk_key_buffer_;
+  // char *bulk_key_buffer_;
   std::string id_;
 };
 
@@ -171,6 +167,7 @@ class IntDiskBuilder : public IteratorBuilder<T> {
   }
 
   IteratorBuilder<T> *subRange(uint64_t start, uint64_t end) override {
+    num_keys_ = num_keys_ + (end - start);
     return new IntDiskBuilder(
         file_name_, buffer_size_, start * key_size_,
         id_ + "[" + std::to_string(start) + "," + std::to_string(end) + "]");

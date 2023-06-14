@@ -42,7 +42,7 @@ static int FLAGS_key_size_bytes = 16;
 static int FLAGS_key_size_bytes = 8;
 #endif
 
-static const int BUFFER_SIZE = 1000;
+static const int BUFFER_SIZE = 4096;
 static int FLAGS_num_of_lists = 2;
 static KEY_TYPE FLAGS_universe_size = 2000000000000000;
 static bool FLAGS_disk_backed = false;
@@ -263,7 +263,7 @@ int main(int argc, char **argv) {
                          merge_end - merge_start)
                          .count();
   if (FLAGS_print_result) {
-    printf("Merged List: %d\n", result->valid());
+    printf("Merged List: %lu\n", result->num_keys());
     while (result->valid()) {
       std::string key_str = to_str(result->key());
       printf("%s\n", key_str.c_str());
@@ -284,6 +284,7 @@ int main(int argc, char **argv) {
     result->next();
     correctIterator++;
   }
+  assert(correctIterator == correct.end());
 #endif
 
   float duration_sec = duration_ns / 1e9;

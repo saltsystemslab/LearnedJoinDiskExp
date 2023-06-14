@@ -79,7 +79,7 @@ class ParallelLearnedMerger {
           iter1->subRange(iter1_start, iter1_start);
       IteratorWithModel<T> *iter2_subrange =
           iter2->subRange(iter2_start, iter2->num_keys());
-      uint64_t result_end = (iter2->num_keys() - iter2_start);
+      uint64_t result_end = result_start + (iter2->num_keys() - iter2_start);
       IteratorBuilder<T> *result_subrange =
           result->subRange(result_start, result_end);
       IteratorWithModel<T> *iterators[2] = {iter1_subrange, iter2_subrange};

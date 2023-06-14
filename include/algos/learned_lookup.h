@@ -11,12 +11,14 @@ class LearnedLookup {
                           Comparator<T> *comparator, T target_key) {
     uint64_t num_keys = iterator->num_keys();
     uint64_t approx_pos = std::ceil(iterator->guessPositionUsingBinarySearch(target_key));
-    uint64_t start = approx_pos - PLR_ERROR_BOUND;
+    uint64_t start = 0;
+    if (approx_pos < PLR_ERROR_BOUND) {
+      start = 0;
+    } else {
+      start = approx_pos - PLR_ERROR_BOUND;
+    }
     uint64_t end = approx_pos + PLR_ERROR_BOUND;
 
-    if (start < 0) {
-      start = 0;
-    }
     if (end < 0) {
       end = 0;
     }
@@ -29,11 +31,11 @@ class LearnedLookup {
     }
 
     while (comparator->compare(target_key, iterator->peek(start)) == -1) {
-      start = start - PLR_ERROR_BOUND;
-      if (start < 0) {
+      if (start < PLR_ERROR_BOUND) {
         start = 0;
         break;
       }
+      start = start - PLR_ERROR_BOUND;
     }
 
     while (comparator->compare(target_key, iterator->peek(end)) == 1) {
