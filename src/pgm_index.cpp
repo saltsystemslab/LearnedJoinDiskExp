@@ -9,7 +9,7 @@ double PGMIndex::guessPositionMonotone(Slice target_key){
 
 double PGMIndex::guessPositionUsingBinarySearch(Slice target_key){
     KEY_TYPE *k = (KEY_TYPE *) target_key.data_;
-    return a_->search(*k).lo;
+    return a_->search(*k).pos;
 }
 
 uint64_t PGMIndex::getNumberOfSegments() {

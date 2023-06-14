@@ -114,9 +114,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (FLAGS_disk_backed) {
     system("mkdir -p DB");
-  }
 
 #if !USE_STRING_KEYS
   if (FLAGS_key_size_bytes != sizeof(KEY_TYPE)) {
@@ -187,7 +185,7 @@ int main(int argc, char **argv) {
   
   float training_duration_sec = training_duration_ns / 1e9;
   printf("Training duration: %.3lf s\n", training_duration_sec);
-  printf("Number of segments:%ld\n", segmentCount);
+  printf("Number of segments: %ld\n", segmentCount);
   std::cout << "Training done" << std::endl;
 
   if (FLAGS_print_result) {

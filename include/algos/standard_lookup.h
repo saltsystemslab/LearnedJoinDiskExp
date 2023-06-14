@@ -13,7 +13,6 @@ public:
                 Comparator<T> *comparator,
                 T target_key)
     {
-        comparator = new CountingComparator<T>(comparator);
         return binary_search(0, num_keys - 1, target_key, iterator, comparator);
     }
 

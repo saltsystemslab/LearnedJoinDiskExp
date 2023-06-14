@@ -27,7 +27,7 @@ private:
 class PLRModelBuilder : public ModelBuilder<Slice> {
 public:
   PLRModelBuilder()
-  : plrBuilder_(new PLRBuilder(10)), num_keys_(0) {}
+  : plrBuilder_(new PLRBuilder(PLR_ERROR_BOUND)), num_keys_(0) {}
   void add(const Slice &t) override {
     num_keys_++;
     #if USE_STRING_KEYS

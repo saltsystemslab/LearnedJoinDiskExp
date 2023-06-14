@@ -65,6 +65,7 @@ public:
     training_time_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
                        training_time_stop - training_time_start)
                        .count();
+    std::cout<<"Training duration: "<<training_time_<<std::endl;
     return new IteratorWithModel(it, m);
   };
 

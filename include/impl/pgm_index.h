@@ -6,8 +6,8 @@
 #include "model.h"
 #include "iterator.h"
 #include "config.h"
-
-static const int epsilon = 10;
+#include <iostream>
+static const int epsilon = PLR_ERROR_BOUND;
 
 class PGMIndex : public Model<Slice> {
 public:
@@ -32,7 +32,9 @@ public:
   }
   void add(const Slice &t) override {
     KEY_TYPE *k = (KEY_TYPE *) t.data_;
+    
      (*a_)[cur_++] = *k;
+
 }
   PGMIndex* finish() override {
     return new PGMIndex(new pgm::PGMIndex<KEY_TYPE, epsilon>(*a_));

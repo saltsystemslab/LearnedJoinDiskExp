@@ -12,6 +12,12 @@
 #include "slice_file_iterator.h"
 #include "standard_lookup.h"
 #include "learned_lookup.h"
+#include "iterator_with_model.h"
+#include "iterator.h"
+#include "model.h"
+#include "plr_model.h"
+#include "pgm_index.h"
+#include "binary_search.h"
 
 using namespace std;
 
@@ -27,8 +33,8 @@ static const int BUFFER_SIZE = 1000;
 static KEY_TYPE FLAGS_universe_size = 2000000000;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
-static const char *FLAGS_num_keys = "10000";
-static const char *FLAGS_num_queries = "10000";
+static const char *FLAGS_num_keys = "100";
+static const char *FLAGS_num_queries = "100";
 static const char *FLAGS_DB_dir = "./DB";
 
 vector<KEY_TYPE> generate_keys(uint64_t num_keys, KEY_TYPE universe)
@@ -72,6 +78,7 @@ bool is_flag(const char *arg, const char *flag)
 
 int main(int argc, char **argv)
 {
+    
     FLAGS_universe_size = 1;
     for (int i = 0; i < FLAGS_key_size_bytes*8-1; i++)
     {
@@ -117,10 +124,8 @@ int main(int argc, char **argv)
         }
     }
 
-    if (FLAGS_disk_backed)
-    {
-        system("mkdir -p DB");
-    }
+
+    system("mkdir -p DB");
 
 #if !USE_STRING_KEYS
     if (FLAGS_key_size_bytes != sizeof(KEY_TYPE))
@@ -130,20 +135,32 @@ int main(int argc, char **argv)
 #endif
 
     std::cout << "Universe Size: " << to_str(FLAGS_universe_size) << std::endl;
-
-    Iterator<Slice> *iterator;
-    IteratorBuilder<Slice> *builder;
+    IteratorWithModel<Slice> *iterator;
+    size_t segmentCount = 0;
+    IteratorBuilder<Slice> *iter;
+    IteratorWithModelBuilder<Slice> *builder;
     if (FLAGS_disk_backed)
     {
         std::string fileName = "./DB/" + to_str(1) + ".txt";
         std::cout << fileName << std::endl;
-        builder = new FixedSizeSliceFileIteratorWithModelBuilder(
-            fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, 0);
+        iter = new FixedSizeSliceFileIteratorBuilder(fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, 0);
+
     }
     else
     {
-        builder = new SliceArrayWithModelBuilder(stoi(FLAGS_num_keys), FLAGS_key_size_bytes, 0);
+        iter = new SliceArrayBuilder(stoi(FLAGS_num_keys), FLAGS_key_size_bytes, 0);
     }
+    ModelBuilder<Slice> *m;
+    #if USE_PLR_MODEL
+    m = new PLRModelBuilder();
+    #endif
+    #if USE_PGM_INDEX
+    m = new PGMIndexBuilder(stoi(FLAGS_num_keys));
+    #endif
+    #if USE_BINARY_SEARCH
+    m = new BinarySearchBuilder(stoi(FLAGS_num_keys));
+    #endif
+    builder = new IteratorWithModelBuilder(iter, m);
     auto keys = generate_keys(stoi(FLAGS_num_keys), FLAGS_universe_size);
     //auto queries=keys;
     auto queries = generate_keys(stoi(FLAGS_num_queries), FLAGS_universe_size);
@@ -161,10 +178,19 @@ int main(int argc, char **argv)
     }
 
     iterator = builder->finish();
+    segmentCount = iterator->getNumberOfSegments();
+    printf("Number of segments: %ld\n", segmentCount);
     Comparator<Slice> *c = new SliceComparator();
    // auto queries = generate_keys(100, FLAGS_universe_size);
    
-    auto lookup_start = std::chrono::high_resolution_clock::now();
+#if TRACK_BINARY_SEARCH_STATS
+    LearnedLookup::init();
+#endif
+
+
+    //auto lookup_start = std::chrono::high_resolution_clock::now();
+    size_t getApproxPosDuration=0;
+    size_t lookupUsingApproxPosDuration = 0;
     for (int i = 0; i < queries.size(); i++)
     {
 #if USE_STRING_KEYS
@@ -173,16 +199,33 @@ int main(int argc, char **argv)
 #else
         Slice query = Slice((char *)(&queries[i]), FLAGS_key_size_bytes);
 #endif
-#if LEARNED_MERGE
-        bool status = LearnedLookup::lookup(iterator, stoi(FLAGS_num_keys), c, query);
+bool status;
+#if USE_PLR_MODEL || USE_PGM_INDEX
+        auto getApproxPos_start = std::chrono::high_resolution_clock::now();
+        float pos = LearnedLookup::getApproxPos(iterator, query);
+        auto getApproxPos_end = std::chrono::high_resolution_clock::now();
+        getApproxPosDuration += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        getApproxPos_end - getApproxPos_start)
+                        .count();
+        
+
+        auto lookupUsingApproxPos_start = std::chrono::high_resolution_clock::now();
+        status = LearnedLookup::lookupUsingApproxPos(iterator, stoi(FLAGS_num_keys), c, pos, query);
+        auto lookupUsingApproxPos_end = std::chrono::high_resolution_clock::now();
+        lookupUsingApproxPosDuration += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        lookupUsingApproxPos_end - lookupUsingApproxPos_start)
+                        .count();
+
+         //status = LearnedLookup::lookup(iterator, stoi(FLAGS_num_keys), c, query);
         // if(status == true) {
         //     assert(std::find(keys.begin(), keys.end(), queries[i]) != keys.end());
         // }
         // else {
         //     assert(std::find(keys.begin(), keys.end(), queries[i]) == keys.end());
         // }
-#else
-        bool status = StandardLookup::lookup(iterator, stoi(FLAGS_num_keys), c, query);
+#endif
+#if USE_BINARY_SEARCH
+         status= StandardLookup::lookup(iterator, stoi(FLAGS_num_keys), c, query);
         // if(status == true) {
         //     assert(std::find(keys.begin(), keys.end(), queries[i]) != keys.end());
         // }
@@ -193,10 +236,15 @@ int main(int argc, char **argv)
 #endif
     }
 
-    auto lookup_end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                        lookup_end - lookup_start)
-                        .count();
-    std::cout << "Lookup duration: " << duration<<std::endl;
+    // auto lookup_end = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    //                     lookup_end - lookup_start)
+    //                     .count();
+    // std::cout << "Lookup duration: " << duration<<std::endl;
+    std::cout << "getApproxPos Duration: " << getApproxPosDuration<<std::endl;
+    std::cout << "lookupUsingApproxPos Duration: " << lookupUsingApproxPosDuration<<std::endl;
+    #if TRACK_BINARY_SEARCH_STATS
+    LearnedLookup::teardown();
+#endif
     std::cout << "Ok!" << std::endl;
 }

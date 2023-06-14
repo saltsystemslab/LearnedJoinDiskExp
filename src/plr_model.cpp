@@ -71,7 +71,6 @@ double PLR_Model::guessPositionUsingBinarySearch(Slice target_key)
 }
 
 uint64_t PLR_Model::getNumberOfSegments() {
-    std::cout<<"soemthing"<<std::endl;
     return (model_->lineSegments_).size() * sizeof(Segment);
 }
 
