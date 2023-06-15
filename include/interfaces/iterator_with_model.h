@@ -22,8 +22,8 @@ class IteratorWithModel {
   double guessPositionMonotone(T target_key) {
     return model_->guessPositionMonotone(target_key);
   };
-  double guessPositionUsingBinarySearch(T target_key) {
-    return model_->guessPositionUsingBinarySearch(target_key);
+  double guessPosition(T target_key) {
+    return model_->guessPosition(target_key);
   };
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data, uint64_t *len) {
     return iterator_->bulkReadAndForward(num_keys, data, len);

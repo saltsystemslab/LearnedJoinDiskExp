@@ -34,7 +34,7 @@ class PLR_Model : public Model<T> {
     return num_keys_ - 1;
   };
 
-  uint64_t guessPositionUsingBinarySearch(T target_key) override {
+  uint64_t guessPosition(T target_key) override {
     std::vector<Segment> &segments = model_->lineSegments_;
     int32_t left = 0, right = (int32_t)segments.size() - 1;
     while (left < right) {

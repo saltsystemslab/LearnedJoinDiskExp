@@ -10,7 +10,7 @@ class LearnedLookup {
   static uint64_t lower_bound(IteratorWithModel<T> *iterator,
                           Comparator<T> *comparator, T target_key) {
     uint64_t num_keys = iterator->num_keys();
-    uint64_t approx_pos = std::ceil(iterator->guessPositionUsingBinarySearch(target_key));
+    uint64_t approx_pos = std::ceil(iterator->guessPosition(target_key));
     uint64_t start = 0;
     if (approx_pos < PLR_ERROR_BOUND) {
       start = 0;
