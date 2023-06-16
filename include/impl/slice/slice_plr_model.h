@@ -67,6 +67,10 @@ public:
 
   double getMaxError() override { return model_->gamma_; }
 
+	uint64_t size_bytes() override {
+			return model_->lineSegments_.size() * sizeof(Segment);
+	}
+
 private:
   PLRModel *model_;
   uint64_t plr_segment_index_;

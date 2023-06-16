@@ -34,6 +34,7 @@ class IteratorWithModel {
     }
     std::string id() { return iterator_->id(); }
     double getMaxError() { return model_->getMaxError(); }
+    uint64_t model_size_bytes() { return model_->size_bytes(); }
 
    private:
     Model<T> *model_;

@@ -157,11 +157,16 @@ int main(int argc, char **argv) {
       new IteratorWithModel<KEY_TYPE> *[num_of_lists];
   uint64_t total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
+    ModelBuilder<KEY_TYPE> *m;
+    if (FLAGS_merge_mode == STANDARD_MERGE || FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
+      m = new DummyModelBuilder<KEY_TYPE>();
+    } else {
 #if USE_STRING_KEYS
-    ModelBuilder<KEY_TYPE> *m = new SlicePLRModelBuilder(FLAGS_PLR_error_bound);
+      m = new SlicePLRModelBuilder(FLAGS_PLR_error_bound);
 #else
-    ModelBuilder<KEY_TYPE> *m = new IntPLRModelBuilder<KEY_TYPE>(FLAGS_PLR_error_bound);
+      m = new IntPLRModelBuilder<KEY_TYPE>(FLAGS_PLR_error_bound);
 #endif
+    }
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
@@ -188,6 +193,10 @@ int main(int argc, char **argv) {
         new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
     vector<std::string> keys =
         generate_keys(FLAGS_num_keys[i], FLAGS_key_size_bytes);
+
+    total_num_of_keys += FLAGS_num_keys[i];
+
+    auto iterator_build_start = std::chrono::high_resolution_clock::now();
     for (int j = 0; j < FLAGS_num_keys[i]; j++) {
 #if USE_STRING_KEYS
       builder->add(Slice(keys[j].c_str(), FLAGS_key_size_bytes));
@@ -200,12 +209,21 @@ int main(int argc, char **argv) {
       }
     }
     iterators_with_model[i] = builder->finish();
-    total_num_of_keys += FLAGS_num_keys[i];
+
+    auto iterator_build_end = std::chrono::high_resolution_clock::now();
+    uint64_t iterator_build_duration_ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(iterator_build_end -
+                                                             iterator_build_start).count();
+    float iterator_build_duration_sec = iterator_build_duration_ns / 1e9;
+    printf("Iterator %d creation duration time: %.3lf sec\n", i, iterator_build_duration_sec);
+    printf("Iterator %d model size bytes: %lu\n", i, iterators_with_model[i]->model_size_bytes());
+
   }
   Iterator<KEY_TYPE> **iterators = new Iterator<KEY_TYPE> *[num_of_lists];
   for (int i = 0; i < num_of_lists; i++) {
     iterators[i] = iterators_with_model[i]->get_iterator();
   }
+
 
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
