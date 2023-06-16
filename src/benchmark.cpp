@@ -14,15 +14,18 @@
 #include "int_array_iterator.h"
 #include "int_comparator.h"
 #include "int_disk_iterator.h"
+#include "int_plr_model.h"
 #include "iterator.h"
 #include "iterator_with_model.h"
 #include "learned_merge.h"
 #include "learned_merge_bulk.h"
 #include "model.h"
-#include "parallel_learned_merge.h"
 #include "parallel_learned_bulk_merge.h"
+#include "parallel_learned_merge.h"
 #include "parallel_standard_merge.h"
-#include "plr_model.h"
+#include "slice_plr_model.h"
+#include "slice_file_iterator.h"
+#include "slice_array_iterator.h"
 #include "standard_merge.h"
 #include "uniform_random.h"
 
@@ -37,46 +40,19 @@ enum MERGE_MODE {
   MERGE_WITH_MODEL_BULK,
 };
 
-#if USE_INT_128
-static int FLAGS_key_size_bytes = 16;
-#else
-static int FLAGS_key_size_bytes = 8;
-#endif
-
 static const int BUFFER_SIZE = 4096;
 static int FLAGS_num_of_lists = 2;
-static KEY_TYPE FLAGS_universe_size = 2000000000000000;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
 static vector<int> FLAGS_num_keys;
 static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
 
-
-string to_str(KEY_TYPE k) {
-  std::string r;
-  while (k) {
-    r.push_back('0' + k % 10);
-    k = k / 10;
-  }
-  reverse(r.begin(), r.end());
-  return r;
-}
-
 bool is_flag(const char *arg, const char *flag) {
   return strncmp(arg, flag, strlen(flag)) == 0;
 }
 
-void set_universe_limit() {
-  FLAGS_universe_size = 1;
-  for (int i = 0; i < FLAGS_key_size_bytes * 8 - 1; i++) {
-    FLAGS_universe_size = FLAGS_universe_size << 1;
-  }
-  std::cout << "Universe Size: " << to_str(FLAGS_universe_size) << std::endl;
-}
-
 void parse_flags(int argc, char **argv) {
-  set_universe_limit();
   // Set default vaule for FLAGS_num_keys
   FLAGS_num_keys.push_back(10);
   FLAGS_num_keys.push_back(10);
@@ -96,11 +72,6 @@ void parse_flags(int argc, char **argv) {
         string substr;
         getline(ss, substr, ',');
         FLAGS_num_keys.push_back(stoi(substr));
-      }
-    } else if (sscanf(argv[i], "--universe_log=%lld%c", &n, &junk) == 1) {
-      FLAGS_universe_size = 1;
-      for (int i = 0; i < n; i++) {
-        FLAGS_universe_size = FLAGS_universe_size << 1;
       }
     } else if (sscanf(argv[i], "--use_disk=%lld%c", &n, &junk) == 1) {
       FLAGS_disk_backed = n;
@@ -135,6 +106,12 @@ void parse_flags(int argc, char **argv) {
   }
 }
 
+#if USE_INT_128
+static int FLAGS_key_size_bytes = 16;
+#else
+static int FLAGS_key_size_bytes = 8;
+#endif
+
 int main(int argc, char **argv) {
   parse_flags(argc, argv);
   if (FLAGS_disk_backed) {
@@ -150,20 +127,31 @@ int main(int argc, char **argv) {
   Iterator<KEY_TYPE> **iterators = new Iterator<KEY_TYPE> *[num_of_lists];
   int total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
-    ModelBuilder<KEY_TYPE> *m = new PLRModelBuilder<KEY_TYPE>();
+    ModelBuilder<KEY_TYPE> *m = new SlicePLRModelBuilder();
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
-      std::string fileName = "./DB/" + to_str(i + 1) + ".txt";
+      std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
       std::cout << fileName << std::endl;
+#if USE_STRING_KEYS
+    iterator_builder = new SliceFileIteratorBuilder(
+        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, 0);
+#else
       iterator_builder =
           new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, fileName);
+#endif
     } else {
-      std::string iterName = "iter_" + to_str(i + 1);
+      std::string iterName = "iter_" + std::to_string(i + 1);
       std::cout << iterName << std::endl;
-      iterator_builder = new IntArrayBuilder<KEY_TYPE>(FLAGS_num_keys[i], iterName);
+#if USE_STRING_KEYS
+      iterator_builder = new SliceArrayBuilder(
+          FLAGS_num_keys[i], FLAGS_key_size_bytes, i);
+#else
+      abort();
+#endif
     }
     IteratorWithModelBuilder<KEY_TYPE> *builder =
         new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
+#if 0
     auto keys = generate_keys(FLAGS_num_keys[i]);
     for (int j = 0; j < FLAGS_num_keys[i]; j++) {
       builder->add(keys[j]);
@@ -171,11 +159,13 @@ int main(int argc, char **argv) {
       correct.push_back(keys[j]);
 #endif
     }
+#endif
     iterators_with_model[i] = builder->finish();
     iterators[i] = iterators_with_model[i]->get_iterator();
     total_num_of_keys += FLAGS_num_keys[i];
   }
 
+#if 0
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
       Iterator<KEY_TYPE> *iter = iterators[i];
@@ -275,4 +265,5 @@ int main(int argc, char **argv) {
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);
   std::cout << "Ok!" << std::endl;
+#endif
 }

@@ -26,10 +26,10 @@ struct line {
 class Segment {
 public:
   Segment() {}
-  Segment(KEY_TYPE _x, KEY_TYPE _last, double _k, double _b)
+  Segment(PLR_SEGMENT_POINT _x, PLR_SEGMENT_POINT _last, double _k, double _b)
       : x(_x), last(_last), k(_k), b(_b) {}
-  KEY_TYPE x;
-  KEY_TYPE last;
+  PLR_SEGMENT_POINT x;
+  PLR_SEGMENT_POINT last;
   double k;
   double b;
 };
@@ -53,8 +53,6 @@ bool is_below(struct point pt, struct line l);
 struct point get_upper_bound(struct point pt, double gamma);
 struct point get_lower_bound(struct point pt, double gamma);
 
-KEY_TYPE LdbKeyToInteger(const Slice &key);
-
 class PLRBuilder {
 private:
   std::string state;
@@ -65,8 +63,8 @@ private:
   struct line rho_lower;
   struct line rho_upper;
   struct point sint;
-  KEY_TYPE prev_key;
-  KEY_TYPE idx;
+  PLR_SEGMENT_POINT prev_key;
+  PLR_SEGMENT_POINT idx;
   std::vector<Segment> segments;
 
   void setup();
@@ -80,7 +78,7 @@ private:
 
 public:
   PLRBuilder(double gamma);
-  void processKey(const KEY_TYPE key);
+  void processKey(const PLR_SEGMENT_POINT key);
   PLRModel *finishTraining();
   void reset();
 };

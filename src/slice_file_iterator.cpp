@@ -9,7 +9,7 @@
 
 #include "config.h"
 
-void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
+void SliceFileIteratorBuilder::add(const Slice &key) {
   assert(key.size_ == key_size_);
   num_keys_++;
   if (key.size_ + buffer_idx_ < buffer_size_) {
@@ -19,15 +19,15 @@ void FixedSizeSliceFileIteratorBuilder::add(const Slice &key) {
   flushBufferToDisk();
   addKeyToBuffer(key);
 }
-bool FixedSizeSliceFileIterator::valid() const { return cur_idx_ < num_keys_; }
+bool SliceFileIterator::valid() const { return cur_idx_ < num_keys_; }
 
-void FixedSizeSliceFileIterator::next() {
+void SliceFileIterator::next() {
   assert(valid());
   cur_idx_++;
   cur_key_loaded_ = false;
 }
 
-Slice FixedSizeSliceFileIterator::key() {
+Slice SliceFileIterator::key() {
   if (!cur_key_loaded_) {
     ssize_t bytes_read = pread(file_descriptor_, cur_key_buffer_, key_size_,
                                cur_idx_ * key_size_);
@@ -40,7 +40,7 @@ Slice FixedSizeSliceFileIterator::key() {
   return Slice(cur_key_buffer_, key_size_);
 }
 
-Slice FixedSizeSliceFileIterator::peek(uint64_t pos) const {
+Slice SliceFileIterator::peek(uint64_t pos) const {
   pos = std::min(num_keys_, pos);
   ssize_t bytes_read =
       pread(file_descriptor_, peek_key_buffer_, key_size_, pos * key_size_);
@@ -51,12 +51,12 @@ Slice FixedSizeSliceFileIterator::peek(uint64_t pos) const {
   return Slice(peek_key_buffer_, key_size_);
 }
 
-void FixedSizeSliceFileIterator::seekToFirst() {
+void SliceFileIterator::seekToFirst() {
   cur_idx_ = 0;
   cur_key_loaded_ = false;
 }
 
-uint64_t FixedSizeSliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
+uint64_t SliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
                                                         char **data,
                                                         uint64_t *len) {
   keys_to_copy = std::min(keys_to_copy, (uint64_t)MAX_KEYS_TO_BULK_COPY);
@@ -74,10 +74,10 @@ uint64_t FixedSizeSliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
   return keys_to_copy;
 }
 
-void FixedSizeSliceFileIterator::seek(Slice item) { abort(); }
-uint64_t FixedSizeSliceFileIterator::current_pos() const { return cur_idx_; }
+void SliceFileIterator::seek(Slice item) { abort(); }
+uint64_t SliceFileIterator::current_pos() const { return cur_idx_; }
 
-Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
+Iterator<Slice> *SliceFileIteratorBuilder::finish() {
   flushBufferToDisk();
   int read_only_fd = open(file_name_, O_RDONLY);
   if (read_only_fd == -1) {
@@ -86,11 +86,11 @@ Iterator<Slice> *FixedSizeSliceFileIteratorBuilder::finish() {
   }
   std::string iterator_id = "identifier_" + std::to_string(index_);
   printf("Num Keys: %ld\n", num_keys_);
-  return new FixedSizeSliceFileIterator(read_only_fd, num_keys_, key_size_,
+  return new SliceFileIterator(read_only_fd, num_keys_, key_size_,
                                         iterator_id);
 }
 
-void FixedSizeSliceFileIteratorBuilder::flushBufferToDisk() {
+void SliceFileIteratorBuilder::flushBufferToDisk() {
   ssize_t bytes_written =
       pwrite(file_descriptor_, buffer_, buffer_idx_, file_offset_);
   if (bytes_written == -1) {
@@ -101,13 +101,13 @@ void FixedSizeSliceFileIteratorBuilder::flushBufferToDisk() {
   buffer_idx_ = 0;
 }
 
-void FixedSizeSliceFileIteratorBuilder::addKeyToBuffer(const Slice &key) {
+void SliceFileIteratorBuilder::addKeyToBuffer(const Slice &key) {
   assert(key.size_ <= buffer_size_);
   memcpy(buffer_ + buffer_idx_, key.data_, key.size_);
   buffer_idx_ += key.size_;
 }
 
-void FixedSizeSliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
+void SliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
                                                 int keys_to_add) {
   char *data;
   uint64_t len;

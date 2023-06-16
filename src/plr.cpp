@@ -73,24 +73,6 @@ void PLRBuilder::reset() {
 
 int counter = 0;
 
-KEY_TYPE LdbKeyToInteger(const Slice &key) {
-  const char *data = key.data_;
-  size_t size = key.size_;
-  KEY_TYPE num = 0;
-  bool leading_zeros = true;
-
-  for (int i = 0; i < size; ++i) {
-    int temp = data[i];
-    // TODO: Figure out where the extra bytes are coming from
-    if (temp < '0' || temp > '9')
-      break;
-    if (leading_zeros && temp == '0')
-      continue;
-    leading_zeros = false;
-    num = (num << 3) + (num << 1) + temp - 48;
-  }
-  return num;
-}
 
 Segment PLRBuilder::process(const struct point &pt) {
   Segment s = {0, 0, 0, 0};
@@ -121,8 +103,8 @@ void PLRBuilder::setup() {
 }
 
 Segment PLRBuilder::current_segment() {
-  KEY_TYPE segment_start = this->s0.x;
-  KEY_TYPE segment_stop = this->last_pt.x;
+  PLR_SEGMENT_POINT segment_start = this->s0.x;
+  PLR_SEGMENT_POINT segment_stop = this->last_pt.x;
   double avg_slope = (this->rho_lower.a + this->rho_upper.a) / 2.0;
   double intercept = -avg_slope * this->sint.x + this->sint.y;
   Segment s = {segment_start, segment_stop, avg_slope, intercept};
@@ -171,7 +153,7 @@ Segment PLRBuilder::finish() {
   }
 }
 
-void PLRBuilder::processKey(KEY_TYPE key) {
+void PLRBuilder::processKey(PLR_SEGMENT_POINT key) {
 #if TRACK_PLR_TRAIN_TIME
   auto train_start = std::chrono::high_resolution_clock::now();
 #endif

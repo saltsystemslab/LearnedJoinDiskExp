@@ -8,7 +8,7 @@
 #include "learned_lookup.h"
 
 template <class T>
-struct LearnedBulkMergerArgs {
+struct LearnedMergerBulkArgs {
   IteratorWithModel<T> **iterators;
   int n;
   Comparator<T> *comparator;
@@ -23,7 +23,7 @@ class ParallelLearnedMergerBulk {
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
     pthread_t threads[num_threads];
-    LearnedMergerArgs<T> *args[num_threads];
+    LearnedMergerBulkArgs<T> *args[num_threads];
 
     uint64_t num_items = iter1->num_keys();
     uint64_t block_size = num_items / num_threads;
@@ -57,7 +57,7 @@ class ParallelLearnedMergerBulk {
       iterators[0] = iter1_subrange; 
       iterators[1] = iter2_subrange;
 
-      args[i] = new LearnedMergerArgs<T>();
+      args[i] = new LearnedMergerBulkArgs<T>();
       args[i]->iterators = iterators;
       args[i]->n = 2;
       args[i]->comparator = comparator;
@@ -89,7 +89,7 @@ class ParallelLearnedMergerBulk {
   }
  private:
   static void *learned_bulk_merge(void *a) {
-    struct LearnedMergerArgs<T> *args = (struct LearnedMergerArgs<T> *)a;
+    struct LearnedMergerBulkArgs<T> *args = (struct LearnedMergerBulkArgs<T> *)a;
     LearnedMergerBulk<T>::merge(args->iterators, args->n, args->comparator, args->result);
     return NULL;
   }

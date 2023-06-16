@@ -16,7 +16,7 @@ class Model {
   virtual uint64_t guessPositionMonotone(T target_key) {
     return guessPosition(target_key);
   }
-  virtual Model<T> *get_model_for_subrange(const T& start, const T& end) = 0;
+  virtual Model<T> *get_model_for_subrange(uint64_t start, uint64_t end) = 0;
 };
 
 template <class T>
