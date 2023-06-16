@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
       std::cout << fileName << std::endl;
 #if USE_STRING_KEYS
     iterator_builder = new SliceFileIteratorBuilder(
-        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, 0);
+        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, fileName);
 #else
       iterator_builder =
           new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, fileName);
@@ -144,36 +144,42 @@ int main(int argc, char **argv) {
       std::cout << iterName << std::endl;
 #if USE_STRING_KEYS
       iterator_builder = new SliceArrayBuilder(
-          FLAGS_num_keys[i], FLAGS_key_size_bytes, i);
+          FLAGS_num_keys[i], FLAGS_key_size_bytes, iterName);
 #else
       abort();
 #endif
     }
     IteratorWithModelBuilder<KEY_TYPE> *builder =
         new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
-#if 0
-    auto keys = generate_keys(FLAGS_num_keys[i]);
+    vector<std::string> keys = generate_keys(FLAGS_num_keys[i], FLAGS_key_size_bytes);
     for (int j = 0; j < FLAGS_num_keys[i]; j++) {
-      builder->add(keys[j]);
+#if USE_STRING_KEYS
+      builder->add(Slice(keys[j].c_str(), FLAGS_key_size_bytes));
+#else
+      builder->add(to_int(keys[j]);
+#endif
+
 #if ASSERT_SORT
       correct.push_back(keys[j]);
 #endif
     }
-#endif
     iterators_with_model[i] = builder->finish();
     iterators[i] = iterators_with_model[i]->get_iterator();
     total_num_of_keys += FLAGS_num_keys[i];
   }
 
-#if 0
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
       Iterator<KEY_TYPE> *iter = iterators[i];
       iter->seekToFirst();
       printf("List %d\n", i);
       while (iter->valid()) {
-        std::string key_str = to_str(iter->key());
-        printf("%d Key: %s %s\n", i, to_str(iter->current_pos()).c_str(), key_str.c_str());
+#if USE_STRING_KEYS
+        std::string key_str = iter->key().toString();
+#else
+        std::string key_str = std::to_string(iter->key());
+#endif
+        printf("%d Key: %lu %s\n", i, iter->current_pos(), key_str.c_str());
         iter->next();
       }
     }
@@ -183,13 +189,27 @@ int main(int argc, char **argv) {
 #endif
 
   printf("Finished training models!\n");
+#if USE_STRING_KEYS
+  Comparator<KEY_TYPE> *c = new SliceComparator();
+#else
   Comparator<KEY_TYPE> *c = new IntComparator<KEY_TYPE>();
+#endif
   IteratorBuilder<KEY_TYPE> *resultBuilder;
   if (FLAGS_disk_backed) {
+#if USE_STRING_KEYS
+    resultBuilder = new SliceFileIteratorBuilder(
+        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, "result");
+#else
     resultBuilder =
-        new IntDiskBuilder<KEY_TYPE>("./DB/result.txt", BUFFER_SIZE, "result");
+        new Slice<KEY_TYPE>("./DB/result.txt", BUFFER_SIZE, "result");
+#endif
   } else {
+#if USE_STRING_KEYS
+      resultBuilder = new SliceArrayBuilder(
+          total_num_of_keys, FLAGS_key_size_bytes, "result");
+#else
     resultBuilder = new IntArrayBuilder<KEY_TYPE>(total_num_of_keys, "0");
+#endif
   }
 
   Iterator<KEY_TYPE> *result;
@@ -240,8 +260,13 @@ int main(int argc, char **argv) {
   if (FLAGS_print_result) {
     printf("Merged List: %lu\n", result->num_keys());
     while (result->valid()) {
-      std::string key_str = to_str(result->key());
+#if USE_STRING_KEYS
+      std::string key_str = result->key().toString();
       printf("%s\n", key_str.c_str());
+#else
+      std::string key_str = std::to_string(result->key());
+      printf("%s\n", key_str.c_str());
+#endif
       result->next();
     }
   }
@@ -265,5 +290,4 @@ int main(int argc, char **argv) {
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);
   std::cout << "Ok!" << std::endl;
-#endif
 }

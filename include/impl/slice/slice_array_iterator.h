@@ -9,18 +9,22 @@ class SliceArrayIterator : public Iterator<Slice> {
  public:
   SliceArrayIterator(char *a, int n, int key_size, std::string id)
       : id_(id), num_keys_(n), key_size_(key_size), cur_(0), a_(a) {}
-  ~SliceArrayIterator();
-  bool valid() const override;
-  void next() override;
-  Slice peek(uint64_t pos) const override;
-  void seekToFirst() override;
-  Slice key() override;
-  uint64_t current_pos() const override;
+  ~SliceArrayIterator() { delete a_; }
+  bool valid() const override { return cur_ < num_keys_; }
+  void next() { cur_++; }
+  Slice peek(uint64_t pos) const override {
+    return Slice(a_ + pos * key_size_, key_size_);
+  };
+  void seekToFirst() override { cur_ = 0; };
+  Slice key() override { return Slice(a_ + cur_ * key_size_, key_size_); }
+  uint64_t current_pos() const override { return cur_; };
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
-                              uint64_t *len) override {abort();}
-  Iterator<Slice> *subRange(uint64_t start, uint64_t end) override {abort();}
+                              uint64_t *len) override {
+    abort();
+  }
+  Iterator<Slice> *subRange(uint64_t start, uint64_t end) override { abort(); }
 
  private:
   char *a_;
@@ -32,88 +36,32 @@ class SliceArrayIterator : public Iterator<Slice> {
 
 class SliceArrayBuilder : public IteratorBuilder<Slice> {
  public:
-  SliceArrayBuilder(uint64_t n, int key_size, int index) {
-    this->a = new char[n * key_size];
-    this->cur = 0;
-    this->n = n;
-    this->key_size = key_size;
-    this->index_ = index;
+  SliceArrayBuilder(uint64_t n, int key_size, std::string id)
+      : a_(new char[n * key_size]),
+        n_(n),
+        key_size_(key_size),
+        id_(id),
+        cur_idx_(0){};
+  void add(const Slice &t) override {
+    memcpy(a_ + cur_idx_ * key_size_, t.data_, key_size_);
+    cur_idx_++;
   };
-  void add(const Slice &t) override;
-  Iterator<Slice> *build() override;
+
+  Iterator<Slice> *build() {
+    return new SliceArrayIterator(a_, n_, key_size_, id_);
+  };
 
   void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override { abort(); };
-  IteratorBuilder<Slice> *subRange(uint64_t start, uint64_t end) override { abort(); };
+  IteratorBuilder<Slice> *subRange(uint64_t start, uint64_t end) override {
+    abort();
+  };
 
  private:
-  char *a;
-  int n;
-  int cur;
-  int key_size;
-  int index_;
+  char *a_;
+  uint64_t n_;
+  uint64_t cur_idx_;
+  int key_size_;
+  std::string id_;
 };
 
-SliceArrayIterator::~SliceArrayIterator() { delete a_; }
-bool SliceArrayIterator::valid() const { return cur_ < num_keys_; }
-void SliceArrayIterator::next() {
-  assert(valid());
-  cur_++;
-}
-Slice SliceArrayIterator::peek(uint64_t pos) const {
-  return Slice(a_ + pos * key_size_, key_size_);
-}
-void SliceArrayIterator::seekToFirst() { cur_ = 0; }
-Slice SliceArrayIterator::key() {
-  return Slice(a_ + cur_ * key_size_, key_size_);
-}
-uint64_t SliceArrayIterator::current_pos() const { return cur_; }
-
-void SliceArrayBuilder::add(const Slice &t) {
-  for (int i = 0; i < key_size; i++) {
-    a[cur * key_size + i] = t.data_[i];
-  }
-  cur++;
-}
-Iterator<Slice> *SliceArrayBuilder::build() {
-  std::string iterator_id = "identifier_" + std::to_string(index_);
-  return new SliceArrayIterator(a, n, key_size, iterator_id);
-}
-
-SliceArrayIterator::~SliceArrayIterator() { delete a_; }
-bool SliceArrayIterator::valid() const { return cur_ < num_keys_; }
-void SliceArrayIterator::next() {
-  assert(valid());
-  cur_++;
-}
-Slice SliceArrayIterator::peek(uint64_t pos) const {
-  return Slice(a_ + pos * key_size_, key_size_);
-}
-void SliceArrayIterator::seek(Slice item) { abort(); }
-void SliceArrayIterator::seekToFirst() { cur_ = 0; }
-Slice SliceArrayIterator::key() {
-  return Slice(a_ + cur_ * key_size_, key_size_);
-}
-uint64_t SliceArrayIterator::current_pos() const { return cur_; }
-
-SliceArrayBuilder::SliceArrayBuilder(uint64_t n, int key_size, int index) {
-  uint64_t bytes_to_allocate = n * key_size;
-  this->a = new char[bytes_to_allocate];
-  this->cur = 0;
-  this->n = n;
-  this->key_size = key_size;
-  this->index_ = index;
-}
-void SliceArrayBuilder::add(const Slice &t) {
-  for (int i = 0; i < key_size; i++) {
-    uint64_t idx = cur * key_size + i;
-    a[idx] = t.data_[i];
-  }
-  KEY_TYPE *val = (KEY_TYPE *)(a + cur * key_size);
-  cur++;
-}
-Iterator<Slice> *SliceArrayBuilder::finish() {
-  printf("Num Keys: %ld\n", n);
-  std::string iterator_id = "identifier_" + std::to_string(index_);
-  return new SliceArrayIterator(a, n, key_size, iterator_id);
-}
 #endif

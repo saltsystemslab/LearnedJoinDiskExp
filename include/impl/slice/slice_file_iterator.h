@@ -54,9 +54,9 @@ private:
 class SliceFileIteratorBuilder : public IteratorBuilder<Slice> {
 public:
   SliceFileIteratorBuilder(const char *file_name, size_t buffer_size,
-                                    int key_size, int index)
+                                    int key_size, std::string id)
       : file_name_(new char[strlen(file_name) + 1]), buffer_size_(buffer_size),
-        key_size_(key_size), num_keys_(0), buffer_idx_(0), index_(index),
+        key_size_(key_size), num_keys_(0), buffer_idx_(0), id_(id),
         file_offset_(0) {
     memcpy(file_name_, file_name, strlen(file_name));
     file_name_[strlen(file_name)] = '\0';
@@ -94,11 +94,10 @@ protected:
   size_t buffer_size_;
   off_t file_offset_;
   uint64_t num_keys_;
-  int index_;
+  std::string id_;
 };
 
 void SliceFileIteratorBuilder::add(const Slice &key) {
-  assert(key.size_ == key_size_);
   num_keys_++;
   if (key.size_ + buffer_idx_ < buffer_size_) {
     addKeyToBuffer(key);
@@ -171,10 +170,9 @@ Iterator<Slice> *SliceFileIteratorBuilder::build() {
     perror("popen");
     abort();
   }
-  std::string iterator_id = "identifier_" + std::to_string(index_);
   printf("Num Keys: %ld\n", num_keys_);
   return new SliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        iterator_id);
+                                        id_);
 }
 
 void SliceFileIteratorBuilder::flushBufferToDisk() {

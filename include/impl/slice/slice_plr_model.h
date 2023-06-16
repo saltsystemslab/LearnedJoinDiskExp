@@ -23,7 +23,7 @@ class SlicePLRModel : public Model<Slice> {
         num_keys_(num_keys) {}
 
   uint64_t guessPositionMonotone(Slice target_slice_key) override {
-    PLR_SEGMENT_POINT target_key = interpret_slice_to_number(target_slice_key);
+    PLR_SEGMENT_POINT target_key = target_slice_key.to_uint64();
     std::vector<Segment> &segments = model_->lineSegments_;
     for (uint64_t i = getPLRLineSegmentIndex(); i < (uint64_t)segments.size();
          i++) {
@@ -44,7 +44,7 @@ class SlicePLRModel : public Model<Slice> {
   };
 
   uint64_t guessPosition(Slice target_slice_key) override {
-    PLR_SEGMENT_POINT target_key = interpret_slice_to_number(target_slice_key);
+    PLR_SEGMENT_POINT target_key = target_slice_key.to_uint64();
     std::vector<Segment> &segments = model_->lineSegments_;
     int32_t left = 0, right = (int32_t)segments.size() - 1;
     while (left < right) {
@@ -82,7 +82,7 @@ class SlicePLRModelBuilder : public ModelBuilder<Slice> {
  public:
   SlicePLRModelBuilder() : plrBuilder_(new PLRBuilder(10)), num_keys_(0) {}
   void add(const Slice &slice_key) override {
-    PLR_SEGMENT_POINT t = interpret_slice_to_number(slice_key);
+    PLR_SEGMENT_POINT t = slice_key.to_uint64();
     num_keys_++;
     plrBuilder_->processKey(t);
   }

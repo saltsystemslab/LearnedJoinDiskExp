@@ -29,7 +29,7 @@ class IteratorWithModel {
     return iterator_->bulkReadAndForward(num_keys, data, len);
   };
   Iterator<T> *get_iterator() { return iterator_; }
-  IteratorWithModel<T> *subRange(T start, T end) {
+  IteratorWithModel<T> *subRange(uint64_t start, uint64_t end) {
     return new IteratorWithModel<T>(iterator_->subRange(start, end),
                                     model_->get_model_for_subrange(start, end));
   }

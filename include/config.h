@@ -6,7 +6,7 @@
 #if USE_STRING_KEYS
 
 typedef Slice KEY_TYPE;
-typedef double PLR_SEGMENT_POINT;
+typedef uint64_t PLR_SEGMENT_POINT;
 
 #elif USE_INT_128
 
