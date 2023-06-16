@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include "slice.h"
+#define PAGE_SIZE 4096
 
 #if USE_STRING_KEYS
 

@@ -47,6 +47,7 @@ static bool FLAGS_print_result = false;
 static vector<int> FLAGS_num_keys;
 static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
+static bool FLAGS_assert_sort = false;
 #if USE_INT_128
 static int FLAGS_key_size_bytes = 16;
 #else
@@ -60,6 +61,7 @@ bool is_flag(const char *arg, const char *flag) {
 #if !USE_STRING_KEYS
 KEY_TYPE to_int(std::string s) {
   KEY_TYPE k = 0;
+  // CHECK FOR ENDIANESS.
   for (int i = 0; i < FLAGS_key_size_bytes; i++) {
     uint8_t b = (uint8_t)s.c_str()[i];
     k = (k << 8) + b;
@@ -110,6 +112,8 @@ void parse_flags(int argc, char **argv) {
       FLAGS_num_threads = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
       FLAGS_print_result = n;
+    } else if (sscanf(argv[i], "--assert_sort=%lld%c", &n, &junk) == 1) {
+      FLAGS_assert_sort = n;
     } else if (sscanf(argv[i], "--merge_mode=%s", str) == 1) {
       if (strcmp(str, "standard") == 0) {
         FLAGS_merge_mode = STANDARD_MERGE;
@@ -135,6 +139,7 @@ void parse_flags(int argc, char **argv) {
     printf("Number of lists does not match num_keys flag");
     abort();
   }
+  printf("Asserting Sort: %d\n", FLAGS_assert_sort);
 }
 
 int main(int argc, char **argv) {
@@ -143,9 +148,7 @@ int main(int argc, char **argv) {
     system("rm -rf DB && mkdir -p DB");
   }
 
-#if ASSERT_SORT
-  vector<KEY_TYPE> correct;
-#endif
+  vector<std::string> correct;
   int num_of_lists = FLAGS_num_keys.size();
   IteratorWithModel<KEY_TYPE> **iterators_with_model =
       new IteratorWithModel<KEY_TYPE> *[num_of_lists];
@@ -189,9 +192,9 @@ int main(int argc, char **argv) {
       builder->add(to_int(keys[j]));
 #endif
 
-#if ASSERT_SORT
-      correct.push_back(keys[j]);
-#endif
+      if (FLAGS_assert_sort) {
+        correct.push_back(keys[j]);
+      }
     }
     iterators_with_model[i] = builder->finish();
     total_num_of_keys += FLAGS_num_keys[i];
@@ -219,9 +222,10 @@ int main(int argc, char **argv) {
       }
     }
   }
-#if ASSERT_SORT
-  sort(correct.begin(), correct.end());
-#endif
+
+  if (FLAGS_assert_sort) {
+    sort(correct.begin(), correct.end());
+  }
 
   printf("Finished training models!\n");
 #if USE_STRING_KEYS
@@ -293,6 +297,7 @@ int main(int argc, char **argv) {
                          merge_end - merge_start)
                          .count();
   if (FLAGS_print_result) {
+    result->seekToFirst();
     printf("Merged List: %lu\n", result->num_keys());
     while (result->valid()) {
 #if USE_STRING_KEYS
@@ -306,21 +311,26 @@ int main(int argc, char **argv) {
     }
   }
 
-#if ASSERT_SORT
-  result->seekToFirst();
-  auto correctIterator = correct.begin();
-  while (result->valid()) {
-    KEY_TYPE k1 = result->key();
-    KEY_TYPE k2 = *correctIterator;
-    if (k1 != k2) {
-      std::cout << correctIterator - correct.begin() << std::endl;
-      abort();
-    }
-    result->next();
-    correctIterator++;
-  }
-  assert(correctIterator == correct.end());
+  if (FLAGS_assert_sort) {
+    result->seekToFirst();
+    auto correctIterator = correct.begin();
+    while (result->valid()) {
+#if USE_STRING_KEYS
+      std::string k1 = std::string(result->key().data_, result->key().size_);
+      std::string k2 = *correctIterator;
+#else
+      KEY_TYPE k1 = result->key();
+      KEY_TYPE k2 = to_int(*correctIterator);
 #endif
+      if (k1 != k2) {
+        std::cout << correctIterator - correct.begin() << std::endl;
+        abort();
+      }
+      result->next();
+      correctIterator++;
+    }
+    assert(correctIterator == correct.end());
+  }
 
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);

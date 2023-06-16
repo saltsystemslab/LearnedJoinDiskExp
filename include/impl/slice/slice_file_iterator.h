@@ -7,17 +7,21 @@
 #include <cstring>
 #include <iostream>
 
+#include "file_block_key_cache.h"
 #include "iterator.h"
 #include "slice.h"
 
 class SliceFileIterator : public Iterator<Slice> {
-public:
+ public:
   SliceFileIterator(int file_descriptor, uint64_t n, int key_size,
-                             std::string id)
-      : file_descriptor_(file_descriptor), key_size_(key_size),
-        bulk_key_buffer_(new char[key_size * MAX_KEYS_TO_BULK_COPY]),
-        cur_key_buffer_(new char[key_size]),
-        peek_key_buffer_(new char[key_size]), cur_key_loaded_(false), id_(id),
+                    std::string id)
+      : file_descriptor_(file_descriptor),
+        key_size_(key_size),
+        cur_idx_(0),
+        cur_key_buffer_(new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+        peek_key_buffer_(
+            new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+        id_(id),
         num_keys_(n) {}
 
   ~SliceFileIterator() {
@@ -35,28 +39,28 @@ public:
 
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
-  Iterator<Slice> *subRange(uint64_t start, uint64_t end) override {
-    abort();
-  }
+  Iterator<Slice> *subRange(uint64_t start, uint64_t end) override { abort(); }
 
-private:
+ private:
   int file_descriptor_;
   uint64_t cur_idx_;
   uint64_t num_keys_;
   int key_size_;
-  char *cur_key_buffer_;
-  char *peek_key_buffer_;
-  char *bulk_key_buffer_;
-  bool cur_key_loaded_;
+  FileKeyBlock *cur_key_buffer_;
+  FileKeyBlock *peek_key_buffer_;
   std::string id_;
 };
 
 class SliceFileIteratorBuilder : public IteratorBuilder<Slice> {
-public:
+ public:
   SliceFileIteratorBuilder(const char *file_name, size_t buffer_size,
-                                    int key_size, std::string id)
-      : file_name_(new char[strlen(file_name) + 1]), buffer_size_(buffer_size),
-        key_size_(key_size), num_keys_(0), buffer_idx_(0), id_(id),
+                           int key_size, std::string id)
+      : file_name_(new char[strlen(file_name) + 1]),
+        buffer_size_(buffer_size),
+        key_size_(key_size),
+        num_keys_(0),
+        buffer_idx_(0),
+        id_(id),
         file_offset_(0) {
     memcpy(file_name_, file_name, strlen(file_name));
     file_name_[strlen(file_name)] = '\0';
@@ -75,15 +79,13 @@ public:
 
   void add(const Slice &key) override;
   Iterator<Slice> *build() override;
-  void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override {
-    abort();
-  };
+  void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override { abort(); };
   IteratorBuilder<Slice> *subRange(uint64_t start, uint64_t end) {
     abort();
     return nullptr;
   }
 
-protected:
+ private:
   void addKeyToBuffer(const Slice &key);
   void flushBufferToDisk();
   char *file_name_;
@@ -108,44 +110,23 @@ void SliceFileIteratorBuilder::add(const Slice &key) {
 }
 bool SliceFileIterator::valid() const { return cur_idx_ < num_keys_; }
 
-void SliceFileIterator::next() {
-  assert(valid());
-  cur_idx_++;
-  cur_key_loaded_ = false;
-}
+void SliceFileIterator::next() { cur_idx_++; }
 
 Slice SliceFileIterator::key() {
-  if (!cur_key_loaded_) {
-    ssize_t bytes_read = pread(file_descriptor_, cur_key_buffer_, key_size_,
-                               cur_idx_ * key_size_);
-    if (bytes_read == -1) {
-      perror("pread");
-      abort();
-    }
-    cur_key_loaded_ = true;
-  }
-  return Slice(cur_key_buffer_, key_size_);
+  return Slice(cur_key_buffer_->read(cur_idx_), key_size_);
 }
 
 Slice SliceFileIterator::peek(uint64_t pos) const {
-  pos = std::min(num_keys_, pos);
-  ssize_t bytes_read =
-      pread(file_descriptor_, peek_key_buffer_, key_size_, pos * key_size_);
-  if (bytes_read == -1) {
-    perror("pread");
-    abort();
-  }
-  return Slice(peek_key_buffer_, key_size_);
+  return Slice(peek_key_buffer_->read(cur_idx_), key_size_);
 }
 
-void SliceFileIterator::seekToFirst() {
-  cur_idx_ = 0;
-  cur_key_loaded_ = false;
-}
+void SliceFileIterator::seekToFirst() { cur_idx_ = 0; }
 
 uint64_t SliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
-                                                        char **data,
-                                                        uint64_t *len) {
+                                               char **data, uint64_t *len) {
+  printf("BulkRead in DiskIterator not yet supported!\n");
+  abort();
+#if 0
   keys_to_copy = std::min(keys_to_copy, (uint64_t)MAX_KEYS_TO_BULK_COPY);
   keys_to_copy = std::min(keys_to_copy, num_keys_ - cur_idx_);
   ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
@@ -159,6 +140,7 @@ uint64_t SliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
   *len = bytes_read;
   *data = bulk_key_buffer_;
   return keys_to_copy;
+#endif
 }
 
 uint64_t SliceFileIterator::current_pos() const { return cur_idx_; }
@@ -171,8 +153,7 @@ Iterator<Slice> *SliceFileIteratorBuilder::build() {
     abort();
   }
   printf("Num Keys: %ld\n", num_keys_);
-  return new SliceFileIterator(read_only_fd, num_keys_, key_size_,
-                                        id_);
+  return new SliceFileIterator(read_only_fd, num_keys_, key_size_, id_);
 }
 
 void SliceFileIteratorBuilder::flushBufferToDisk() {

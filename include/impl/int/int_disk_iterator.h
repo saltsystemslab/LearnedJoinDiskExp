@@ -3,15 +3,15 @@
 
 #include "iterator.h"
 #include "file_block_key_cache.h"
-#define PAGE_SIZE 4096
+#include "config.h"
 
 template <class T>
 class IntDiskIterator : public Iterator<T> {
  public:
   IntDiskIterator(int file_descriptor, uint64_t num_keys, std::string id)
       : file_descriptor_(file_descriptor),
-        cur_key_block_(new FileKeyBlock(file_descriptor, 4096, sizeof(T))),
-        peek_key_block_(new FileKeyBlock(file_descriptor, 4096, sizeof(T))),
+        cur_key_block_(new FileKeyBlock(file_descriptor, PAGE_SIZE, sizeof(T))),
+        peek_key_block_(new FileKeyBlock(file_descriptor, PAGE_SIZE, sizeof(T))),
         cur_idx_(0),
         id_(id),
         num_keys_(num_keys),
@@ -20,8 +20,8 @@ class IntDiskIterator : public Iterator<T> {
   IntDiskIterator(int file_descriptor, uint64_t start_key_idx_offest,
                   uint64_t num_keys, std::string id)
       : file_descriptor_(file_descriptor),
-        cur_key_block_(new FileKeyBlock(file_descriptor, 4096, sizeof(T))),
-        peek_key_block_(new FileKeyBlock(file_descriptor, 4096, sizeof(T))),
+        cur_key_block_(new FileKeyBlock(file_descriptor, PAGE_SIZE, sizeof(T))),
+        peek_key_block_(new FileKeyBlock(file_descriptor, PAGE_SIZE, sizeof(T))),
         cur_idx_(0),
         id_(id),
         num_keys_(num_keys),
@@ -83,7 +83,6 @@ class IntDiskIterator : public Iterator<T> {
   uint64_t start_key_idx_offest_;
   FileKeyBlock *cur_key_block_;
   FileKeyBlock *peek_key_block_;
-  // char *bulk_key_buffer_;
   std::string id_;
 };
 
