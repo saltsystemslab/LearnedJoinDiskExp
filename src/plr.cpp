@@ -178,7 +178,7 @@ PLRModel *PLRBuilder::finishTraining() {
   if (last.x != 0 || last.k != 0 || last.b != 0) {
     this->segments.push_back(last);
   }
-  PLRModel *model = new PLRModel(this->segments, this->idx);
+  PLRModel *model = new PLRModel(this->segments, this->idx, this->gamma);
 #if TRACK_PLR_TRAIN_TIME
   std::cout << "PLR Training time: " << training_time << std::endl;
 #endif

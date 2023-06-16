@@ -9,17 +9,13 @@
 PLR_SEGMENT_POINT interpret_slice_to_number(const Slice &t) { return 0; }
 
 class SlicePLRModel : public Model<Slice> {
- public:
+public:
   SlicePLRModel(PLRModel *model, uint64_t num_keys)
-      : model_(model),
-        plr_segment_index_(0),
-        num_keys_(num_keys),
+      : model_(model), plr_segment_index_(0), num_keys_(num_keys),
         start_offset_(0) {}
 
   SlicePLRModel(PLRModel *model, uint64_t start_offset, uint64_t num_keys)
-      : model_(model),
-        start_offset_(start_offset),
-        plr_segment_index_(0),
+      : model_(model), start_offset_(start_offset), plr_segment_index_(0),
         num_keys_(num_keys) {}
 
   uint64_t guessPositionMonotone(Slice target_slice_key) override {
@@ -69,7 +65,9 @@ class SlicePLRModel : public Model<Slice> {
     return new SlicePLRModel(model_, start, end - start);
   }
 
- private:
+  double getMaxError() override { return model_->gamma_; }
+
+private:
   PLRModel *model_;
   uint64_t plr_segment_index_;
   uint64_t start_offset_;
@@ -79,8 +77,9 @@ class SlicePLRModel : public Model<Slice> {
 };
 
 class SlicePLRModelBuilder : public ModelBuilder<Slice> {
- public:
-  SlicePLRModelBuilder() : plrBuilder_(new PLRBuilder(10)), num_keys_(0) {}
+public:
+  SlicePLRModelBuilder(double gamma)
+      : plrBuilder_(new PLRBuilder(gamma)), num_keys_(0) {}
   void add(const Slice &slice_key) override {
     PLR_SEGMENT_POINT t = slice_key.to_uint64();
     num_keys_++;
@@ -90,7 +89,7 @@ class SlicePLRModelBuilder : public ModelBuilder<Slice> {
     return new SlicePLRModel(plrBuilder_->finishTraining(), num_keys_);
   }
 
- private:
+private:
   PLRBuilder *plrBuilder_;
   uint64_t num_keys_;
 };

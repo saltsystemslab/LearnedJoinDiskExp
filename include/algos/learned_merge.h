@@ -115,7 +115,7 @@ private:
     if (is_overshoot) {
 #if TRACK_STATS
       std::string entry =
-          smallest->identifier() + "," + std::to_string(cluster_length) + ",\n";
+          smallest->id() + "," + std::to_string(cluster_length) + ",\n";
       cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(),
                                     entry.size(), cluster_file_offset);
 #endif
@@ -140,7 +140,7 @@ private:
     plr_error_offset +=
         pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
     entry =
-        smallest->identifier() + "," + std::to_string(cluster_length) + ",\n";
+        smallest->id() + "," + std::to_string(cluster_length) + ",\n";
     cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
                                   cluster_file_offset);
 #endif

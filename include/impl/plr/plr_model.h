@@ -68,6 +68,9 @@ class IntPLRModel : public Model<T> {
   Model<T> *get_model_for_subrange(const T &start, const T &end) override {
     return new IntPLRModel(model_, start, end - start);
   }
+	double getMaxError() override {
+			return model_->gamma_;
+	}
 
  private:
   PLRModel *model_;

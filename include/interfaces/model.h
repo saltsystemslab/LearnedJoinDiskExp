@@ -17,6 +17,12 @@ class Model {
     return guessPosition(target_key);
   }
   virtual Model<T> *get_model_for_subrange(uint64_t start, uint64_t end) = 0;
+	// Returns the error window size 'e'. Items queried for in guessPosition
+	// are expected (but not guaranteed) to be in [p-e, p+e]
+	// We could consider guessPosition return a pair representing [p-e, p+e]. 
+	// The problem is that not all modell guarantee items to be in the window (PLR). 
+	// So leave it to higher level interfaces to error correct.
+	virtual double getMaxError() = 0;
 };
 
 template <class T>

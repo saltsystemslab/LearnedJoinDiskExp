@@ -12,16 +12,13 @@ class LearnedLookup {
     uint64_t num_keys = iterator->num_keys();
     uint64_t approx_pos = std::ceil(iterator->guessPosition(target_key));
     uint64_t start = 0;
-    if (approx_pos < PLR_ERROR_BOUND) {
+		uint64_t error_window = std::ceil(iterator->getMaxError());
+    if (approx_pos < error_window) {
       start = 0;
     } else {
-      start = approx_pos - PLR_ERROR_BOUND;
+      start = approx_pos - error_window;
     }
-    uint64_t end = approx_pos + PLR_ERROR_BOUND;
-
-    if (end < 0) {
-      end = 0;
-    }
+    uint64_t end = approx_pos + error_window;
 
     if (start >= num_keys) {
       start = num_keys-1;
@@ -31,15 +28,15 @@ class LearnedLookup {
     }
 
     while (comparator->compare(target_key, iterator->peek(start)) == -1) {
-      if (start < PLR_ERROR_BOUND) {
+      if (start < error_window) {
         start = 0;
         break;
       }
-      start = start - PLR_ERROR_BOUND;
+      start = start - error_window;
     }
 
     while (comparator->compare(target_key, iterator->peek(end)) == 1) {
-      end = end + PLR_ERROR_BOUND;
+      end = end + error_window;
       if (end >= num_keys) {
         end = num_keys - 1;
         break;

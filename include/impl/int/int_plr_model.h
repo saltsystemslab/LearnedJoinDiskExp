@@ -5,19 +5,14 @@
 #include "model.h"
 #include "plr.h"
 
-template <class T>
-class IntPLRModel : public Model<T> {
- public:
+template <class T> class IntPLRModel : public Model<T> {
+public:
   IntPLRModel(PLRModel *model, uint64_t num_keys)
-      : model_(model),
-        plr_segment_index_(0),
-        num_keys_(num_keys),
+      : model_(model), plr_segment_index_(0), num_keys_(num_keys),
         start_offset_(0) {}
 
   IntPLRModel(PLRModel *model, uint64_t start_offset, uint64_t num_keys)
-      : model_(model),
-        start_offset_(start_offset),
-        plr_segment_index_(0),
+      : model_(model), start_offset_(start_offset), plr_segment_index_(0),
         num_keys_(num_keys) {}
 
   uint64_t guessPositionMonotone(T target_key) override {
@@ -66,7 +61,9 @@ class IntPLRModel : public Model<T> {
     return new IntPLRModel(model_, start, end - start);
   }
 
- private:
+  double getMaxError() override { return model_->gamma_; }
+
+private:
   PLRModel *model_;
   uint64_t plr_segment_index_;
   uint64_t start_offset_;
@@ -75,10 +72,10 @@ class IntPLRModel : public Model<T> {
   void setPLRLineSegmentIndex(uint64_t value) { plr_segment_index_ = value; }
 };
 
-template <class T>
-class IntPLRModelBuilder : public ModelBuilder<T> {
- public:
-  IntPLRModelBuilder() : plrBuilder_(new PLRBuilder(10)), num_keys_(0) {}
+template <class T> class IntPLRModelBuilder : public ModelBuilder<T> {
+public:
+  IntPLRModelBuilder(double gamma)
+      : plrBuilder_(new PLRBuilder(gamma)), num_keys_(0) {}
   void add(const T &t) override {
     num_keys_++;
     plrBuilder_->processKey(t);
@@ -87,7 +84,7 @@ class IntPLRModelBuilder : public ModelBuilder<T> {
     return new IntPLRModel<T>(plrBuilder_->finishTraining(), num_keys_);
   }
 
- private:
+private:
   PLRBuilder *plrBuilder_;
   uint64_t num_keys_;
 };

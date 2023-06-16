@@ -6,8 +6,7 @@
 #include "slice.h"
 #include <cstring>
 
-template <class T>
-class IntComparator : public Comparator<T> {
+template <class T> class IntComparator : public Comparator<T> {
 public:
   int compare(const T &a, const T &b) override {
     if (a == b)

@@ -48,6 +48,7 @@ static vector<int> FLAGS_num_keys;
 static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
 static bool FLAGS_assert_sort = false;
+static int FLAGS_PLR_error_bound = 10;
 #if USE_INT_128
 static int FLAGS_key_size_bytes = 16;
 #else
@@ -110,6 +111,8 @@ void parse_flags(int argc, char **argv) {
       FLAGS_disk_backed = n;
     } else if (sscanf(argv[i], "--num_threads=%lld%c", &n, &junk) == 1) {
       FLAGS_num_threads = n;
+    } else if (sscanf(argv[i], "--plr_error_bound=%lld%c", &n, &junk) == 1) {
+      FLAGS_PLR_error_bound = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
       FLAGS_print_result = n;
     } else if (sscanf(argv[i], "--assert_sort=%lld%c", &n, &junk) == 1) {
@@ -155,9 +158,9 @@ int main(int argc, char **argv) {
   uint64_t total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
 #if USE_STRING_KEYS
-    ModelBuilder<KEY_TYPE> *m = new SlicePLRModelBuilder();
+    ModelBuilder<KEY_TYPE> *m = new SlicePLRModelBuilder(FLAGS_PLR_error_bound);
 #else
-    ModelBuilder<KEY_TYPE> *m = new IntPLRModelBuilder<KEY_TYPE>();
+    ModelBuilder<KEY_TYPE> *m = new IntPLRModelBuilder<KEY_TYPE>(FLAGS_PLR_error_bound);
 #endif
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {

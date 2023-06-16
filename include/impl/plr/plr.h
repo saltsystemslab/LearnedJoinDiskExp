@@ -37,10 +37,11 @@ public:
 class PLRModel {
 public:
   PLRModel() { numKeys_ = 0; }
-  PLRModel(std::vector<Segment> lineSegments, int numKeys)
-      : lineSegments_(lineSegments), numKeys_(numKeys) {}
+  PLRModel(std::vector<Segment> lineSegments, int numKeys, double gamma)
+      : lineSegments_(lineSegments), numKeys_(numKeys), gamma_(gamma) {}
   std::vector<Segment> lineSegments_;
   int numKeys_;
+	double gamma_;
 };
 
 double get_slope(struct point p1, struct point p2);

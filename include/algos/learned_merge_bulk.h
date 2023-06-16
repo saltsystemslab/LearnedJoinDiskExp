@@ -11,12 +11,6 @@
 #include "iterator.h"
 #include "iterator_with_model.h"
 
-#if TRACK_STATS
-static int cluster_count_fd;
-static int cluster_file_offset;
-static int plr_error_fd;
-static int plr_error_offset;
-#endif
 
 template <class T> class LearnedMergerBulk {
 public:
