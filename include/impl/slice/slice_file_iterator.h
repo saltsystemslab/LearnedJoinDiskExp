@@ -13,7 +13,7 @@
 
 class SliceFileIterator : public Iterator<Slice> {
  public:
-  SliceFileIterator(int file_descriptor, uint64_t n, int key_size,
+  SliceFileIterator(int file_descriptor, uint64_t n, uint32_t key_size,
                     std::string id)
       : file_descriptor_(file_descriptor),
         key_size_(key_size),
@@ -22,7 +22,20 @@ class SliceFileIterator : public Iterator<Slice> {
         peek_key_buffer_(
             new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
         id_(id),
-        num_keys_(n) {}
+        num_keys_(n),
+        start_offset_idx_(0) {}
+
+  SliceFileIterator(int file_descriptor, uint64_t n, uint64_t start_offset_idx,
+                    uint32_t key_size, std::string id)
+      : file_descriptor_(file_descriptor),
+        key_size_(key_size),
+        cur_idx_(0),
+        cur_key_buffer_(new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+        peek_key_buffer_(
+            new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+        id_(id),
+        num_keys_(n),
+        start_offset_idx_(start_offset_idx) {}
 
   ~SliceFileIterator() {
     delete cur_key_buffer_;
@@ -39,11 +52,15 @@ class SliceFileIterator : public Iterator<Slice> {
 
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
-  Iterator<Slice> *subRange(uint64_t start, uint64_t end) override { abort(); }
+  Iterator<Slice> *subRange(uint64_t start, uint64_t end) override {
+    return new SliceFileIterator(file_descriptor_, end - start, start,
+                                 key_size_, id_);
+  }
 
  private:
   int file_descriptor_;
   uint64_t cur_idx_;
+  uint64_t start_offset_idx_;
   uint64_t num_keys_;
   int key_size_;
   FileKeyBlock *cur_key_buffer_;
@@ -72,6 +89,26 @@ class SliceFileIteratorBuilder : public IteratorBuilder<Slice> {
     buffer_ = new char[buffer_size_];
   }
 
+  SliceFileIteratorBuilder(const char *file_name, size_t buffer_size,
+                           uint64_t start_idx_offset, int key_size,
+                           std::string id)
+      : file_name_(new char[strlen(file_name) + 1]),
+        buffer_size_(buffer_size),
+        key_size_(key_size),
+        num_keys_(0),
+        buffer_idx_(0),
+        id_(id),
+        file_offset_(start_idx_offset * key_size) {
+    memcpy(file_name_, file_name, strlen(file_name));
+    file_name_[strlen(file_name)] = '\0';
+    file_descriptor_ = open(file_name_, O_WRONLY | O_CREAT, 0644);
+    if (file_descriptor_ == -1) {
+      perror("popen");
+      abort();
+    }
+    buffer_ = new char[buffer_size_];
+  }
+
   ~SliceFileIteratorBuilder() {
     delete buffer_;
     delete file_name_;
@@ -81,8 +118,8 @@ class SliceFileIteratorBuilder : public IteratorBuilder<Slice> {
   Iterator<Slice> *build() override;
   void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override { abort(); };
   IteratorBuilder<Slice> *subRange(uint64_t start, uint64_t end) {
-    abort();
-    return nullptr;
+    return new SliceFileIteratorBuilder(file_name_, buffer_size_, start,
+                                        key_size_, id_);
   }
 
  private:
@@ -113,11 +150,11 @@ bool SliceFileIterator::valid() const { return cur_idx_ < num_keys_; }
 void SliceFileIterator::next() { cur_idx_++; }
 
 Slice SliceFileIterator::key() {
-  return Slice(cur_key_buffer_->read(cur_idx_), key_size_);
+  return Slice(cur_key_buffer_->read(cur_idx_ + start_offset_idx_), key_size_);
 }
 
 Slice SliceFileIterator::peek(uint64_t pos) const {
-  return Slice(peek_key_buffer_->read(cur_idx_), key_size_);
+  return Slice(peek_key_buffer_->read(pos + start_offset_idx_), key_size_);
 }
 
 void SliceFileIterator::seekToFirst() { cur_idx_ = 0; }
@@ -152,7 +189,6 @@ Iterator<Slice> *SliceFileIteratorBuilder::build() {
     perror("popen");
     abort();
   }
-  printf("Num Keys: %ld\n", num_keys_);
   return new SliceFileIterator(read_only_fd, num_keys_, key_size_, id_);
 }
 

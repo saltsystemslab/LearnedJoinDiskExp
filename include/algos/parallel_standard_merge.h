@@ -68,7 +68,7 @@ public:
     }
 
     for (uint64_t i=0; i<num_threads; i++) {
-        pthread_join(threads[i], NULL);
+       pthread_join(threads[i], NULL);
     }
 
     if (iter2_start != iter2->num_keys()) {
