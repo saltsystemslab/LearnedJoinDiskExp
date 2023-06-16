@@ -23,9 +23,9 @@
 #include "parallel_learned_bulk_merge.h"
 #include "parallel_learned_merge.h"
 #include "parallel_standard_merge.h"
-#include "slice_plr_model.h"
-#include "slice_file_iterator.h"
 #include "slice_array_iterator.h"
+#include "slice_file_iterator.h"
+#include "slice_plr_model.h"
 #include "standard_merge.h"
 #include "uniform_random.h"
 
@@ -47,10 +47,38 @@ static bool FLAGS_print_result = false;
 static vector<int> FLAGS_num_keys;
 static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
+#if USE_INT_128
+static int FLAGS_key_size_bytes = 16;
+#else
+static int FLAGS_key_size_bytes = 8;
+#endif
 
 bool is_flag(const char *arg, const char *flag) {
   return strncmp(arg, flag, strlen(flag)) == 0;
 }
+
+#if !USE_STRING_KEYS
+KEY_TYPE to_int(std::string s) {
+  KEY_TYPE k = 0;
+  for (int i = 0; i < FLAGS_key_size_bytes; i++) {
+    uint8_t b = (uint8_t)s.c_str()[i];
+    k = (k << 8) + b;
+  }
+  return k;
+}
+#endif
+
+#if !USE_STRING_KEYS && USE_INT_128
+std::string int128_to_string(KEY_TYPE k) {
+  std::string s;
+  while (k) {
+    int d = (int)(k % 10);
+    s = std::to_string(d) + s;
+    k = k / 10;
+  }
+  return s;
+}
+#endif
 
 void parse_flags(int argc, char **argv) {
   // Set default vaule for FLAGS_num_keys
@@ -64,6 +92,9 @@ void parse_flags(int argc, char **argv) {
     char *str = new char[100];
     if (sscanf(argv[i], "--num_of_lists=%lld%c", &n, &junk) == 1) {
       FLAGS_num_of_lists = n;
+    }
+    if (sscanf(argv[i], "--key_bytes=%lld%c", &n, &junk) == 1) {
+      FLAGS_key_size_bytes = n;
     } else if (is_flag(argv[i], "--num_keys=")) {
       FLAGS_num_keys.clear();
       char *FLAGS_num_keys_str = argv[i] + strlen("--num_keys=");
@@ -106,12 +137,6 @@ void parse_flags(int argc, char **argv) {
   }
 }
 
-#if USE_INT_128
-static int FLAGS_key_size_bytes = 16;
-#else
-static int FLAGS_key_size_bytes = 8;
-#endif
-
 int main(int argc, char **argv) {
   parse_flags(argc, argv);
   if (FLAGS_disk_backed) {
@@ -124,17 +149,20 @@ int main(int argc, char **argv) {
   int num_of_lists = FLAGS_num_keys.size();
   IteratorWithModel<KEY_TYPE> **iterators_with_model =
       new IteratorWithModel<KEY_TYPE> *[num_of_lists];
-  Iterator<KEY_TYPE> **iterators = new Iterator<KEY_TYPE> *[num_of_lists];
-  int total_num_of_keys = 0;
+  uint64_t total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
+#if USE_STRING_KEYS
     ModelBuilder<KEY_TYPE> *m = new SlicePLRModelBuilder();
+#else
+    ModelBuilder<KEY_TYPE> *m = new IntPLRModelBuilder<KEY_TYPE>();
+#endif
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
       std::cout << fileName << std::endl;
 #if USE_STRING_KEYS
-    iterator_builder = new SliceFileIteratorBuilder(
-        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, fileName);
+      iterator_builder = new SliceFileIteratorBuilder(
+          fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, fileName);
 #else
       iterator_builder =
           new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, fileName);
@@ -143,20 +171,22 @@ int main(int argc, char **argv) {
       std::string iterName = "iter_" + std::to_string(i + 1);
       std::cout << iterName << std::endl;
 #if USE_STRING_KEYS
-      iterator_builder = new SliceArrayBuilder(
-          FLAGS_num_keys[i], FLAGS_key_size_bytes, iterName);
+      iterator_builder = new SliceArrayBuilder(FLAGS_num_keys[i],
+                                               FLAGS_key_size_bytes, iterName);
 #else
-      abort();
+      iterator_builder =
+          new IntDiskBuilder<KEY_TYPE>(iterName.c_str(), BUFFER_SIZE, iterName);
 #endif
     }
     IteratorWithModelBuilder<KEY_TYPE> *builder =
         new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
-    vector<std::string> keys = generate_keys(FLAGS_num_keys[i], FLAGS_key_size_bytes);
+    vector<std::string> keys =
+        generate_keys(FLAGS_num_keys[i], FLAGS_key_size_bytes);
     for (int j = 0; j < FLAGS_num_keys[i]; j++) {
 #if USE_STRING_KEYS
       builder->add(Slice(keys[j].c_str(), FLAGS_key_size_bytes));
 #else
-      builder->add(to_int(keys[j]);
+      builder->add(to_int(keys[j]));
 #endif
 
 #if ASSERT_SORT
@@ -164,8 +194,11 @@ int main(int argc, char **argv) {
 #endif
     }
     iterators_with_model[i] = builder->finish();
-    iterators[i] = iterators_with_model[i]->get_iterator();
     total_num_of_keys += FLAGS_num_keys[i];
+  }
+  Iterator<KEY_TYPE> **iterators = new Iterator<KEY_TYPE> *[num_of_lists];
+  for (int i = 0; i < num_of_lists; i++) {
+    iterators[i] = iterators_with_model[i]->get_iterator();
   }
 
   if (FLAGS_print_result) {
@@ -176,6 +209,8 @@ int main(int argc, char **argv) {
       while (iter->valid()) {
 #if USE_STRING_KEYS
         std::string key_str = iter->key().toString();
+#elif USE_INT_128
+        std::string key_str = int128_to_string(iter->key());
 #else
         std::string key_str = std::to_string(iter->key());
 #endif
@@ -201,12 +236,12 @@ int main(int argc, char **argv) {
         "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, "result");
 #else
     resultBuilder =
-        new Slice<KEY_TYPE>("./DB/result.txt", BUFFER_SIZE, "result");
+        new IntDiskBuilder<KEY_TYPE>("./DB/result.txt", BUFFER_SIZE, "result");
 #endif
   } else {
 #if USE_STRING_KEYS
-      resultBuilder = new SliceArrayBuilder(
-          total_num_of_keys, FLAGS_key_size_bytes, "result");
+    resultBuilder = new SliceArrayBuilder(total_num_of_keys,
+                                          FLAGS_key_size_bytes, "result");
 #else
     resultBuilder = new IntArrayBuilder<KEY_TYPE>(total_num_of_keys, "0");
 #endif
@@ -232,18 +267,18 @@ int main(int argc, char **argv) {
         printf("Currently only 2 lists can be merged in parallel");
         abort();
       }
-      result = ParallelLearnedMerger<KEY_TYPE>::merge(iterators_with_model[0],
-                                                      iterators_with_model[1],
-                                                      FLAGS_num_threads, c, resultBuilder);
+      result = ParallelLearnedMerger<KEY_TYPE>::merge(
+          iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads,
+          c, resultBuilder);
       break;
     case PARALLEL_LEARNED_MERGE_BULK:
       if (num_of_lists != 2) {
         printf("Currently only 2 lists can be merged in parallel");
         abort();
       }
-      result = ParallelLearnedMergerBulk<KEY_TYPE>::merge(iterators_with_model[0],
-                                                      iterators_with_model[1],
-                                                      3, c, resultBuilder);
+      result = ParallelLearnedMergerBulk<KEY_TYPE>::merge(
+          iterators_with_model[0], iterators_with_model[1], 3, c,
+          resultBuilder);
       break;
     case MERGE_WITH_MODEL:
       result = LearnedMerger<KEY_TYPE>::merge(iterators_with_model,
@@ -263,8 +298,8 @@ int main(int argc, char **argv) {
 #if USE_STRING_KEYS
       std::string key_str = result->key().toString();
       printf("%s\n", key_str.c_str());
-#else
-      std::string key_str = std::to_string(result->key());
+#elif USE_INT_128
+      std::string key_str = int128_to_string(result->key());
       printf("%s\n", key_str.c_str());
 #endif
       result->next();
@@ -278,7 +313,7 @@ int main(int argc, char **argv) {
     KEY_TYPE k1 = result->key();
     KEY_TYPE k2 = *correctIterator;
     if (k1 != k2) {
-      std::cout<<correctIterator - correct.begin()<<std::endl;
+      std::cout << correctIterator - correct.begin() << std::endl;
       abort();
     }
     result->next();

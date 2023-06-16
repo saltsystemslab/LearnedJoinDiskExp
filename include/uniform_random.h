@@ -7,7 +7,7 @@ using namespace std;
 static SliceComparator sc;
 void rand_bytes(char *v, size_t n) {
   uint64_t i = 0;
-  int fd = open("/dev/urandom", O_RDONLY);
+  int fd = open("/dev/random", O_RDONLY);
   read(fd, v, n);
 }
 
