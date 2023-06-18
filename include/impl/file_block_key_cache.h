@@ -24,6 +24,17 @@ class FileKeyBlock {
     return buffer_ + (key_idx - cur_block_start_idx_) * key_size_;
   }
 
+	
+	void pointer_to_current_block(uint64_t key_idx, char **a, uint64_t *num_keys) {
+    if (!buffer_loaded_ || key_idx < cur_block_start_idx_ ||
+        key_idx > cur_block_end_idx_) {
+      loadBuffer(key_idx);
+    }
+		*a = buffer_ + (key_idx - cur_block_start_idx_) * key_size_;
+		*num_keys = (cur_block_end_idx_ - key_idx + 1);
+	}
+
+
  private:
   int fd_;
   char *buffer_;

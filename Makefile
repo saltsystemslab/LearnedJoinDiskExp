@@ -2,8 +2,8 @@ CXX=g++
 C_OPTIONS=-g -lpthread
 INCLUDE=-Iinclude/algos -Iinclude/impl/int -Iinclude/impl/slice -Iinclude/impl/plr -Iinclude/interfaces -Iinclude/types -Iinclude/impl -I./PGM-index/include -Iinclude
 
-USE_STRING_KEYS ?= 0
-USE_INT_128 ?= 0
+USE_STRING_KEYS ?= 1
+USE_INT_128 ?= 1
 
 TRAIN_RESULT ?= 0
 ERROR_BOUND ?= 10

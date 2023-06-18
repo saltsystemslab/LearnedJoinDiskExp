@@ -145,23 +145,13 @@ void SliceFileIterator::seekToFirst() { cur_idx_ = 0; }
 
 uint64_t SliceFileIterator::bulkReadAndForward(uint64_t keys_to_copy,
                                                char **data, uint64_t *len) {
-  printf("BulkRead in DiskIterator not yet supported!\n");
-  abort();
-#if 0
-  keys_to_copy = std::min(keys_to_copy, (uint64_t)MAX_KEYS_TO_BULK_COPY);
+  uint64_t keys_in_buffer;
+  cur_key_buffer_->pointer_to_current_block(cur_idx_, data, &keys_in_buffer);
+  keys_to_copy = std::min(keys_to_copy, keys_in_buffer);
   keys_to_copy = std::min(keys_to_copy, num_keys_ - cur_idx_);
-  ssize_t bytes_read = pread(file_descriptor_, bulk_key_buffer_,
-                             keys_to_copy * key_size_, cur_idx_ * key_size_);
   cur_idx_ += keys_to_copy;
-  cur_key_loaded_ = false;
-  if (bytes_read == -1) {
-    perror("pread");
-    abort();
-  }
-  *len = bytes_read;
-  *data = bulk_key_buffer_;
+  *len = (keys_to_copy * key_size_);
   return keys_to_copy;
-#endif
 }
 
 uint64_t SliceFileIterator::current_pos() const { return cur_idx_; }
@@ -202,6 +192,7 @@ void SliceFileIteratorBuilder::bulkAdd(Iterator<Slice> *iter,
     uint64_t keys_added = iter->bulkReadAndForward(keys_to_add, &data, &len);
     keys_to_add -= keys_added;
     num_keys_ += keys_added;
+
     ssize_t bytes_written = pwrite(file_descriptor_, data, len, file_offset_);
     if (bytes_written == -1) {
       perror("pwrite");

@@ -142,10 +142,21 @@ void parse_flags(int argc, char **argv) {
     printf("Number of lists does not match num_keys flag");
     abort();
   }
-  printf("Asserting Sort: %d\n", FLAGS_assert_sort);
+  printf("List Sizes: ");
+  for (int i=0; i<FLAGS_num_keys.size(); i++) {
+    printf("%d ", FLAGS_num_keys[i]);
+  }
+  printf("\n");
+  printf("Use Disk: %d\n", FLAGS_disk_backed);
+  printf("Key Bytes: %d\n", FLAGS_key_size_bytes);
+  printf("PLR_Error: %d\n", FLAGS_PLR_error_bound);
+  if (FLAGS_merge_mode == PARALLEL_LEARNED_MERGE || FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
+    printf("Num Threads: %d\n", FLAGS_num_threads);
+  }
 }
 
 int main(int argc, char **argv) {
+  printf("-----------------\n");
   parse_flags(argc, argv);
   if (FLAGS_disk_backed) {
     system("rm -rf DB && mkdir -p DB");
@@ -356,4 +367,5 @@ int main(int argc, char **argv) {
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);
   std::cout << "Ok!" << std::endl;
+  printf("-----------------\n");
 }
