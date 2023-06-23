@@ -15,7 +15,7 @@ public:
 #if TRACK_STATS
     comparator = new CountingComparator<T>(comparator);
 #endif
-    printf("StandardMerge!\n");
+    printf("Standard Merge!\n");
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }

@@ -60,11 +60,11 @@ bool is_flag(const char *arg, const char *flag) {
 }
 
 #if !USE_STRING_KEYS
-KEY_TYPE to_int(std::string s) {
+KEY_TYPE to_int(const char *s) {
   KEY_TYPE k = 0;
   // CHECK FOR ENDIANESS.
   for (int i = 0; i < FLAGS_key_size_bytes; i++) {
-    uint8_t b = (uint8_t)s.c_str()[i];
+    uint8_t b = (uint8_t)s[i];
     k = (k << 8) + b;
   }
   return k;
@@ -73,6 +73,18 @@ KEY_TYPE to_int(std::string s) {
 
 #if !USE_STRING_KEYS && USE_INT_128
 std::string int128_to_string(KEY_TYPE k) {
+  std::string s;
+  while (k) {
+    int d = (int)(k % 10);
+    s = std::to_string(d) + s;
+    k = k / 10;
+  }
+  return s;
+}
+#endif
+
+#if !USE_STRING_KEYS && !USE_INT_128
+std::string uint64_to_string(KEY_TYPE k) {
   std::string s;
   while (k) {
     int d = (int)(k % 10);
@@ -143,15 +155,19 @@ void parse_flags(int argc, char **argv) {
     abort();
   }
   printf("List Sizes: ");
-  for (int i=0; i<FLAGS_num_keys.size(); i++) {
+  for (int i = 0; i < FLAGS_num_keys.size(); i++) {
     printf("%d ", FLAGS_num_keys[i]);
   }
   printf("\n");
   printf("Use Disk: %d\n", FLAGS_disk_backed);
   printf("Key Bytes: %d\n", FLAGS_key_size_bytes);
-  printf("PLR_Error: %d\n", FLAGS_PLR_error_bound);
-  if (FLAGS_merge_mode == PARALLEL_LEARNED_MERGE || FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
+  if (FLAGS_merge_mode == PARALLEL_LEARNED_MERGE ||
+      FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
     printf("Num Threads: %d\n", FLAGS_num_threads);
+  }
+  if (FLAGS_merge_mode == MERGE_WITH_MODEL ||
+      FLAGS_merge_mode == PARALLEL_LEARNED_MERGE) {
+    printf("PLR_Error: %d\n", FLAGS_PLR_error_bound);
   }
 }
 
@@ -159,7 +175,7 @@ int main(int argc, char **argv) {
   printf("-----------------\n");
   parse_flags(argc, argv);
   if (FLAGS_disk_backed) {
-    system("rm -rf DB && mkdir -p DB");
+    system("rm -rf DB && mkdir -p DB && mkdir -p sstables");
   }
 
   vector<std::string> correct;
@@ -169,7 +185,8 @@ int main(int argc, char **argv) {
   uint64_t total_num_of_keys = 0;
   for (int i = 0; i < num_of_lists; i++) {
     ModelBuilder<KEY_TYPE> *m;
-    if (FLAGS_merge_mode == STANDARD_MERGE || FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
+    if (FLAGS_merge_mode == STANDARD_MERGE ||
+        FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
       m = new DummyModelBuilder<KEY_TYPE>();
     } else {
 #if USE_STRING_KEYS
@@ -178,6 +195,12 @@ int main(int argc, char **argv) {
       m = new IntPLRModelBuilder<KEY_TYPE>(FLAGS_PLR_error_bound);
 #endif
     }
+    std::string sstable_name = "./sstables/" + std::to_string(i) + "_" +
+                               std::to_string(FLAGS_num_keys[i]) + "_" +
+                               std::to_string(FLAGS_key_size_bytes) + ".txt";
+    char *keys = generate_keys(sstable_name, FLAGS_num_keys[i], FLAGS_key_size_bytes);
+    total_num_of_keys += FLAGS_num_keys[i];
+
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
       std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
@@ -193,7 +216,7 @@ int main(int argc, char **argv) {
       std::string iterName = "iter_" + std::to_string(i + 1);
       std::cout << iterName << std::endl;
 #if USE_STRING_KEYS
-      iterator_builder = new SliceArrayBuilder(FLAGS_num_keys[i],
+      iterator_builder = new SliceArrayBuilder(keys, FLAGS_num_keys[i],
                                                FLAGS_key_size_bytes, iterName);
 #else
       iterator_builder =
@@ -202,39 +225,41 @@ int main(int argc, char **argv) {
     }
     IteratorWithModelBuilder<KEY_TYPE> *builder =
         new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
-    vector<std::string> keys =
-        generate_keys(FLAGS_num_keys[i], FLAGS_key_size_bytes);
-
-    total_num_of_keys += FLAGS_num_keys[i];
 
     auto iterator_build_start = std::chrono::high_resolution_clock::now();
-    for (int j = 0; j < FLAGS_num_keys[i]; j++) {
+    for (uint64_t j = 0; j < FLAGS_num_keys[i]; j++) {
+				// There is a bit of a hack going on here for array based iterators.
+				// The array pointer containing keys was passed to the builder, 
+				// so it should already have all the keys. 
 #if USE_STRING_KEYS
-      builder->add(Slice(keys[j].c_str(), FLAGS_key_size_bytes));
+      builder->add(
+          Slice(keys + j * FLAGS_key_size_bytes, FLAGS_key_size_bytes));
 #else
-      builder->add(to_int(keys[j]));
+      builder->add(to_int(keys + j * FLAGS_key_size_bytes));
 #endif
 
       if (FLAGS_assert_sort) {
-        correct.push_back(keys[j]);
+        std::string key(keys + j * FLAGS_key_size_bytes, FLAGS_key_size_bytes);
+        correct.push_back(key);
       }
     }
     iterators_with_model[i] = builder->finish();
 
     auto iterator_build_end = std::chrono::high_resolution_clock::now();
     uint64_t iterator_build_duration_ns =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(iterator_build_end -
-                                                             iterator_build_start).count();
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            iterator_build_end - iterator_build_start)
+            .count();
     float iterator_build_duration_sec = iterator_build_duration_ns / 1e9;
-    printf("Iterator %d creation duration time: %.3lf sec\n", i, iterator_build_duration_sec);
-    printf("Iterator %d model size bytes: %lu\n", i, iterators_with_model[i]->model_size_bytes());
-
+    printf("Iterator %d creation duration time: %.3lf sec\n", i,
+           iterator_build_duration_sec);
+    printf("Iterator %d model size bytes: %lu\n", i,
+           iterators_with_model[i]->model_size_bytes());
   }
   Iterator<KEY_TYPE> **iterators = new Iterator<KEY_TYPE> *[num_of_lists];
   for (int i = 0; i < num_of_lists; i++) {
     iterators[i] = iterators_with_model[i]->get_iterator();
   }
-
 
   if (FLAGS_print_result) {
     for (int i = 0; i < num_of_lists; i++) {
@@ -247,7 +272,7 @@ int main(int argc, char **argv) {
 #elif USE_INT_128
         std::string key_str = int128_to_string(iter->key());
 #else
-        std::string key_str = std::to_string(iter->key());
+        std::string key_str = uint64_to_string(iter->key());
 #endif
         printf("%d Key: %lu %s\n", i, iter->current_pos(), key_str.c_str());
         iter->next();
@@ -338,6 +363,9 @@ int main(int argc, char **argv) {
 #elif USE_INT_128
       std::string key_str = int128_to_string(result->key());
       printf("%s\n", key_str.c_str());
+#else
+      std::string key_str = uint64_to_string(result->key());
+      printf("%s\n", key_str.c_str());
 #endif
       result->next();
     }
@@ -352,7 +380,7 @@ int main(int argc, char **argv) {
       std::string k2 = *correctIterator;
 #else
       KEY_TYPE k1 = result->key();
-      KEY_TYPE k2 = to_int(*correctIterator);
+      KEY_TYPE k2 = to_int((*correctIterator).c_str());
 #endif
       if (k1 != k2) {
         std::cout << correctIterator - correct.begin() << std::endl;

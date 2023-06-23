@@ -32,7 +32,7 @@ public:
     cluster_file_offset = 0;
     plr_error_offset = 0;
 #endif
-    printf("LearnedMerge!\n");
+    printf("Learned Merge!\n");
     for (int i = 0; i < n; i++) {
       iterators[i]->seekToFirst();
     }
