@@ -1,5 +1,5 @@
 CXX=g++
-C_OPTIONS=-g -Ofast -lpthread
+C_OPTIONS=-g -Ofast -pthread -std=c++17
 INCLUDE=-Iinclude/algos -Iinclude/impl/int -Iinclude/impl/slice -Iinclude/impl/plr -Iinclude/interfaces -Iinclude/types -Iinclude/impl -I./PGM-index/include -Iinclude
 
 USE_STRING_KEYS ?= 0

@@ -8,6 +8,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 #include "comparator.h"
 #include "config.h"

@@ -54,7 +54,7 @@ class IteratorWithModelBuilder {
 	model_->add(key);
     };
     IteratorWithModel<T> *finish() {
-	return new IteratorWithModel(iterator_->build(), model_->finish());
+	return new IteratorWithModel<T>(iterator_->build(), model_->finish());
     };
 
    private:

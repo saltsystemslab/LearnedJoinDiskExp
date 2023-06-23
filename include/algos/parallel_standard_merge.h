@@ -1,6 +1,9 @@
 #ifndef MERGE_PARALLEL_H
 #define MERGE_PARALLEL_H
 
+#include <unistd.h>
+#include <pthread.h>
+
 #include "comparator.h"
 #include "config.h"
 #include "iterator.h"
