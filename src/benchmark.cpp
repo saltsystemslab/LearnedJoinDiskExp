@@ -43,7 +43,7 @@ enum MERGE_MODE {
   MERGE_WITH_MODEL_BULK,
 };
 
-static const int BUFFER_SIZE = 4096;
+static const int BUFFER_SIZE = 4096; // TODO: Make page buffer a flag.
 static int FLAGS_num_of_lists = 2;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
@@ -65,7 +65,8 @@ bool is_flag(const char *arg, const char *flag) {
 #if !USE_STRING_KEYS
 KEY_TYPE to_int(const char *s) {
   KEY_TYPE k = 0;
-  // CHECK FOR ENDIANESS.
+  // TODO: Check for endianness. Here we assume little endian.
+  // TODO: Reverse using assembly instructions.
   for (int i = 0; i < FLAGS_key_size_bytes; i++) {
     uint8_t b = (uint8_t)s[i];
     k = (k << 8) + b;
@@ -99,7 +100,7 @@ std::string uint64_to_string(KEY_TYPE k) {
 #endif
 
 void parse_flags(int argc, char **argv) {
-  // Set default vaule for FLAGS_num_keys
+  // TODO: Set default value for FLAGS_num_keys
   FLAGS_num_keys.push_back(10);
   FLAGS_num_keys.push_back(10);
 
@@ -112,6 +113,7 @@ void parse_flags(int argc, char **argv) {
       FLAGS_num_of_lists = n;
     }
     if (sscanf(argv[i], "--key_bytes=%lld%c", &n, &junk) == 1) {
+      // TODO: If Key Type is uint64_t or 128bit, then abort if attempting to set key_size.
       FLAGS_key_size_bytes = n;
     } else if (is_flag(argv[i], "--num_keys=")) {
       FLAGS_num_keys.clear();
@@ -175,6 +177,8 @@ void parse_flags(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+  // TODO: Remove hardcoding of required file directories.
+  // TODO: Add a flag that forces to regenerate sstables.
   system("mkdir -p sstables");
   if (FLAGS_disk_backed) {
     system("rm -rf DB && mkdir -p DB");
@@ -200,6 +204,7 @@ int main(int argc, char **argv) {
       m = new IntPLRModelBuilder<KEY_TYPE>(FLAGS_PLR_error_bound);
 #endif
     }
+    // TODO: Move SSTable name generation to own function.
     std::string sstable_name = "./sstables/" + std::to_string(i) + "_" +
                                std::to_string(FLAGS_num_keys[i]) + "_" +
                                std::to_string(FLAGS_key_size_bytes) + ".txt";
@@ -209,6 +214,7 @@ int main(int argc, char **argv) {
 
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
+    // TODO: Move DB name generation to own function.
       std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
       std::cout << fileName << std::endl;
 #if USE_STRING_KEYS
@@ -235,8 +241,8 @@ int main(int argc, char **argv) {
     auto iterator_build_start = std::chrono::high_resolution_clock::now();
     for (uint64_t j = 0; j < FLAGS_num_keys[i]; j++) {
       // There is a bit of a hack going on here for array based iterators.
-      // The array pointer containing keys was passed to the builder,
-      // so it should already have all the keys.
+      // The array pointer containing keys was already passed to the builder,
+      // So Add() here does not actually add to iterator, but training happens here.
 #if USE_STRING_KEYS
       builder->add(
           Slice(keys + j * FLAGS_key_size_bytes, FLAGS_key_size_bytes));
