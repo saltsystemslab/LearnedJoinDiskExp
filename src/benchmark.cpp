@@ -1,4 +1,4 @@
-#include <bits/stdc++.h>
+
 #include <fcntl.h>
 #include <openssl/rand.h>
 #include <stdio.h>
@@ -8,6 +8,8 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <algorithm>
 #include <unistd.h>
 
 #include "comparator.h"
@@ -173,11 +175,13 @@ void parse_flags(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+  system("mkdir -p sstables");
+  if (FLAGS_disk_backed) {
+    system("rm -rf DB && mkdir -p DB");
+  }
+
   printf("-----------------\n");
   parse_flags(argc, argv);
-  if (FLAGS_disk_backed) {
-    system("rm -rf DB && mkdir -p DB && mkdir -p sstables");
-  }
 
   vector<std::string> correct;
   int num_of_lists = FLAGS_num_keys.size();
