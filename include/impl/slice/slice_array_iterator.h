@@ -23,6 +23,7 @@ public:
     return Slice(a_ + (pos + start_key_offset_) * key_size_, key_size_);
   };
   void seekToFirst() override { cur_ = 0; };
+  void seekToPos(uint64_t pos) override { cur_ = pos; };
   Slice key() override {
     return Slice(a_ + (cur_ + start_key_offset_) * key_size_, key_size_);
   }

@@ -38,6 +38,7 @@ public:
   Slice key() override;
   Slice peek(uint64_t pos) const override;
   void seekToFirst() override;
+  void seekToPos(uint64_t pos) override { cur_idx_ = pos; };
   uint64_t current_pos() const override;
   uint64_t bulkReadAndForward(uint64_t num_keys, char **data,
                               uint64_t *len) override;

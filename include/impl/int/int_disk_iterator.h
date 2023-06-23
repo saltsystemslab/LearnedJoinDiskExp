@@ -31,6 +31,7 @@ public:
     return *t;
   };
   void seekToFirst() override { cur_idx_ = 0; }
+  void seekToPos(uint64_t pos) override { cur_idx_ = pos; }
   T key() override {
     T *t = (T *)cur_key_block_->read(cur_idx_ + start_key_idx_offest_);
     return *t;

@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <openssl/rand.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cassert>
@@ -9,7 +10,6 @@
 #include <cstring>
 #include <random>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include "comparator.h"
@@ -29,6 +29,8 @@
 #include "slice_array_iterator.h"
 #include "slice_file_iterator.h"
 #include "slice_plr_model.h"
+#include "sort_merge_join.h"
+#include "sort_merge_learned_join.h"
 #include "standard_merge.h"
 #include "uniform_random.h"
 
@@ -41,9 +43,11 @@ enum MERGE_MODE {
   PARALLEL_LEARNED_MERGE_BULK,
   MERGE_WITH_MODEL,
   MERGE_WITH_MODEL_BULK,
+  STANDARD_MERGE_JOIN,
+  LEARNED_MERGE_JOIN
 };
 
-static const int BUFFER_SIZE = 4096; // TODO: Make page buffer a flag.
+static const int BUFFER_SIZE = 4096;  // TODO: Make page buffer a flag.
 static int FLAGS_num_of_lists = 2;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
@@ -113,7 +117,8 @@ void parse_flags(int argc, char **argv) {
       FLAGS_num_of_lists = n;
     }
     if (sscanf(argv[i], "--key_bytes=%lld%c", &n, &junk) == 1) {
-      // TODO: If Key Type is uint64_t or 128bit, then abort if attempting to set key_size.
+      // TODO: If Key Type is uint64_t or 128bit, then abort if attempting to
+      // set key_size.
       FLAGS_key_size_bytes = n;
     } else if (is_flag(argv[i], "--num_keys=")) {
       FLAGS_num_keys.clear();
@@ -147,6 +152,10 @@ void parse_flags(int argc, char **argv) {
         FLAGS_merge_mode = PARALLEL_LEARNED_MERGE_BULK;
       } else if (strcmp(str, "learned_bulk") == 0) {
         FLAGS_merge_mode = MERGE_WITH_MODEL_BULK;
+      } else if (strcmp(str, "standard_join") == 0) {
+        FLAGS_merge_mode = STANDARD_MERGE_JOIN;
+      } else if (strcmp(str, "learned_join") == 0) {
+        FLAGS_merge_mode = LEARNED_MERGE_JOIN;
       } else {
         abort();
       }
@@ -177,15 +186,15 @@ void parse_flags(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+  printf("-----------------\n");
+  parse_flags(argc, argv);
+
   // TODO: Remove hardcoding of required file directories.
   // TODO: Add a flag that forces to regenerate sstables.
   system("mkdir -p sstables");
   if (FLAGS_disk_backed) {
     system("rm -rf DB && mkdir -p DB");
   }
-
-  printf("-----------------\n");
-  parse_flags(argc, argv);
 
   vector<std::string> correct;
   int num_of_lists = FLAGS_num_keys.size();
@@ -214,7 +223,7 @@ int main(int argc, char **argv) {
 
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
-    // TODO: Move DB name generation to own function.
+      // TODO: Move DB name generation to own function.
       std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
       std::cout << fileName << std::endl;
 #if USE_STRING_KEYS
@@ -242,7 +251,8 @@ int main(int argc, char **argv) {
     for (uint64_t j = 0; j < FLAGS_num_keys[i]; j++) {
       // There is a bit of a hack going on here for array based iterators.
       // The array pointer containing keys was already passed to the builder,
-      // So Add() here does not actually add to iterator, but training happens here.
+      // So Add() here does not actually add to iterator, but training happens
+      // here.
 #if USE_STRING_KEYS
       builder->add(
           Slice(keys + j * FLAGS_key_size_bytes, FLAGS_key_size_bytes));
@@ -323,42 +333,54 @@ int main(int argc, char **argv) {
   Iterator<KEY_TYPE> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
   switch (FLAGS_merge_mode) {
-  case STANDARD_MERGE:
-    result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
-                                             resultBuilder);
-    break;
-  case PARALLEL_STANDARD_MERGE:
-    if (num_of_lists != 2) {
-      printf("Currently only 2 lists can be merged in parallel");
+    case STANDARD_MERGE:
+      result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
+                                               resultBuilder);
+      break;
+    case PARALLEL_STANDARD_MERGE:
+      if (num_of_lists != 2) {
+        printf("Currently only 2 lists can be merged in parallel");
+        abort();
+      }
+      result = ParallelStandardMerger<KEY_TYPE>::merge(
+          iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
+      break;
+    case PARALLEL_LEARNED_MERGE:
+      if (num_of_lists != 2) {
+        printf("Currently only 2 lists can be merged in parallel");
+        abort();
+      }
+      result = ParallelLearnedMerger<KEY_TYPE>::merge(
+          iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads,
+          c, resultBuilder);
+      break;
+    case PARALLEL_LEARNED_MERGE_BULK:
+      if (num_of_lists != 2) {
+        printf("Currently only 2 lists can be merged in parallel");
+        abort();
+      }
+      result = ParallelLearnedMergerBulk<KEY_TYPE>::merge(
+          iterators_with_model[0], iterators_with_model[1], 3, c,
+          resultBuilder);
+      break;
+    case MERGE_WITH_MODEL:
+      result = LearnedMerger<KEY_TYPE>::merge(iterators_with_model,
+                                              num_of_lists, c, resultBuilder);
+      break;
+    case MERGE_WITH_MODEL_BULK:
+      result = LearnedMergerBulk<KEY_TYPE>::merge(
+          iterators_with_model, num_of_lists, c, resultBuilder);
+      break;
+    case STANDARD_MERGE_JOIN:
+      result = SortedMergeJoin<KEY_TYPE>::merge(iterators[0], iterators[1], c,
+                                                resultBuilder);
+      break;
+    case LEARNED_MERGE_JOIN:
+      result = SortedMergeLearnedJoin<KEY_TYPE>::merge(
+          iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
+      break;
+    default:
       abort();
-    }
-    result = ParallelStandardMerger<KEY_TYPE>::merge(
-        iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
-    break;
-  case PARALLEL_LEARNED_MERGE:
-    if (num_of_lists != 2) {
-      printf("Currently only 2 lists can be merged in parallel");
-      abort();
-    }
-    result = ParallelLearnedMerger<KEY_TYPE>::merge(
-        iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads, c,
-        resultBuilder);
-    break;
-  case PARALLEL_LEARNED_MERGE_BULK:
-    if (num_of_lists != 2) {
-      printf("Currently only 2 lists can be merged in parallel");
-      abort();
-    }
-    result = ParallelLearnedMergerBulk<KEY_TYPE>::merge(
-        iterators_with_model[0], iterators_with_model[1], 3, c, resultBuilder);
-    break;
-  case MERGE_WITH_MODEL:
-    result = LearnedMerger<KEY_TYPE>::merge(iterators_with_model, num_of_lists,
-                                            c, resultBuilder);
-    break;
-  case MERGE_WITH_MODEL_BULK:
-    result = LearnedMergerBulk<KEY_TYPE>::merge(iterators_with_model,
-                                                num_of_lists, c, resultBuilder);
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(

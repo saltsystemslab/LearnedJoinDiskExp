@@ -12,6 +12,7 @@ public:
   void next() override { cur_++; }
   T peek(uint64_t pos) const override { return a_[pos]; }
   void seekToFirst() override { cur_ = 0; }
+  void seekToPos(uint64_t pos) override { cur_ = pos; }
   T key() override { return a_[cur_]; }
   uint64_t current_pos() const override { return cur_; }
   std::string id() override { return id_; }
