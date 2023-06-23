@@ -1,6 +1,6 @@
-#include <vector>
-#include <stack>
 #include <filesystem>
+#include <stack>
+#include <vector>
 
 #include "config.h"
 #include "slice.h"
@@ -9,18 +9,18 @@ using namespace std;
 
 static SliceComparator sc;
 void fill_rand_bytes(char *v, uint64_t n) {
-  std::random_device rd;   // a seed source for the random number engine
-  std::mt19937 gen(rd());  // mersenne_twister_engine seeded with rd()
-  uint64_t u = -1; // All 1's
+  std::random_device rd;  // a seed source for the random number engine
+  std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
+  uint64_t u = -1;        // All 1's
   std::uniform_int_distribution<uint64_t> distrib(0, u);
-  for (uint64_t i = 0; i < n; i+=8) {
+  for (uint64_t i = 0; i < n; i += 8) {
     uint64_t key = distrib(gen);
-	  memcpy(v + i, &key, 8);
+    memcpy(v + i, &key, 8);
   }
 }
 
 void read_sstable(std::string sstable, char *rand_nums,
-		  uint64_t key_len_bytes) {
+                  uint64_t key_len_bytes) {
   int fd = open(sstable.c_str(), O_RDONLY);
   read(fd, rand_nums, key_len_bytes);
   close(fd);
@@ -35,7 +35,7 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
   while (!q.empty()) {
     int64_t start = q.top().first;
     int64_t end = q.top().second;
-    int64_t mid = start + (end - start) / 2;  // TODO: Pick a random key.
+    int64_t mid = start + (end - start) / 2; // TODO: Pick a random key.
     q.pop();
     iters++;
     if (start >= end) {
@@ -54,14 +54,15 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
     for (idx = start; idx < end; idx++) {
       Slice cur(arr + idx * key_len_bytes, key_len_bytes);
       if (sc.compare(cur, pivot_slice) <= 0) {
-	temp_pivot += 1;
-	if (temp_pivot == idx) continue;
-	for (int i = 0; i < key_len_bytes; i++) {
-	  c1 = arr[temp_pivot * key_len_bytes + i];
-	  c2 = arr[idx * key_len_bytes + i];
-	  arr[idx * key_len_bytes + i] = c1;
-	  arr[temp_pivot * key_len_bytes + i] = c2;
-	}
+        temp_pivot += 1;
+        if (temp_pivot == idx)
+          continue;
+        for (int i = 0; i < key_len_bytes; i++) {
+          c1 = arr[temp_pivot * key_len_bytes + i];
+          c2 = arr[idx * key_len_bytes + i];
+          arr[idx * key_len_bytes + i] = c1;
+          arr[temp_pivot * key_len_bytes + i] = c2;
+        }
       }
     }
     temp_pivot += 1;
@@ -79,7 +80,7 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
 }
 
 char *generate_keys(std::string sstable_name, uint64_t num_keys,
-		    int key_len_bytes) {
+                    int key_len_bytes) {
   uint64_t bytes_to_alloc = num_keys * key_len_bytes;
   char *rand_nums = new char[bytes_to_alloc];
 
@@ -111,4 +112,3 @@ char *generate_keys(std::string sstable_name, uint64_t num_keys,
   }
   return rand_nums;
 }
-

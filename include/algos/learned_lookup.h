@@ -5,14 +5,14 @@
 #include "iterator_with_model.h"
 
 class LearnedLookup {
- public:
+public:
   template <class T>
   static uint64_t lower_bound(IteratorWithModel<T> *iterator,
-                          Comparator<T> *comparator, T target_key) {
+                              Comparator<T> *comparator, T target_key) {
     uint64_t num_keys = iterator->num_keys();
     uint64_t approx_pos = std::ceil(iterator->guessPosition(target_key));
     uint64_t start = 0;
-		uint64_t error_window = std::ceil(iterator->getMaxError());
+    uint64_t error_window = std::ceil(iterator->getMaxError());
     if (approx_pos < error_window) {
       start = 0;
     } else {
@@ -21,10 +21,10 @@ class LearnedLookup {
     uint64_t end = approx_pos + error_window;
 
     if (start >= num_keys) {
-      start = num_keys-1;
+      start = num_keys - 1;
     }
     if (end >= num_keys) {
-      end = num_keys-1;
+      end = num_keys - 1;
     }
 
     while (comparator->compare(target_key, iterator->peek(start)) == -1) {
@@ -42,29 +42,34 @@ class LearnedLookup {
         break;
       }
     }
-    return lower_bound_binary_search(start, end, target_key, iterator, comparator);
+    return lower_bound_binary_search(start, end, target_key, iterator,
+                                     comparator);
   }
   template <class T>
   static bool lookup(Iterator<T> *iterator, uint64_t num_keys,
                      Comparator<T> *comparator, T target_key) {
     uint64_t l_b = lower_bound<T>(iterator, comparator, target_key);
-    if (l_b >= iterator->num_keys_()) return false;
+    if (l_b >= iterator->num_keys_())
+      return false;
     return comparator->compare(target_key, iterator->peek(l_b)) == 0;
   }
 
- private:
+private:
   template <class T>
-  static uint64_t lower_bound_binary_search(uint64_t start, uint64_t end, T target_key,
-                            IteratorWithModel<T> *iterator, Comparator<T> *comparator) {
+  static uint64_t lower_bound_binary_search(uint64_t start, uint64_t end,
+                                            T target_key,
+                                            IteratorWithModel<T> *iterator,
+                                            Comparator<T> *comparator) {
     while (start < end) {
-      uint64_t mid = start + (end-start) / 2;
+      uint64_t mid = start + (end - start) / 2;
       if (comparator->compare(iterator->peek(mid), target_key) < 0) {
         start = mid + 1;
       } else {
         end = mid;
       }
     }
-    // If all values were less than target_key in the range, return outside the range.
+    // If all values were less than target_key in the range, return outside the
+    // range.
     if (comparator->compare(iterator->peek(start), target_key) < 0) {
       return start + 1;
     }

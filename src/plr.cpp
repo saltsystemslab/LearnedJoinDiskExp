@@ -73,7 +73,6 @@ void PLRBuilder::reset() {
 
 int counter = 0;
 
-
 Segment PLRBuilder::process(const struct point &pt) {
   Segment s = {0, 0, 0, 0};
   this->last_pt = pt;

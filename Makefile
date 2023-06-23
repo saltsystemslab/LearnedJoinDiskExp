@@ -48,7 +48,7 @@ test: build_test benchmark
 		./bin/benchmark
 
 format:
-		clang-format -i include/*.h
+		find ./include/ '*.h' | xargs clang-format -i
 		clang-format -i src/*.cpp
 		clang-format -i tests/*.cpp
 	

@@ -48,7 +48,7 @@ public:
 
     while (smaller_list->valid()) {
       uint64_t approx_pos =
-         larger_list->guessPositionMonotone(smaller_list->key());
+          larger_list->guessPositionMonotone(smaller_list->key());
       // Blind copy till approx_pos.
 #if USE_BULK_COPY
       result->bulkAdd(larger_list, approx_pos - larger_list->current_pos());

@@ -4,20 +4,18 @@
 #include "comparator.h"
 #include "config.h"
 #include "iterator.h"
-#include "learned_merge.h"
 #include "learned_lookup.h"
+#include "learned_merge.h"
 
-template <class T>
-struct LearnedMergerBulkArgs {
+template <class T> struct LearnedMergerBulkArgs {
   IteratorWithModel<T> **iterators;
   int n;
   Comparator<T> *comparator;
   IteratorBuilder<T> *result;
 };
 
-  template <class T>
-class ParallelLearnedMergerBulk {
- public:
+template <class T> class ParallelLearnedMergerBulk {
+public:
   static Iterator<T> *merge(IteratorWithModel<T> *iter1,
                             IteratorWithModel<T> *iter2, int num_threads,
                             Comparator<T> *comparator,
@@ -53,8 +51,8 @@ class ParallelLearnedMergerBulk {
       IteratorBuilder<T> *result_subrange =
           result->subRange(result_start, result_end);
 
-      IteratorWithModel<T> **iterators = new IteratorWithModel<T>*[2];
-      iterators[0] = iter1_subrange; 
+      IteratorWithModel<T> **iterators = new IteratorWithModel<T> *[2];
+      iterators[0] = iter1_subrange;
       iterators[1] = iter2_subrange;
 
       args[i] = new LearnedMergerBulkArgs<T>();
@@ -64,14 +62,13 @@ class ParallelLearnedMergerBulk {
       args[i]->result = result_subrange;
       pthread_create(&threads[i], NULL, learned_bulk_merge, args[i]);
 
-
       iter1_start = iter1_end;
       iter2_start = iter2_end;
       result_start = result_end;
     }
 
-    for (uint64_t i=0; i<num_threads; i++) {
-        pthread_join(threads[i], NULL);
+    for (uint64_t i = 0; i < num_threads; i++) {
+      pthread_join(threads[i], NULL);
     }
 
     if (iter2_start != iter2->num_keys()) {
@@ -87,10 +84,13 @@ class ParallelLearnedMergerBulk {
     }
     return result->build();
   }
- private:
+
+private:
   static void *learned_bulk_merge(void *a) {
-    struct LearnedMergerBulkArgs<T> *args = (struct LearnedMergerBulkArgs<T> *)a;
-    LearnedMergerBulk<T>::merge(args->iterators, args->n, args->comparator, args->result);
+    struct LearnedMergerBulkArgs<T> *args =
+        (struct LearnedMergerBulkArgs<T> *)a;
+    LearnedMergerBulk<T>::merge(args->iterators, args->n, args->comparator,
+                                args->result);
     return NULL;
   }
 };

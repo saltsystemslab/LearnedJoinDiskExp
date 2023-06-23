@@ -11,7 +11,6 @@
 #include "iterator.h"
 #include "iterator_with_model.h"
 
-
 template <class T> class LearnedMergerBulk {
 public:
   static Iterator<T> *merge(IteratorWithModel<T> **iterators, int n,
@@ -49,7 +48,8 @@ private:
                                  Comparator<T> *comparator,
                                  IteratorBuilder<T> *merge_result_builder) {
     // approx_pos is always a valid position in iterator.
-    uint64_t approx_pos = smallest->guessPositionMonotone(second_smallest->key());
+    uint64_t approx_pos =
+        smallest->guessPositionMonotone(second_smallest->key());
     approx_pos = std::max(approx_pos, smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),
@@ -79,7 +79,8 @@ private:
   }
 
   static void findTwoSmallest(IteratorWithModel<T> **iterators, int n,
-                              Comparator<T> *comparator, IteratorWithModel<T> **smallest,
+                              Comparator<T> *comparator,
+                              IteratorWithModel<T> **smallest,
                               IteratorWithModel<T> **second_smallest) {
     for (int i = 0; i < n; i++) {
       if (!iterators[i]->valid()) {

@@ -5,23 +5,24 @@
 #include "iterator.h"
 
 class StandardLookup {
- public:
+public:
   template <class T>
   static uint64_t lower_bound(Iterator<T> *iterator, Comparator<T> *comparator,
                               T target_key) {
-    return lower_bound_binary_search(0, iterator->num_keys() - 1,
-                                             target_key, iterator, comparator);
+    return lower_bound_binary_search(0, iterator->num_keys() - 1, target_key,
+                                     iterator, comparator);
   }
 
   template <class T>
   static bool lookup(Iterator<T> *iterator, Comparator<T> *comparator,
                      T target_key) {
     uint64_t l_b = lower_bound<T>(iterator, comparator, target_key);
-    if (l_b >= iterator->num_keys_()) return false;
+    if (l_b >= iterator->num_keys_())
+      return false;
     return comparator->compare(target_key, iterator->peek(l_b)) == 0;
   }
 
- private:
+private:
   template <class T>
   static uint64_t lower_bound_binary_search(uint64_t start, uint64_t end,
                                             T target_key, Iterator<T> *iterator,

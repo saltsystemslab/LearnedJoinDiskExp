@@ -41,7 +41,7 @@ public:
       : lineSegments_(lineSegments), numKeys_(numKeys), gamma_(gamma) {}
   std::vector<Segment> lineSegments_;
   int numKeys_;
-	double gamma_;
+  double gamma_;
 };
 
 double get_slope(struct point p1, struct point p2);

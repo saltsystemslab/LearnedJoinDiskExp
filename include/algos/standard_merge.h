@@ -6,8 +6,7 @@
 #include "iterator.h"
 #include <stdio.h>
 
-template <class T>
-class StandardMerger {
+template <class T> class StandardMerger {
 public:
   static Iterator<T> *merge(Iterator<T> **iterators, int n,
                             Comparator<T> *comparator,

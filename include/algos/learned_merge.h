@@ -74,7 +74,8 @@ private:
     int cluster_length = 0;
 #endif
     // approx_pos is always a valid position in iterator.
-    uint64_t approx_pos = smallest->guessPositionMonotone(second_smallest->key());
+    uint64_t approx_pos =
+        smallest->guessPositionMonotone(second_smallest->key());
     approx_pos = std::max(approx_pos, smallest->current_pos());
     bool is_overshoot = false;
     if (comparator->compare(smallest->peek(approx_pos),
@@ -139,15 +140,15 @@ private:
     std::string entry = "undershoot," + std::to_string(undershoot_error) + "\n";
     plr_error_offset +=
         pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
-    entry =
-        smallest->id() + "," + std::to_string(cluster_length) + ",\n";
+    entry = smallest->id() + "," + std::to_string(cluster_length) + ",\n";
     cluster_file_offset += pwrite(cluster_count_fd, entry.c_str(), entry.size(),
                                   cluster_file_offset);
 #endif
   }
 
   static void findTwoSmallest(IteratorWithModel<T> **iterators, int n,
-                              Comparator<T> *comparator, IteratorWithModel<T> **smallest,
+                              Comparator<T> *comparator,
+                              IteratorWithModel<T> **smallest,
                               IteratorWithModel<T> **second_smallest) {
     for (int i = 0; i < n; i++) {
       if (!iterators[i]->valid()) {

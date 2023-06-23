@@ -8,17 +8,15 @@
 #include "learned_merge.h"
 #include <pthread.h>
 
-template <class T>
-struct LearnedMergerArgs {
+template <class T> struct LearnedMergerArgs {
   IteratorWithModel<T> **iterators;
   int n;
   Comparator<T> *comparator;
   IteratorBuilder<T> *result;
 };
 
-template <class T>
-class ParallelLearnedMerger {
- public:
+template <class T> class ParallelLearnedMerger {
+public:
   static Iterator<T> *merge(IteratorWithModel<T> *iter1,
                             IteratorWithModel<T> *iter2, int num_threads,
                             Comparator<T> *comparator,
@@ -53,8 +51,8 @@ class ParallelLearnedMerger {
           result_start + (iter2_end - iter2_start) + (iter1_end - iter1_start);
       IteratorBuilder<T> *result_subrange =
           result->subRange(result_start, result_end);
-      IteratorWithModel<T> **iterators = new IteratorWithModel<T>*[2];
-      iterators[0] = iter1_subrange; 
+      IteratorWithModel<T> **iterators = new IteratorWithModel<T> *[2];
+      iterators[0] = iter1_subrange;
       iterators[1] = iter2_subrange;
 
       args[i] = new LearnedMergerArgs<T>();
@@ -70,8 +68,8 @@ class ParallelLearnedMerger {
       result_start = result_end;
     }
 
-    for (uint64_t i=0; i<num_threads; i++) {
-        pthread_join(threads[i], NULL);
+    for (uint64_t i = 0; i < num_threads; i++) {
+      pthread_join(threads[i], NULL);
     }
 
     if (iter2_start != iter2->num_keys()) {
@@ -87,10 +85,12 @@ class ParallelLearnedMerger {
     }
     return result->build();
   }
- private:
+
+private:
   static void *learned_merge(void *a) {
     struct LearnedMergerArgs<T> *args = (struct LearnedMergerArgs<T> *)a;
-    LearnedMerger<T>::merge(args->iterators, args->n, args->comparator, args->result);
+    LearnedMerger<T>::merge(args->iterators, args->n, args->comparator,
+                            args->result);
     return NULL;
   }
 };
