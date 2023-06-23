@@ -7,11 +7,11 @@
 
 class SliceArrayIterator : public Iterator<Slice> {
 public:
-  SliceArrayIterator(char *a, int n, int key_size, std::string id)
+  SliceArrayIterator(char *a, uint64_t n, int key_size, std::string id)
       : id_(id), num_keys_(n), key_size_(key_size), cur_(0), a_(a),
         start_key_offset_(0) {}
 
-  SliceArrayIterator(char *a, int n, int key_size, std::string id,
+  SliceArrayIterator(char *a, uint64_t n, int key_size, std::string id,
                      uint64_t start_key_idx)
       : id_(id), num_keys_(n), key_size_(key_size), cur_(0), a_(a),
         start_key_offset_(start_key_idx) {}

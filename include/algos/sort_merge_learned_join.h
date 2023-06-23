@@ -14,6 +14,8 @@ public:
                             IteratorWithModel<T> *larger,
                             Comparator<T> *comparator,
                             IteratorBuilder<T> *result) {
+    smaller->seekToFirst();
+    larger->seekToFirst();
     printf("Sorted Merge Learn Join\n");
     while (smaller->valid()) {
       uint64_t approx_pos = larger->guessPositionMonotone(smaller->key());

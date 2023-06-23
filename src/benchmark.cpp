@@ -56,6 +56,7 @@ static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
 static bool FLAGS_assert_sort = false;
 static int FLAGS_PLR_error_bound = 10;
+static uint64_t FLAGS_num_common_keys = 3;
 #if USE_INT_128
 static int FLAGS_key_size_bytes = 16;
 #else
@@ -133,6 +134,8 @@ void parse_flags(int argc, char **argv) {
       FLAGS_disk_backed = n;
     } else if (sscanf(argv[i], "--num_threads=%lld%c", &n, &junk) == 1) {
       FLAGS_num_threads = n;
+    } else if (sscanf(argv[i], "--num_common_keys=%lld%c", &n, &junk) == 1) {
+      FLAGS_num_common_keys = n;
     } else if (sscanf(argv[i], "--plr_error_bound=%lld%c", &n, &junk) == 1) {
       FLAGS_PLR_error_bound = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
@@ -191,10 +194,17 @@ int main(int argc, char **argv) {
 
   // TODO: Remove hardcoding of required file directories.
   // TODO: Add a flag that forces to regenerate sstables.
-  system("mkdir -p sstables");
+  system("mkdir -p sstables_join");
   if (FLAGS_disk_backed) {
     system("rm -rf DB && mkdir -p DB");
   }
+
+  // TODO: Move SSTable name generation to own function.
+  std::string common_keys_sstable =
+      "./sstables_join/common_" + std::to_string(FLAGS_num_common_keys) + "_" +
+      std::to_string(FLAGS_key_size_bytes) + ".txt";
+  char *common_keys = generate_keys(common_keys_sstable, FLAGS_num_common_keys,
+                                    FLAGS_key_size_bytes);
 
   vector<std::string> correct;
   int num_of_lists = FLAGS_num_keys.size();
@@ -214,11 +224,16 @@ int main(int argc, char **argv) {
 #endif
     }
     // TODO: Move SSTable name generation to own function.
-    std::string sstable_name = "./sstables/" + std::to_string(i) + "_" +
+    std::string sstable_name = "./sstables_join/" + std::to_string(i) + "_" +
                                std::to_string(FLAGS_num_keys[i]) + "_" +
                                std::to_string(FLAGS_key_size_bytes) + ".txt";
+
     char *keys =
         generate_keys(sstable_name, FLAGS_num_keys[i], FLAGS_key_size_bytes);
+
+    keys = merge(keys, FLAGS_num_keys[i], common_keys, FLAGS_num_common_keys,
+                 FLAGS_key_size_bytes);
+    FLAGS_num_keys[i] += FLAGS_num_common_keys;
     total_num_of_keys += FLAGS_num_keys[i];
 
     IteratorBuilder<KEY_TYPE> *iterator_builder;

@@ -2,6 +2,7 @@
 #include <stack>
 #include <vector>
 
+#include "iterator.h"
 #include "config.h"
 #include "slice.h"
 #include "slice_comparator.h"
@@ -24,6 +25,22 @@ void read_sstable(std::string sstable, char *rand_nums,
   int fd = open(sstable.c_str(), O_RDONLY);
   read(fd, rand_nums, key_len_bytes);
   close(fd);
+}
+
+char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_len_bytes) {
+  if (b_count == 0) {
+    return a;
+  }
+  char *result = new char[(a_count + b_count) * key_len_bytes];
+  SliceArrayIterator *it1 = new SliceArrayIterator(a, a_count, key_len_bytes, "a");
+  SliceArrayIterator *it2 = new SliceArrayIterator(b, b_count, key_len_bytes, "b");
+  SliceArrayBuilder *res = new SliceArrayBuilder(result, a_count + b_count, key_len_bytes, "c");
+  Iterator<Slice> **iterators = new Iterator<Slice> *[2];
+  iterators[0] = it1;
+  iterators[1] = it2;
+  StandardMerger<Slice>::merge(iterators, 2, &sc, res);
+  delete a;
+  return result;
 }
 
 void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
