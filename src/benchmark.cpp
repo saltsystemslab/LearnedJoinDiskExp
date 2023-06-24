@@ -180,6 +180,7 @@ void parse_flags(int argc, char **argv) {
       } else {
         abort();
       }
+      printf("merge_mode: %s\n", str);
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
       abort();
