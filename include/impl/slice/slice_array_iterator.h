@@ -61,7 +61,15 @@ public:
   };
 
   Iterator<Slice> *build() {
-    return new SliceArrayIterator(a_, n_, key_size_, id_);
+    assert(cur_idx_ <= n_);
+    // If parallel merged, cur_idx will be stuck at 0.
+    // The problem is that this was written for merges. In merge, the number of items
+    // are known beforehand. But for joins, this is not true. 
+    // TODO: Fix parallel merging build limits. Fix wrong number of items when join has 0 items.
+    if (cur_idx_ == 0) {
+      cur_idx_ = n_;
+    }
+    return new SliceArrayIterator(a_, cur_idx_, key_size_, id_);
   };
 
   void bulkAdd(Iterator<Slice> *iter, uint64_t num_keys) override { abort(); };

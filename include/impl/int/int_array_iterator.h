@@ -46,7 +46,15 @@ public:
       : a_(a), cur_(0), num_keys_(num_keys), id_(id), finished_(false){};
   void add(const T &t) override { a_[cur_++] = t; }
   Iterator<T> *build() override {
-    return new IntArrayIterator<T>(a_, num_keys_, id_);
+    assert(cur_ <= num_keys_);
+    // If parallel merged, cur_idx will be stuck at 0.
+    // The problem is that this was written for merges. In merge, the number of items
+    // are known beforehand. But for joins, this is not true. 
+    // TODO: Fix parallel merging build limits. Fix wrong number of items when join has 0 items.
+    if (cur_ == 0) {
+      cur_ = num_keys_;
+    }
+    return new IntArrayIterator<T>(a_, cur_, id_);
   };
   void bulkAdd(Iterator<T> *iter, uint64_t keys_to_add) override {
     char *buffer;

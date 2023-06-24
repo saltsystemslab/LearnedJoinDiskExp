@@ -29,6 +29,7 @@
 #include "slice_array_iterator.h"
 #include "slice_file_iterator.h"
 #include "slice_plr_model.h"
+#include "sort_merge_binary_lookup.h"
 #include "sort_merge_join.h"
 #include "sort_merge_learned_join.h"
 #include "standard_merge.h"
@@ -45,6 +46,7 @@ enum MERGE_MODE {
   MERGE_WITH_MODEL,
   MERGE_WITH_MODEL_BULK,
   STANDARD_MERGE_JOIN,
+  STANDARD_MERGE_BINARY_LOOKUP_JOIN,
   LEARNED_MERGE_JOIN
 };
 
@@ -169,6 +171,8 @@ void parse_flags(int argc, char **argv) {
         FLAGS_merge_mode = MERGE_WITH_MODEL_BULK;
       } else if (strcmp(str, "standard_join") == 0) {
         FLAGS_merge_mode = STANDARD_MERGE_JOIN;
+      } else if (strcmp(str, "standard_join_binary") == 0) {
+        FLAGS_merge_mode = STANDARD_MERGE_BINARY_LOOKUP_JOIN;
       } else if (strcmp(str, "learned_join") == 0) {
         FLAGS_merge_mode = LEARNED_MERGE_JOIN;
       } else if (strcmp(str, "no_op") == 0) {
@@ -213,8 +217,8 @@ int main(int argc, char **argv) {
 
   // TODO: Move SSTable name generation to own function.
   std::string common_keys_sstable =
-      FLAGS_test_dir + "/common_" + std::to_string(FLAGS_num_common_keys) + "_" +
-      std::to_string(FLAGS_key_size_bytes) + ".txt";
+      FLAGS_test_dir + "/common_" + std::to_string(FLAGS_num_common_keys) +
+      "_" + std::to_string(FLAGS_key_size_bytes) + ".txt";
   char *common_keys = generate_keys(common_keys_sstable, FLAGS_num_common_keys,
                                     FLAGS_key_size_bytes);
 
@@ -227,7 +231,9 @@ int main(int argc, char **argv) {
     ModelBuilder<KEY_TYPE> *m;
     if (FLAGS_merge_mode == STANDARD_MERGE ||
         FLAGS_merge_mode == PARALLEL_STANDARD_MERGE ||
-        FLAGS_merge_mode == STANDARD_MERGE_JOIN) {
+        FLAGS_merge_mode == STANDARD_MERGE_JOIN ||
+        FLAGS_merge_mode == STANDARD_MERGE_BINARY_LOOKUP_JOIN
+    ) {
       m = new DummyModelBuilder<KEY_TYPE>();
     } else {
 #if USE_STRING_KEYS
@@ -404,6 +410,10 @@ int main(int argc, char **argv) {
       break;
     case STANDARD_MERGE_JOIN:
       result = SortedMergeJoin<KEY_TYPE>::merge(iterators[0], iterators[1], c,
+                                                resultBuilder);
+      break;
+    case STANDARD_MERGE_BINARY_LOOKUP_JOIN:
+      result = SortedMergeBinaryLookupJoin<KEY_TYPE>::merge(iterators[0], iterators[1], c,
                                                 resultBuilder);
       break;
     case LEARNED_MERGE_JOIN:

@@ -5,7 +5,7 @@
 #include "iterator.h"
 
 class StandardLookup {
-public:
+ public:
   template <class T>
   static uint64_t lower_bound(Iterator<T> *iterator, Comparator<T> *comparator,
                               T target_key) {
@@ -17,8 +17,7 @@ public:
   static bool lookup(Iterator<T> *iterator, Comparator<T> *comparator,
                      T target_key) {
     uint64_t l_b = lower_bound<T>(iterator, comparator, target_key);
-    if (l_b >= iterator->num_keys_())
-      return false;
+    if (l_b >= iterator->num_keys_()) return false;
     return comparator->compare(target_key, iterator->peek(l_b)) == 0;
   }
 
