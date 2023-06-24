@@ -22,7 +22,6 @@ public:
     return comparator->compare(target_key, iterator->peek(l_b)) == 0;
   }
 
-private:
   template <class T>
   static uint64_t lower_bound_binary_search(uint64_t start, uint64_t end,
                                             T target_key, Iterator<T> *iterator,

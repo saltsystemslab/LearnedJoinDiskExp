@@ -37,6 +37,7 @@
 using namespace std;
 
 enum MERGE_MODE {
+  NO_OP,
   STANDARD_MERGE,
   PARALLEL_STANDARD_MERGE,
   PARALLEL_LEARNED_MERGE,
@@ -51,6 +52,7 @@ static const int BUFFER_SIZE = 4096;  // TODO: Make page buffer a flag.
 static int FLAGS_num_of_lists = 2;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
+static bool FLAGS_print_input = false;
 static vector<int> FLAGS_num_keys;
 static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
@@ -62,6 +64,8 @@ static int FLAGS_key_size_bytes = 16;
 #else
 static int FLAGS_key_size_bytes = 8;
 #endif
+static std::string FLAGS_test_dir = "DB";
+static std::string FLAGS_output_file = "result.txt";
 
 bool is_flag(const char *arg, const char *flag) {
   return strncmp(arg, flag, strlen(flag)) == 0;
@@ -138,10 +142,18 @@ void parse_flags(int argc, char **argv) {
       FLAGS_num_common_keys = n;
     } else if (sscanf(argv[i], "--plr_error_bound=%lld%c", &n, &junk) == 1) {
       FLAGS_PLR_error_bound = n;
+    } else if (sscanf(argv[i], "--print_input=%lld%c", &n, &junk) == 1) {
+      FLAGS_print_input = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
       FLAGS_print_result = n;
     } else if (sscanf(argv[i], "--assert_sort=%lld%c", &n, &junk) == 1) {
       FLAGS_assert_sort = n;
+    } else if (sscanf(argv[i], "--test_dir=%s", str) == 1) {
+      std::string test_dir(str);
+      FLAGS_test_dir = test_dir;
+    } else if (sscanf(argv[i], "--output_file=%s", str) == 1) {
+      std::string output_file(str);
+      FLAGS_output_file = output_file;
     } else if (sscanf(argv[i], "--merge_mode=%s", str) == 1) {
       if (strcmp(str, "standard") == 0) {
         FLAGS_merge_mode = STANDARD_MERGE;
@@ -159,6 +171,8 @@ void parse_flags(int argc, char **argv) {
         FLAGS_merge_mode = STANDARD_MERGE_JOIN;
       } else if (strcmp(str, "learned_join") == 0) {
         FLAGS_merge_mode = LEARNED_MERGE_JOIN;
+      } else if (strcmp(str, "no_op") == 0) {
+        FLAGS_merge_mode = NO_OP;
       } else {
         abort();
       }
@@ -192,16 +206,14 @@ int main(int argc, char **argv) {
   printf("-----------------\n");
   parse_flags(argc, argv);
 
-  // TODO: Remove hardcoding of required file directories.
-  // TODO: Add a flag that forces to regenerate sstables.
-  system("mkdir -p sstables_join");
-  if (FLAGS_disk_backed) {
-    system("rm -rf DB && mkdir -p DB");
+  if (!std::filesystem::exists(FLAGS_test_dir)) {
+    std::string command = "mkdir -p " + FLAGS_test_dir;
+    system(command.c_str());
   }
 
   // TODO: Move SSTable name generation to own function.
   std::string common_keys_sstable =
-      "./sstables_join/common_" + std::to_string(FLAGS_num_common_keys) + "_" +
+      FLAGS_test_dir + "/common_" + std::to_string(FLAGS_num_common_keys) + "_" +
       std::to_string(FLAGS_key_size_bytes) + ".txt";
   char *common_keys = generate_keys(common_keys_sstable, FLAGS_num_common_keys,
                                     FLAGS_key_size_bytes);
@@ -214,7 +226,8 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_of_lists; i++) {
     ModelBuilder<KEY_TYPE> *m;
     if (FLAGS_merge_mode == STANDARD_MERGE ||
-        FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
+        FLAGS_merge_mode == PARALLEL_STANDARD_MERGE ||
+        FLAGS_merge_mode == STANDARD_MERGE_JOIN) {
       m = new DummyModelBuilder<KEY_TYPE>();
     } else {
 #if USE_STRING_KEYS
@@ -224,7 +237,7 @@ int main(int argc, char **argv) {
 #endif
     }
     // TODO: Move SSTable name generation to own function.
-    std::string sstable_name = "./sstables_join/" + std::to_string(i) + "_" +
+    std::string sstable_name = FLAGS_test_dir + "/" + std::to_string(i) + "_" +
                                std::to_string(FLAGS_num_keys[i]) + "_" +
                                std::to_string(FLAGS_key_size_bytes) + ".txt";
 
@@ -239,7 +252,8 @@ int main(int argc, char **argv) {
     IteratorBuilder<KEY_TYPE> *iterator_builder;
     if (FLAGS_disk_backed) {
       // TODO: Move DB name generation to own function.
-      std::string fileName = "./DB/" + std::to_string(i + 1) + ".txt";
+      std::string fileName =
+          FLAGS_test_dir + "/" + std::to_string(i + 1) + ".txt";
       std::cout << fileName << std::endl;
 #if USE_STRING_KEYS
       iterator_builder = new SliceFileIteratorBuilder(
@@ -298,7 +312,7 @@ int main(int argc, char **argv) {
     iterators[i] = iterators_with_model[i]->get_iterator();
   }
 
-  if (FLAGS_print_result) {
+  if (FLAGS_print_input) {
     for (int i = 0; i < num_of_lists; i++) {
       Iterator<KEY_TYPE> *iter = iterators[i];
       iter->seekToFirst();
@@ -330,11 +344,13 @@ int main(int argc, char **argv) {
   IteratorBuilder<KEY_TYPE> *resultBuilder;
   if (FLAGS_disk_backed) {
 #if USE_STRING_KEYS
+    std::string fileName = FLAGS_test_dir + "/" + FLAGS_output_file;
     resultBuilder = new SliceFileIteratorBuilder(
-        "./DB/result.txt", BUFFER_SIZE, FLAGS_key_size_bytes, "result");
+        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, "result");
 #else
+    std::string fileName = FLAGS_test_dir + "/" + FLAGS_output_file;
     resultBuilder =
-        new IntDiskBuilder<KEY_TYPE>("./DB/result.txt", BUFFER_SIZE, "result");
+        new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, "result");
 #endif
   } else {
 #if USE_STRING_KEYS
@@ -393,6 +409,8 @@ int main(int argc, char **argv) {
     case LEARNED_MERGE_JOIN:
       result = SortedMergeLearnedJoin<KEY_TYPE>::merge(
           iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
+      break;
+    case NO_OP:
       break;
     default:
       abort();
