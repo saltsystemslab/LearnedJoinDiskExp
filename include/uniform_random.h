@@ -23,7 +23,11 @@ void fill_rand_bytes(char *v, uint64_t n) {
 void read_sstable(std::string sstable, char *rand_nums,
                   uint64_t key_len_bytes) {
   int fd = open(sstable.c_str(), O_RDONLY);
-  read(fd, rand_nums, key_len_bytes);
+  uint64_t bytes_read = 0;
+  while (bytes_read < key_len_bytes) {
+	 bytes_read += pread(fd, rand_nums + bytes_read, key_len_bytes - bytes_read, bytes_read);
+	 printf("Read: %ld\n", bytes_read);
+  }
   close(fd);
 }
 
@@ -66,6 +70,7 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
       arr[pivot * key_len_bytes + i] = c2;
     }
     Slice pivot_slice(arr + pivot * key_len_bytes, key_len_bytes);
+    // printf("%ld %ld %s\n", start, end, pivot_slice.toString().c_str());
     int64_t temp_pivot = start - 1;
     int64_t idx;
     for (idx = start; idx < end; idx++) {
@@ -74,7 +79,7 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
         temp_pivot += 1;
         if (temp_pivot == idx)
           continue;
-        for (int i = 0; i < key_len_bytes; i++) {
+        for (int64_t i = 0; i < key_len_bytes; i++) {
           c1 = arr[temp_pivot * key_len_bytes + i];
           c2 = arr[idx * key_len_bytes + i];
           arr[idx * key_len_bytes + i] = c1;
@@ -83,7 +88,7 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
       }
     }
     temp_pivot += 1;
-    for (int i = 0; i < key_len_bytes; i++) {
+    for (int64_t i = 0; i < key_len_bytes; i++) {
       c1 = arr[temp_pivot * key_len_bytes + i];
       c2 = arr[pivot * key_len_bytes + i];
       arr[pivot * key_len_bytes + i] = c1;
@@ -123,7 +128,11 @@ char *generate_keys(std::string sstable_name, uint64_t num_keys,
     printf("Finished sorting\n");
     int fd = open(sstable_name.c_str(), O_WRONLY | O_CREAT, 0644);
     printf("Beginning write\n");
-    pwrite(fd, rand_nums, bytes_to_alloc, 0);
+    uint64_t bytes_written = 0;
+    while (bytes_written < bytes_to_alloc) {
+	    bytes_written += pwrite(fd, rand_nums + bytes_written, bytes_to_alloc, bytes_written);
+	    printf("Written: %lu\n", bytes_written);
+    }
     printf("Finished write\n");
     close(fd);
   }

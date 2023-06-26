@@ -25,6 +25,7 @@ class StandardLookup {
   static uint64_t lower_bound_binary_search(uint64_t start, uint64_t end,
                                             T target_key, Iterator<T> *iterator,
                                             Comparator<T> *comparator) {
+     // printf("%lu %lu %s\n", start, end, target_key.toString().c_str());
     while (start < end) {
       uint64_t mid = start + (end - start) / 2;
       if (comparator->compare(iterator->peek(mid), target_key) < 0) {

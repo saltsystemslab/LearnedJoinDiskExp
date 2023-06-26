@@ -102,6 +102,7 @@ private:
           "overshoot," + std::to_string(overshoot_error) + ",\n";
       plr_error_offset +=
           pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
+    printf("%s\n", entry.c_str());
 #endif
     }
     // Blind copy until approx_pos
@@ -138,6 +139,7 @@ private:
 #if TRACK_STATS
     undershoot_error++; // 1 for the exit.
     std::string entry = "undershoot," + std::to_string(undershoot_error) + "\n";
+    printf("%s\n", entry.c_str());
     plr_error_offset +=
         pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
     entry = smallest->id() + "," + std::to_string(cluster_length) + ",\n";

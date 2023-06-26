@@ -46,7 +46,6 @@ public:
       uint64_t iter2_end = StandardLookup::lower_bound<T>(
           iter2, comparator, iter1->peek(iter1_end - 1));
       Iterator<T> *iter2_subrange = iter2->subRange(iter2_start, iter2_end);
-
       uint64_t result_end =
           result_start + (iter2_end - iter2_start) + (iter1_end - iter1_start);
       IteratorBuilder<T> *result_subrange =
@@ -69,7 +68,7 @@ public:
     }
 
     for (uint64_t i = 0; i < num_threads; i++) {
-      pthread_join(threads[i], NULL);
+       pthread_join(threads[i], NULL);
     }
 
     if (iter2_start != iter2->num_keys()) {

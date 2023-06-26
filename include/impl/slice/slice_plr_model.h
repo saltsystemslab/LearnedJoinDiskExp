@@ -29,6 +29,7 @@ public:
                                     start_offset_);
         if (result < 0) {
           result = 0;
+	  abort();
         }
         if (result >= num_keys_) {
           result = num_keys_ - 1;

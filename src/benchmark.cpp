@@ -55,7 +55,7 @@ static int FLAGS_num_of_lists = 2;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
 static bool FLAGS_print_input = false;
-static vector<int> FLAGS_num_keys;
+static vector<uint64_t> FLAGS_num_keys;
 static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
 static bool FLAGS_assert_sort = false;
@@ -134,7 +134,7 @@ void parse_flags(int argc, char **argv) {
       while (ss.good()) {
         string substr;
         getline(ss, substr, ',');
-        FLAGS_num_keys.push_back(stoi(substr));
+        FLAGS_num_keys.push_back(stoull(substr));
       }
     } else if (sscanf(argv[i], "--use_disk=%lld%c", &n, &junk) == 1) {
       FLAGS_disk_backed = n;
@@ -192,7 +192,7 @@ void parse_flags(int argc, char **argv) {
   }
   printf("List Sizes: ");
   for (int i = 0; i < FLAGS_num_keys.size(); i++) {
-    printf("%d ", FLAGS_num_keys[i]);
+    printf("%lu ", FLAGS_num_keys[i]);
   }
   printf("\n");
   printf("Use Disk: %d\n", FLAGS_disk_backed);
@@ -202,7 +202,8 @@ void parse_flags(int argc, char **argv) {
     printf("Num Threads: %d\n", FLAGS_num_threads);
   }
   if (FLAGS_merge_mode == MERGE_WITH_MODEL ||
-      FLAGS_merge_mode == PARALLEL_LEARNED_MERGE) {
+      FLAGS_merge_mode == PARALLEL_LEARNED_MERGE ||
+      FLAGS_merge_mode == LEARNED_MERGE_JOIN) {
     printf("PLR_Error: %d\n", FLAGS_PLR_error_bound);
   }
 }
@@ -352,10 +353,12 @@ int main(int argc, char **argv) {
   if (FLAGS_disk_backed) {
 #if USE_STRING_KEYS
     std::string fileName = FLAGS_test_dir + "/" + FLAGS_output_file;
+    printf("%s\n", fileName.c_str());
     resultBuilder = new SliceFileIteratorBuilder(
         fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, "result");
 #else
     std::string fileName = FLAGS_test_dir + "/" + FLAGS_output_file;
+    printf("%s\n", fileName.c_str());
     resultBuilder =
         new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, "result");
 #endif
