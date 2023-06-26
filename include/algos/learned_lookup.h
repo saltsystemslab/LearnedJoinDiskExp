@@ -45,10 +45,10 @@ class LearnedLookup {
     return lower_bound_binary_search(start, end, target_key, iterator, comparator);
   }
   template <class T>
-  static bool lookup(Iterator<T> *iterator, uint64_t num_keys,
+  static bool lookup(IteratorWithModel<T> *iterator, uint64_t num_keys,
                      Comparator<T> *comparator, T target_key) {
     uint64_t l_b = lower_bound<T>(iterator, comparator, target_key);
-    if (l_b >= iterator->num_keys_()) return false;
+    if (l_b >= iterator->num_keys()) return false;
     return comparator->compare(target_key, iterator->peek(l_b)) == 0;
   }
 

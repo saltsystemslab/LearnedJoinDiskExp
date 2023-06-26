@@ -45,16 +45,34 @@ class IteratorWithModel {
 template <class T>
 class IteratorWithModelBuilder {
    public:
+   size_t training_time_;
     IteratorWithModelBuilder(IteratorBuilder<T> *iterator,
 			     ModelBuilder<T> *model)
-	: iterator_(iterator), model_(model) {}
+	: iterator_(iterator), model_(model), training_time_(0) {}
 
     void add(const T &key) {
 	iterator_->add(key);
-	model_->add(key);
+
+    auto training_time_start = std::chrono::high_resolution_clock::now();
+    model_->add(key);
+    auto training_time_stop = std::chrono::high_resolution_clock::now();
+    training_time_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       training_time_stop - training_time_start)
+                       .count();
     };
     IteratorWithModel<T> *finish() {
-	return new IteratorWithModel(iterator_->build(), model_->finish());
+    Iterator<T> *it = iterator_->build();
+
+    auto training_time_start = std::chrono::high_resolution_clock::now();
+    Model<T>* m = model_->finish();
+    auto training_time_stop = std::chrono::high_resolution_clock::now();
+    training_time_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       training_time_stop - training_time_start)
+                       .count();
+    float training_duration_sec = training_time_ / 1e9;
+    printf("Training duration: %.3lf s\n", training_duration_sec);
+    return new IteratorWithModel(it, m);
+	//return new IteratorWithModel(iterator_->build(), model_->finish());
     };
 
    private:

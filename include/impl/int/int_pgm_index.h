@@ -16,15 +16,15 @@ public:
   a_(a)
   {}
   uint64_t guessPositionMonotone(T target_key) override {
-    KEY_TYPE *k = (KEY_TYPE *) target_key.data_;
-    return a_->search(*k).pos;
+    //KEY_TYPE *k = (KEY_TYPE *) target_key.data_;
+    return a_->search(target_key).pos;
   }
 
   uint64_t guessPosition(T target_key) override {
-    KEY_TYPE *k = (KEY_TYPE *) target_key.data_;
-    return a_->search(*k).pos;
+   // KEY_TYPE *k = (KEY_TYPE *) target_key.data_;
+    return a_->search(target_key).pos;
   }
-  Model<T> *get_model_for_subrange(const T &start, const T &end) override {
+  Model<T> *get_model_for_subrange(uint64_t start, uint64_t end) override {
     return new IntPGMIndex(a_);  //incorrect
   }
 	double getMaxError() override {
@@ -48,11 +48,11 @@ public:
     this->cur_ = 0;
   }
   void add(const T &t) override {
-    KEY_TYPE *k = (KEY_TYPE *) t.data_;
-     (*a_)[cur_++] = *k;
+    //KEY_TYPE *k = (KEY_TYPE *) t.data_;
+     (*a_)[cur_++] = t;
 }
-  PGMIndex* finish() override {
-    return new IntPGMIndex(new pgm::PGMIndex<KEY_TYPE, epsilon>(*a_));
+  IntPGMIndex<T>* finish() override {
+    return new IntPGMIndex<T>(new pgm::PGMIndex<KEY_TYPE, epsilon>(*a_));
   }
 
 private:
