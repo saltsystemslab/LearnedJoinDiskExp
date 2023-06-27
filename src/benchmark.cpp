@@ -60,7 +60,7 @@ static int FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
 static bool FLAGS_assert_sort = false;
 static int FLAGS_PLR_error_bound = 10;
-static uint64_t FLAGS_num_common_keys = 3;
+static uint64_t FLAGS_num_common_keys = 0;
 #if USE_INT_128
 static int FLAGS_key_size_bytes = 16;
 #else
@@ -303,6 +303,7 @@ int main(int argc, char **argv) {
       }
     }
     iterators_with_model[i] = builder->finish();
+ 	printf("Finished training model!\n");
 
     auto iterator_build_end = std::chrono::high_resolution_clock::now();
     uint64_t iterator_build_duration_ns =
