@@ -101,7 +101,7 @@ void qsort(char *arr, int64_t key_len_bytes, int64_t s, int64_t e) {
   }
 }
 
-char *generate_keys(std::string sstable_name, uint64_t num_keys,
+char *read_or_create_sstable_into_mem(std::string sstable_name, uint64_t num_keys,
                     int key_len_bytes) {
   uint64_t bytes_to_alloc = num_keys * key_len_bytes;
   char *rand_nums = new char[bytes_to_alloc];
