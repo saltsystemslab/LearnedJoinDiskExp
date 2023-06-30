@@ -58,6 +58,7 @@ static bool FLAGS_print_input = false;
 static vector<uint64_t> FLAGS_num_keys;
 static MERGE_MODE FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
+static int FLAGS_num_sort_threads = 4;
 static bool FLAGS_assert_sort = false;
 static int FLAGS_PLR_error_bound = 10;
 static uint64_t FLAGS_num_common_keys = 0;
@@ -122,8 +123,7 @@ void parse_flags(int argc, char **argv) {
     char *str = new char[100];
     if (sscanf(argv[i], "--num_of_lists=%lld%c", &n, &junk) == 1) {
       FLAGS_num_of_lists = n;
-    }
-    else if (sscanf(argv[i], "--key_bytes=%lld%c", &n, &junk) == 1) {
+    } else if (sscanf(argv[i], "--key_bytes=%lld%c", &n, &junk) == 1) {
       // TODO: If Key Type is uint64_t or 128bit, then abort if attempting to
       // set key_size.
       FLAGS_key_size_bytes = n;
@@ -140,6 +140,8 @@ void parse_flags(int argc, char **argv) {
       FLAGS_disk_backed = n;
     } else if (sscanf(argv[i], "--num_threads=%lld%c", &n, &junk) == 1) {
       FLAGS_num_threads = n;
+    } else if (sscanf(argv[i], "--num_sort_threads=%lld%c", &n, &junk) == 1) {
+      FLAGS_num_sort_threads = n;
     } else if (sscanf(argv[i], "--num_common_keys=%lld%c", &n, &junk) == 1) {
       FLAGS_num_common_keys = n;
     } else if (sscanf(argv[i], "--plr_error_bound=%lld%c", &n, &junk) == 1) {
@@ -266,8 +268,8 @@ IteratorWithModel<KEY_TYPE> *build_iterator_with_model(
   std::string iter_sstable =
       get_sstable_name(FLAGS_test_dir, "iter_" + std::to_string(iter_idx),
                        num_keys, FLAGS_key_size_bytes);
-  char *keys = read_or_create_sstable_into_mem(iter_sstable, num_keys,
-                                               FLAGS_key_size_bytes);
+  char *keys = read_or_create_sstable_into_mem(
+      iter_sstable, num_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
   keys = merge(keys, num_keys, common_keys, num_common_keys, key_bytes);
   num_keys += num_common_keys;
   test_input->total_input_keys_cnt += num_keys;
@@ -362,7 +364,7 @@ TestInput prepare_input() {
       get_sstable_name(FLAGS_test_dir, "common_keys", FLAGS_num_common_keys,
                        FLAGS_key_size_bytes);
   char *common_keys = read_or_create_sstable_into_mem(
-      common_keys_sstable, FLAGS_num_common_keys, FLAGS_key_size_bytes);
+      common_keys_sstable, FLAGS_num_common_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
 
   if (test_input.num_of_lists != 2) {
     printf("Currently only 2 lists can be merged!");
