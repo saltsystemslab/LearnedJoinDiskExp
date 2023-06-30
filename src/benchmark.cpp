@@ -265,7 +265,7 @@ IteratorWithModel<KEY_TYPE> *build_iterator_with_model(
   // Generate keys.
   std::string iter_sstable =
       get_sstable_name(FLAGS_test_dir, "iter_" + std::to_string(iter_idx),
-                       FLAGS_num_common_keys, FLAGS_key_size_bytes);
+                       num_keys, FLAGS_key_size_bytes);
   char *keys = read_or_create_sstable_into_mem(iter_sstable, num_keys,
                                                FLAGS_key_size_bytes);
   keys = merge(keys, num_keys, common_keys, num_common_keys, key_bytes);
