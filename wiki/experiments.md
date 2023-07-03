@@ -84,6 +84,8 @@ To better answer that question, we shifted our focus on building a microbenchmar
 
 Machine: Patagonia
 
+Each experiment was run 3 times, with `numactl -N 1 -m 1` on Patagonia. The numbers reported are median numbers.
+
 Overall Trends:
 * As size skewness increases, performance of learned merger gets better. See [8 byte keys merge experiment](8_byte_merge.md)
 	* The threshold ratio of doing better goes up as key size increases .i.e, We need more skewness in data list size to do better. 
