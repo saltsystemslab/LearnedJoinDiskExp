@@ -4,6 +4,7 @@
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <stdlib.h>
 
 #include "iterator.h"
 #include "config.h"
@@ -51,6 +52,13 @@ char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_l
 }
 
 
+static int g_key_size;
+int comp(const void *a, const void *b) {
+    Slice slice1((char *)a, g_key_size);
+    Slice slice2((char *)b, g_key_size);
+    return sc.compare(slice1, slice2);
+}
+
 std::mutex mtx;
 void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair<int64_t, int64_t>> *nq, char *arr, int key_size_bytes) {
   uint64_t iters = 0;
@@ -66,6 +74,11 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
     int64_t end = q->front().second;
     q->pop();
     mtx.unlock();
+
+    if (end - start + 1 < 4000) {
+      qsort(arr + start * key_size_bytes, end-start+1, key_size_bytes, comp);
+      continue;
+    }
 
     int64_t mid = start + (end - start) / 2; // TODO: Pick a random key.
     iters++;
@@ -113,10 +126,11 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
 }
 
 void p_qsort(int num_threads, char *arr, uint64_t num_keys, int key_size_bytes) {
+  g_key_size = key_size_bytes;
   std::queue<pair<int64_t, int64_t>> *q, *nq;
   q = new std::queue<pair<int64_t, int64_t>>();
   nq = new std::queue<pair<int64_t, int64_t>>();
-  printf("%ld\n", num_keys-1);
+  printf("%d num_threads\n", num_threads);
   q->push(std::pair<int64_t, int64_t>(0, num_keys-1));
 
   std::thread t[num_threads];
