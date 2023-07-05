@@ -34,21 +34,10 @@
 #include "sort_merge_learned_join.h"
 #include "standard_merge.h"
 #include "uniform_random.h"
+#include "test_input.h"
+#include "sstable.h"
 
 using namespace std;
-
-enum MERGE_MODE {
-  NO_OP,
-  STANDARD_MERGE,
-  PARALLEL_STANDARD_MERGE,
-  PARALLEL_LEARNED_MERGE,
-  PARALLEL_LEARNED_MERGE_BULK,
-  MERGE_WITH_MODEL,
-  MERGE_WITH_MODEL_BULK,
-  STANDARD_MERGE_JOIN,
-  STANDARD_MERGE_BINARY_LOOKUP_JOIN,
-  LEARNED_MERGE_JOIN
-};
 
 static const int BUFFER_SIZE = 4096;  // TODO: Make page buffer a flag.
 static int FLAGS_num_of_lists = 2;
@@ -87,29 +76,24 @@ KEY_TYPE to_int(const char *s) {
 }
 #endif
 
-#if !USE_STRING_KEYS && USE_INT_128
-std::string int128_to_string(KEY_TYPE k) {
-  std::string s;
-  while (k) {
-    int d = (int)(k % 10);
-    s = std::to_string(d) + s;
-    k = k / 10;
+void print_flag_values() {
+  printf("List Sizes: ");
+  for (int i = 0; i < FLAGS_num_keys.size(); i++) {
+    printf("%lu ", FLAGS_num_keys[i]);
   }
-  return s;
-}
-#endif
-
-#if !USE_STRING_KEYS && !USE_INT_128
-std::string uint64_to_string(KEY_TYPE k) {
-  std::string s;
-  while (k) {
-    int d = (int)(k % 10);
-    s = std::to_string(d) + s;
-    k = k / 10;
+  printf("\n");
+  printf("Use Disk: %d\n", FLAGS_disk_backed);
+  printf("Key Bytes: %d\n", FLAGS_key_size_bytes);
+  if (FLAGS_merge_mode == PARALLEL_LEARNED_MERGE ||
+      FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
+    printf("Num Threads: %d\n", FLAGS_num_threads);
   }
-  return s;
+  if (FLAGS_merge_mode == MERGE_WITH_MODEL ||
+      FLAGS_merge_mode == PARALLEL_LEARNED_MERGE ||
+      FLAGS_merge_mode == LEARNED_MERGE_JOIN) {
+    printf("PLR_Error: %d\n", FLAGS_PLR_error_bound);
+  }
 }
-#endif
 
 void parse_flags(int argc, char **argv) {
   // TODO: Set default value for FLAGS_num_keys
@@ -192,84 +176,23 @@ void parse_flags(int argc, char **argv) {
       abort();
     }
   }
+  if (FLAGS_num_keys.size() != 2) {
+    printf("Number of lists must be 2 for now.");
+    abort();
+  }
   if (FLAGS_num_keys.size() != FLAGS_num_of_lists) {
     printf("Number of lists does not match num_keys flag");
     abort();
   }
-  printf("List Sizes: ");
-  for (int i = 0; i < FLAGS_num_keys.size(); i++) {
-    printf("%lu ", FLAGS_num_keys[i]);
-  }
-  printf("\n");
-  printf("Use Disk: %d\n", FLAGS_disk_backed);
-  printf("Key Bytes: %d\n", FLAGS_key_size_bytes);
-  if (FLAGS_merge_mode == PARALLEL_LEARNED_MERGE ||
-      FLAGS_merge_mode == PARALLEL_STANDARD_MERGE) {
-    printf("Num Threads: %d\n", FLAGS_num_threads);
-  }
-  if (FLAGS_merge_mode == MERGE_WITH_MODEL ||
-      FLAGS_merge_mode == PARALLEL_LEARNED_MERGE ||
-      FLAGS_merge_mode == LEARNED_MERGE_JOIN) {
-    printf("PLR_Error: %d\n", FLAGS_PLR_error_bound);
-  }
+  print_flag_values();
 }
 
-struct TestInput {
-  int num_of_lists;
-  MERGE_MODE merge_mode;
-  IteratorWithModel<KEY_TYPE> **iterators_with_model;
-  Iterator<KEY_TYPE> **iterators;
-  IteratorBuilder<KEY_TYPE> *resultBuilder;
-  Comparator<KEY_TYPE> *comparator;
-  uint64_t total_input_keys_cnt;
-
-  bool is_parallel() {
-    return (merge_mode == PARALLEL_LEARNED_MERGE_BULK ||
-            PARALLEL_LEARNED_MERGE || PARALLEL_STANDARD_MERGE);
-  }
-  bool is_learned() {
-    return (merge_mode == PARALLEL_LEARNED_MERGE_BULK ||
-            PARALLEL_LEARNED_MERGE || MERGE_WITH_MODEL ||
-            MERGE_WITH_MODEL_BULK || LEARNED_MERGE_JOIN);
-  }
-  bool is_join() {
-    return (merge_mode == STANDARD_MERGE_JOIN || LEARNED_MERGE_JOIN);
-  }
-
-  void print_input() {
-    for (int i = 0; i < num_of_lists; i++) {
-      Iterator<KEY_TYPE> *iter = iterators[i];
-      iter->seekToFirst();
-      printf("List %d\n", i);
-      while (iter->valid()) {
-#if USE_STRING_KEYS
-        std::string key_str = iter->key().toString();
-#elif USE_INT_128
-        std::string key_str = int128_to_string(iter->key());
-#else
-        std::string key_str = uint64_to_string(iter->key());
-#endif
-        printf("%d Key: %lu %s\n", i, iter->current_pos(), key_str.c_str());
-        iter->next();
-      }
-    }
-  }
-};
-std::string get_sstable_name(std::string dir, std::string prefix,
-                             uint64_t num_keys, uint64_t key_size) {
-  return dir + "/" + prefix + "_" + std::to_string(num_keys) + "_" +
-         std::to_string(key_size);
-}
 
 IteratorWithModel<KEY_TYPE> *build_iterator_with_model(
     int iter_idx, uint64_t num_keys, int key_bytes, char *common_keys,
     uint64_t num_common_keys, TestInput *test_input) {
-  // Generate keys.
-  std::string iter_sstable =
-      get_sstable_name(FLAGS_test_dir, "iter_" + std::to_string(iter_idx),
-                       num_keys, FLAGS_key_size_bytes);
   char *keys = read_or_create_sstable_into_mem(
-      iter_sstable, num_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
+      FLAGS_test_dir, "iter_" + std::to_string(iter_idx), num_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
   keys = merge(keys, num_keys, common_keys, num_common_keys, key_bytes);
   num_keys += num_common_keys;
   test_input->total_input_keys_cnt += num_keys;
@@ -290,7 +213,7 @@ IteratorWithModel<KEY_TYPE> *build_iterator_with_model(
   IteratorBuilder<KEY_TYPE> *iterator_builder;
   if (FLAGS_disk_backed) {
     // TODO: Move DB name generation to own function.
-    std::string fileName = get_sstable_name(
+    std::string fileName = get_sstable_path(
         FLAGS_test_dir, "DB_" + std::to_string(iter_idx), num_keys, key_bytes);
 #if USE_STRING_KEYS
     iterator_builder = new SliceFileIteratorBuilder(
@@ -360,16 +283,8 @@ TestInput prepare_input() {
 #endif
 
   // Generate common keys to be inserted in both iterators.
-  std::string common_keys_sstable =
-      get_sstable_name(FLAGS_test_dir, "common_keys", FLAGS_num_common_keys,
-                       FLAGS_key_size_bytes);
   char *common_keys = read_or_create_sstable_into_mem(
-      common_keys_sstable, FLAGS_num_common_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
-
-  if (test_input.num_of_lists != 2) {
-    printf("Currently only 2 lists can be merged!");
-    abort();
-  }
+      FLAGS_test_dir, "common_keys", FLAGS_num_common_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
 
   for (int i = 0; i < test_input.num_of_lists; i++) {
     test_input.iterators_with_model[i] = build_iterator_with_model(
@@ -409,7 +324,7 @@ int main(int argc, char **argv) {
   TestInput input = prepare_input();
 
   if (FLAGS_print_input) {
-    input.print_input();
+    input.print_input_data();
   }
 
   Iterator<KEY_TYPE> **iterators = input.iterators;

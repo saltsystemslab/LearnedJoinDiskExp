@@ -1,8 +1,8 @@
 CXX=g++
 C_OPTIONS=-Ofast -pthread -std=c++17
-INCLUDE=-Iinclude/algos -Iinclude/impl/int -Iinclude/impl/slice -Iinclude/impl/plr -Iinclude/interfaces -Iinclude/types -Iinclude/impl -I./PGM-index/include -Iinclude
+INCLUDE=-Iinclude/algos -Iinclude/impl/int -Iinclude/impl/slice -Iinclude/impl/plr -Iinclude/interfaces -Iinclude/types -Iinclude/impl -I./PGM-index/include -Iinclude -Iinclude/benchmark
 
-USE_STRING_KEYS ?= 0
+USE_STRING_KEYS ?= 1
 USE_INT_128 ?= 0
 
 TRAIN_RESULT ?= 0
