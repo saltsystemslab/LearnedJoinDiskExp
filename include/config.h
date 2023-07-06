@@ -3,7 +3,7 @@
 
 #include "slice.h"
 #define PAGE_SIZE 4096
-#define NUM_SORT_THREADS 4
+#define NUM_SORT_THREADS 8
 
 #if USE_STRING_KEYS
 typedef double PLR_SEGMENT_POINT;

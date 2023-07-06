@@ -21,4 +21,15 @@ public:
   }
 };
 
+class SliceAsUint64Comparator : public Comparator<Slice> {
+public:
+  int compare(const Slice &k1, const Slice &k2) override {
+    uint64_t *a = (uint64_t *)k1.data_;
+    uint64_t *b = (uint64_t *)k2.data_;
+    if (*a < *b) return -1;
+    if (*a == *b) return 0;
+    return 1;
+  }
+};
+
 #endif

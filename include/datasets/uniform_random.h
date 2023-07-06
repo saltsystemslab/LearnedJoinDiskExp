@@ -64,7 +64,7 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
   test_input.comparator = c;
 
   char *common_keys = load_or_create_uniform_sstable(
-      test_dir, "common", num_common_keys, key_size_bytes);
+      test_dir, "common", num_common_keys, key_size_bytes, c);
   for (int i = 0; i < test_input.num_of_lists; i++) {
     std::string sstable_path = get_sstable_path(
         test_dir, "sstable_" + std::to_string(i), list_sizes[i], key_size_bytes);
@@ -74,12 +74,12 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
     // single run using 'no_op' merge. Then reuse the sstable files as is.
     // TODO: Move test_case input generation as it's own binary.
     char *keys = load_or_create_uniform_sstable(
-        test_dir, "sstable_" + std::to_string(i), list_sizes[i], key_size_bytes);
+        test_dir, "sstable_" + std::to_string(i), list_sizes[i], key_size_bytes, c);
     test_input.total_input_keys_cnt += list_sizes[i];
 
     if (num_common_keys) {
       keys = merge(keys, list_sizes[i], common_keys, num_common_keys,
-                   key_size_bytes);
+                   key_size_bytes, c);
       test_input.total_input_keys_cnt += num_common_keys;
       sstable_path += "_with_" + std::to_string(num_common_keys) + "_common";
       write_sstable(sstable_path, keys,

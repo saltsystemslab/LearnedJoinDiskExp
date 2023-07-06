@@ -25,6 +25,21 @@ char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_l
   return result;
 }
 
+int compare_slice(char *arr, int64_t k1, int64_t k2, int key_size_bytes, Comparator<Slice> *c) {
+  Slice s1(arr + k1 * key_size_bytes, key_size_bytes);
+  Slice s2(arr + k2 * key_size_bytes, key_size_bytes);
+  return c->compare(s1, s2);
+}
+
+void swap_slice(char *arr, int64_t k1, int64_t k2, int key_size_bytes) {
+  for (int i = 0; i < key_size_bytes; i++) {
+      char c1 = arr[k1 * key_size_bytes + i];
+      char c2 = arr[k2 * key_size_bytes + i];
+      arr[k2 * key_size_bytes + i] = c1;
+      arr[k1 * key_size_bytes + i] = c2;
+  }
+}
+
 
 std::mutex mtx;
 void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair<int64_t, int64_t>> *nq, char *arr, int key_size_bytes, Comparator<Slice> *c) {
@@ -42,42 +57,37 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
     q->pop();
     mtx.unlock();
 
+    
+    if (end - start < 64) {
+      for (int i=start+1; i<=end; i++) {
+        int j=i;
+        while (j>start && compare_slice(arr, j-1, j, key_size_bytes, c) > 0) {
+          swap_slice(arr, j-1, j,key_size_bytes);
+          j--;
+        }
+      }
+      return;
+    }
+
     int64_t mid = start + (end - start) / 2; // TODO: Pick a random key.
     iters++;
     if (start >= end) {
       continue;
     }
     int64_t pivot = end;
-    for (int i = 0; i < key_size_bytes; i++) {
-      c1 = arr[pivot * key_size_bytes + i];
-      c2 = arr[mid * key_size_bytes + i];
-      arr[mid * key_size_bytes + i] = c1;
-      arr[pivot * key_size_bytes + i] = c2;
-    }
-    Slice pivot_slice(arr + pivot * key_size_bytes, key_size_bytes);
+    swap_slice(arr, pivot, end, key_size_bytes);
     int64_t temp_pivot = start - 1;
     int64_t idx;
     for (idx = start; idx < end; idx++) {
-      Slice cur(arr + idx * key_size_bytes, key_size_bytes);
-      if (c->compare(cur, pivot_slice) <= 0) {
+      if (compare_slice(arr, idx, pivot, key_size_bytes, c) <= 0) {
         temp_pivot += 1;
         if (temp_pivot == idx)
           continue;
-        for (int64_t i = 0; i < key_size_bytes; i++) {
-          c1 = arr[temp_pivot * key_size_bytes + i];
-          c2 = arr[idx * key_size_bytes + i];
-          arr[idx * key_size_bytes + i] = c1;
-          arr[temp_pivot * key_size_bytes + i] = c2;
-        }
+        swap_slice(arr, temp_pivot, idx, key_size_bytes);
       }
     }
     temp_pivot += 1;
-    for (int64_t i = 0; i < key_size_bytes; i++) {
-      c1 = arr[temp_pivot * key_size_bytes + i];
-      c2 = arr[pivot * key_size_bytes + i];
-      arr[pivot * key_size_bytes + i] = c1;
-      arr[temp_pivot * key_size_bytes + i] = c2;
-    }
+    swap_slice(arr, pivot, temp_pivot, key_size_bytes);
     mtx.lock();
     if (start < temp_pivot - 1)
       nq->push(std::pair<int64_t, int64_t>(start, temp_pivot - 1));
@@ -97,7 +107,7 @@ void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes, Comparator<Slice>
   std::thread t[NUM_SORT_THREADS];
   while (!q->empty()) {
     for (int i=0; i<NUM_SORT_THREADS; i++) {
-      t[i] = std::thread(pivot_work, i, q, nq, arr, key_size_bytes, Comparator<Slice> *c);
+      t[i] = std::thread(pivot_work, i, q, nq, arr, key_size_bytes, c);
     }
     for (int i=0; i<NUM_SORT_THREADS; i++) {
       t[i].join();

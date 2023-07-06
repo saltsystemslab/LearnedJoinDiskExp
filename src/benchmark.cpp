@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
   init_test_dir();
   BenchmarkInput<Slice> input = create_uniform_input_lists(
       FLAGS_test_dir, FLAGS_num_keys, FLAGS_merge_mode, FLAGS_key_size_bytes,
-      FLAGS_num_common_keys, FLAGS_PLR_error_bound, FLAGS_disk_backed);
+      FLAGS_num_common_keys, FLAGS_PLR_error_bound, FLAGS_disk_backed, new SliceComparator());
 
   if (FLAGS_print_input) {
     printf("Printing input temporarily removed!");
