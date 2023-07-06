@@ -9,8 +9,7 @@
 
 using namespace std;
 
-static SliceComparator sc;
-char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_len_bytes) {
+char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_len_bytes, Comparator<Slice> *c) {
   if (b_count == 0) {
     return a;
   }
@@ -21,14 +20,14 @@ char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_l
   Iterator<Slice> **iterators = new Iterator<Slice> *[2];
   iterators[0] = it1;
   iterators[1] = it2;
-  StandardMerger<Slice>::merge(iterators, 2, &sc, res);
+  StandardMerger<Slice>::merge(iterators, 2, c, res);
   delete a;
   return result;
 }
 
 
 std::mutex mtx;
-void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair<int64_t, int64_t>> *nq, char *arr, int key_size_bytes) {
+void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair<int64_t, int64_t>> *nq, char *arr, int key_size_bytes, Comparator<Slice> *c) {
   uint64_t iters = 0;
   char c1;
   char c2;
@@ -60,7 +59,7 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
     int64_t idx;
     for (idx = start; idx < end; idx++) {
       Slice cur(arr + idx * key_size_bytes, key_size_bytes);
-      if (sc.compare(cur, pivot_slice) <= 0) {
+      if (c->compare(cur, pivot_slice) <= 0) {
         temp_pivot += 1;
         if (temp_pivot == idx)
           continue;
@@ -88,7 +87,7 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
   }
 }
 
-void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes) {
+void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes, Comparator<Slice> *c) {
   std::queue<pair<int64_t, int64_t>> *q, *nq;
   q = new std::queue<pair<int64_t, int64_t>>();
   nq = new std::queue<pair<int64_t, int64_t>>();
@@ -98,7 +97,7 @@ void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes) {
   std::thread t[NUM_SORT_THREADS];
   while (!q->empty()) {
     for (int i=0; i<NUM_SORT_THREADS; i++) {
-      t[i] = std::thread(pivot_work, i, q, nq, arr, key_size_bytes);
+      t[i] = std::thread(pivot_work, i, q, nq, arr, key_size_bytes, Comparator<Slice> *c);
     }
     for (int i=0; i<NUM_SORT_THREADS; i++) {
       t[i].join();

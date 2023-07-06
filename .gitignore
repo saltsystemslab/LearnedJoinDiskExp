@@ -3,3 +3,10 @@ bin
 eval/__pycache__
 eval/.ipynb_checkpoints
 obj/*
+.vscode/settings.json
+DB/common_5_16
+DB/result
+DB/sstable_0_100_16
+DB/sstable_0_100_16_with_5_common
+DB/sstable_1_400_16
+DB/sstable_1_400_16_with_5_common

@@ -30,7 +30,7 @@ void fill_rand_bytes(char *v, uint64_t n) {
 // If SSTable exists, read from it.
 // Else, generate uniform random data and create the SSTable.
 char *load_or_create_uniform_sstable(std::string dir, std::string sstable_name,
-                                     uint64_t num_keys, int key_len_bytes) {
+                                     uint64_t num_keys, int key_len_bytes, Comparator<Slice> *c) {
   if (num_keys == 0) {
     return nullptr;
   }
@@ -44,7 +44,7 @@ char *load_or_create_uniform_sstable(std::string dir, std::string sstable_name,
   }
 
   fill_rand_bytes(rand_nums, bytes_to_alloc);
-  p_qsort(rand_nums, num_keys, key_len_bytes);
+  p_qsort(rand_nums, num_keys, key_len_bytes, c);
   write_sstable(sstable_path, rand_nums, num_keys * key_len_bytes);
   return rand_nums;
 }
@@ -53,7 +53,7 @@ BenchmarkInput<Slice>
 create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
                            MergeMode merge_mode, int key_size_bytes,
                            uint64_t num_common_keys, int plr_model_error,
-                           bool is_disk_backed) {
+                           bool is_disk_backed, Comparator<Slice> *c) {
   BenchmarkInput<Slice> test_input;
   test_input.num_of_lists = list_sizes.size();
   test_input.iterators_with_model =
@@ -61,7 +61,7 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
   test_input.iterators = new Iterator<Slice> *[test_input.num_of_lists];
   test_input.total_input_keys_cnt = 0;
   test_input.merge_mode = merge_mode;
-  test_input.comparator = new SliceComparator();
+  test_input.comparator = c;
 
   char *common_keys = load_or_create_uniform_sstable(
       test_dir, "common", num_common_keys, key_size_bytes);
