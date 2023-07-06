@@ -14,10 +14,6 @@
 
 #include "comparator.h"
 #include "config.h"
-#include "int_array_iterator.h"
-#include "int_comparator.h"
-#include "int_disk_iterator.h"
-#include "int_plr_model.h"
 #include "iterator.h"
 #include "iterator_with_model.h"
 #include "learned_merge.h"
@@ -26,9 +22,6 @@
 #include "parallel_learned_bulk_merge.h"
 #include "parallel_learned_merge.h"
 #include "parallel_standard_merge.h"
-#include "slice_array_iterator.h"
-#include "slice_file_iterator.h"
-#include "slice_plr_model.h"
 #include "sort_merge_binary_lookup.h"
 #include "sort_merge_join.h"
 #include "sort_merge_learned_join.h"
@@ -198,9 +191,24 @@ int main(int argc, char **argv) {
   printf("-----------------\n");
   parse_flags(argc, argv);
   init_test_dir();
+
+  Comparator<Slice> *comp;
+  SliceToPlrPointConverter *converter;
+  if (FLAGS_key_type == "str") {
+    comp = new SliceComparator();
+    converter = new FixedKeySizeToPlrPointConverter();
+  } else if (FLAGS_key_type == "uint64") {
+    comp = new SliceAsUint64Comparator();
+    converter = new SliceAsUint64PlrPointConverter();
+  } else {
+    printf("Unrecognized key type\n");
+    abort();
+  }
+
+
   BenchmarkInput<Slice> input = create_uniform_input_lists(
       FLAGS_test_dir, FLAGS_num_keys, FLAGS_merge_mode, FLAGS_key_size_bytes,
-      FLAGS_num_common_keys, FLAGS_PLR_error_bound, FLAGS_disk_backed, new SliceComparator());
+      FLAGS_num_common_keys, FLAGS_PLR_error_bound, FLAGS_disk_backed, FLAGS_output_file, comp, converter);
 
   if (FLAGS_print_input) {
     printf("Printing input temporarily removed!");

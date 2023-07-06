@@ -8,18 +8,43 @@
 
 PLR_SEGMENT_POINT interpret_slice_to_number(const Slice &t) { return 0; }
 
+class SliceToPlrPointConverter {
+  public:
+    virtual PLR_SEGMENT_POINT to_plr_point(const Slice &t) = 0;
+};
+
+class FixedKeySizeToPlrPointConverter : public SliceToPlrPointConverter {
+public:
+  PLR_SEGMENT_POINT to_plr_point(const Slice &t) {
+    PLR_SEGMENT_POINT num = 0;
+    for (int i = 0; i < t.size_; i++) {
+      uint8_t c = *(t.data_ + i);
+      num = num * 256 + c;
+    }
+    return num;
+  }
+};
+
+class SliceAsUint64PlrPointConverter : public SliceToPlrPointConverter {
+  public:
+    PLR_SEGMENT_POINT to_plr_point(const Slice &t) {
+      uint64_t *a = (uint64_t *)t.data_;
+      return (PLR_SEGMENT_POINT)(*a);
+    }
+};
+
 class SlicePLRModel : public Model<Slice> {
 public:
-  SlicePLRModel(PLRModel *model, uint64_t num_keys)
+  SlicePLRModel(PLRModel *model, uint64_t num_keys, SliceToPlrPointConverter *slice_to_point_converter)
       : model_(model), plr_segment_index_(0), num_keys_(num_keys),
-        start_offset_(0) {}
+        start_offset_(0), slice_to_point_converter_(slice_to_point_converter) {}
 
-  SlicePLRModel(PLRModel *model, uint64_t start_offset, uint64_t num_keys)
+  SlicePLRModel(PLRModel *model, uint64_t start_offset, uint64_t num_keys, SliceToPlrPointConverter *slice_to_point_converter)
       : model_(model), start_offset_(start_offset), plr_segment_index_(0),
-        num_keys_(num_keys) {}
+        num_keys_(num_keys), slice_to_point_converter_(slice_to_point_converter) {}
 
   uint64_t guessPositionMonotone(Slice target_slice_key) override {
-    PLR_SEGMENT_POINT target_key = target_slice_key.to_double();
+    PLR_SEGMENT_POINT target_key = slice_to_point_converter_->to_plr_point(target_slice_key);
     std::vector<Segment> &segments = model_->lineSegments_;
     for (uint64_t i = getPLRLineSegmentIndex(); i < (uint64_t)segments.size();
          i++) {
@@ -29,11 +54,12 @@ public:
                                     start_offset_);
         if (result < 0) {
           result = 0;
-	  abort();
+	        abort();
         }
         if (result >= num_keys_) {
           result = num_keys_ - 1;
         }
+        printf("%lf %ld\n", target_key, result);
         return result;
       }
     }
@@ -41,11 +67,11 @@ public:
   };
 
   uint64_t guessPosition(Slice target_slice_key) override {
-    PLR_SEGMENT_POINT target_key = target_slice_key.to_double();
+    PLR_SEGMENT_POINT target_key = slice_to_point_converter_->to_plr_point(target_slice_key);
     std::vector<Segment> &segments = model_->lineSegments_;
-    int32_t left = 0, right = (int32_t)segments.size() - 1;
+    int64_t left = 0, right = (int64_t)segments.size() - 1;
     while (left < right) {
-      int32_t mid = (right + left + 1) / 2;
+      int64_t mid = (right + left + 1) / 2;
       if (target_key < segments[mid].x)
         right = mid - 1;
       else
@@ -63,7 +89,7 @@ public:
   }
 
   SlicePLRModel *get_model_for_subrange(uint64_t start, uint64_t end) override {
-    return new SlicePLRModel(model_, start, end - start);
+    return new SlicePLRModel(model_, start, end - start, slice_to_point_converter_);
   }
 
   double getMaxError() override { return model_->gamma_; }
@@ -74,6 +100,7 @@ public:
 
 private:
   PLRModel *model_;
+  SliceToPlrPointConverter *slice_to_point_converter_;
   uint64_t plr_segment_index_;
   uint64_t start_offset_;
   uint64_t num_keys_;
@@ -83,18 +110,19 @@ private:
 
 class SlicePLRModelBuilder : public ModelBuilder<Slice> {
 public:
-  SlicePLRModelBuilder(double gamma)
-      : plrBuilder_(new PLRBuilder(gamma)), num_keys_(0) {}
+  SlicePLRModelBuilder(double gamma, SliceToPlrPointConverter *converter)
+      : plrBuilder_(new PLRBuilder(gamma)), num_keys_(0), converter_(converter) {}
   void add(const Slice &slice_key) override {
-    PLR_SEGMENT_POINT t = slice_key.to_double();
+    PLR_SEGMENT_POINT t = converter_->to_plr_point(slice_key);
     num_keys_++;
     plrBuilder_->processKey(t);
   }
   SlicePLRModel *finish() override {
-    return new SlicePLRModel(plrBuilder_->finishTraining(), num_keys_);
+    return new SlicePLRModel(plrBuilder_->finishTraining(), num_keys_, converter_);
   }
 
 private:
+  SliceToPlrPointConverter *converter_;
   PLRBuilder *plrBuilder_;
   uint64_t num_keys_;
 };

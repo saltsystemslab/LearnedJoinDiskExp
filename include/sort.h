@@ -5,7 +5,12 @@
 #include <thread>
 #include <queue>
 #include <vector>
+#include <algorithm>
+
 #include "slice_comparator.h"
+#include "slice_array_iterator.h"
+#include "slice_file_iterator.h"
+#include "slice_plr_model.h"
 
 using namespace std;
 
@@ -32,20 +37,13 @@ int compare_slice(char *arr, int64_t k1, int64_t k2, int key_size_bytes, Compara
 }
 
 void swap_slice(char *arr, int64_t k1, int64_t k2, int key_size_bytes) {
-  for (int i = 0; i < key_size_bytes; i++) {
-      char c1 = arr[k1 * key_size_bytes + i];
-      char c2 = arr[k2 * key_size_bytes + i];
-      arr[k2 * key_size_bytes + i] = c1;
-      arr[k1 * key_size_bytes + i] = c2;
-  }
+  std::swap_ranges(arr + k1 * key_size_bytes, arr + (k1 + 1) * key_size_bytes, arr + k2 * key_size_bytes);
 }
 
 
 std::mutex mtx;
 void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair<int64_t, int64_t>> *nq, char *arr, int key_size_bytes, Comparator<Slice> *c) {
   uint64_t iters = 0;
-  char c1;
-  char c2;
   while (true) {
     mtx.lock();
     if (q->empty()) {
@@ -56,7 +54,6 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
     int64_t end = q->front().second;
     q->pop();
     mtx.unlock();
-
     
     if (end - start < 64) {
       for (int i=start+1; i<=end; i++) {
@@ -101,7 +98,6 @@ void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes, Comparator<Slice>
   std::queue<pair<int64_t, int64_t>> *q, *nq;
   q = new std::queue<pair<int64_t, int64_t>>();
   nq = new std::queue<pair<int64_t, int64_t>>();
-  printf("%ld\n", num_keys-1);
   q->push(std::pair<int64_t, int64_t>(0, num_keys-1));
 
   std::thread t[NUM_SORT_THREADS];
@@ -117,5 +113,6 @@ void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes, Comparator<Slice>
   delete q;
   delete nq;
 }
+
 
 #endif

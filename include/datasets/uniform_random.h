@@ -53,7 +53,8 @@ BenchmarkInput<Slice>
 create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
                            MergeMode merge_mode, int key_size_bytes,
                            uint64_t num_common_keys, int plr_model_error,
-                           bool is_disk_backed, Comparator<Slice> *c) {
+                           bool is_disk_backed, std::string result_file, 
+                           Comparator<Slice> *comparator, SliceToPlrPointConverter *converter) {
   BenchmarkInput<Slice> test_input;
   test_input.num_of_lists = list_sizes.size();
   test_input.iterators_with_model =
@@ -61,10 +62,10 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
   test_input.iterators = new Iterator<Slice> *[test_input.num_of_lists];
   test_input.total_input_keys_cnt = 0;
   test_input.merge_mode = merge_mode;
-  test_input.comparator = c;
+  test_input.comparator = comparator;
 
   char *common_keys = load_or_create_uniform_sstable(
-      test_dir, "common", num_common_keys, key_size_bytes, c);
+      test_dir, "common", num_common_keys, key_size_bytes, comparator);
   for (int i = 0; i < test_input.num_of_lists; i++) {
     std::string sstable_path = get_sstable_path(
         test_dir, "sstable_" + std::to_string(i), list_sizes[i], key_size_bytes);
@@ -74,12 +75,12 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
     // single run using 'no_op' merge. Then reuse the sstable files as is.
     // TODO: Move test_case input generation as it's own binary.
     char *keys = load_or_create_uniform_sstable(
-        test_dir, "sstable_" + std::to_string(i), list_sizes[i], key_size_bytes, c);
+        test_dir, "sstable_" + std::to_string(i), list_sizes[i], key_size_bytes, comparator);
     test_input.total_input_keys_cnt += list_sizes[i];
 
     if (num_common_keys) {
       keys = merge(keys, list_sizes[i], common_keys, num_common_keys,
-                   key_size_bytes, c);
+                   key_size_bytes, comparator);
       test_input.total_input_keys_cnt += num_common_keys;
       sstable_path += "_with_" + std::to_string(num_common_keys) + "_common";
       write_sstable(sstable_path, keys,
@@ -98,7 +99,7 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
     Model<Slice> *m;
     if (test_input.is_learned()) {
       auto model_build_start = std::chrono::high_resolution_clock::now();
-      ModelBuilder<Slice> *mb = new SlicePLRModelBuilder(plr_model_error);
+      ModelBuilder<Slice> *mb = new SlicePLRModelBuilder(plr_model_error, converter);
       it->seekToFirst();
       while (it->valid()) {
         mb->add(it->key());
@@ -123,7 +124,7 @@ create_uniform_input_lists(std::string test_dir, vector<uint64_t> list_sizes,
   }
 
   if (is_disk_backed) {
-    std::string result_sstable = test_dir + "/" "result";
+    std::string result_sstable = test_dir + "/" + result_file;
     test_input.resultBuilder = new SliceFileIteratorBuilder(result_sstable.c_str(), 4096, key_size_bytes, "result");
   } else {
     test_input.resultBuilder = new SliceArrayBuilder(test_input.total_input_keys_cnt, key_size_bytes, "result");
