@@ -33,19 +33,18 @@
 #include "sort_merge_join.h"
 #include "sort_merge_learned_join.h"
 #include "standard_merge.h"
-#include "uniform_random.h"
 #include "test_input.h"
-#include "sstable.h"
+#include "uniform_random.h"
 
 using namespace std;
 
-static const int BUFFER_SIZE = 4096;  // TODO: Make page buffer a flag.
+static const int BUFFER_SIZE = 4096; // TODO: Make page buffer a flag.
 static int FLAGS_num_of_lists = 2;
 static bool FLAGS_disk_backed = false;
 static bool FLAGS_print_result = false;
 static bool FLAGS_print_input = false;
 static vector<uint64_t> FLAGS_num_keys;
-static MERGE_MODE FLAGS_merge_mode = STANDARD_MERGE;
+static MergeMode FLAGS_merge_mode = STANDARD_MERGE;
 static int FLAGS_num_threads = 3;
 static int FLAGS_num_sort_threads = 4;
 static bool FLAGS_assert_sort = false;
@@ -58,23 +57,15 @@ static int FLAGS_key_size_bytes = 8;
 #endif
 static std::string FLAGS_test_dir = "DB";
 static std::string FLAGS_output_file = "result.txt";
+// Can be "uniform", "ar", "osm"
+static std::string FLAGS_dataset = "uniform";
+// If dataset uniform, can be 'str', 'uint64_t', 'uint128_t'.
+// Use key_size_bytes to set 'str' size.
+static std::string FLAGS_key_type = "str";
 
 bool is_flag(const char *arg, const char *flag) {
   return strncmp(arg, flag, strlen(flag)) == 0;
 }
-
-#if !USE_STRING_KEYS
-KEY_TYPE to_int(const char *s) {
-  KEY_TYPE k = 0;
-  // TODO: Check for endianness. Here we assume little endian.
-  // TODO: Reverse using assembly instructions.
-  for (int i = 0; i < FLAGS_key_size_bytes; i++) {
-    uint8_t b = (uint8_t)s[i];
-    k = (k << 8) + b;
-  }
-  return k;
-}
-#endif
 
 void print_flag_values() {
   printf("List Sizes: ");
@@ -136,6 +127,12 @@ void parse_flags(int argc, char **argv) {
       FLAGS_print_result = n;
     } else if (sscanf(argv[i], "--assert_sort=%lld%c", &n, &junk) == 1) {
       FLAGS_assert_sort = n;
+    } else if (sscanf(argv[i], "--dataset=%s", str) == 1) {
+      std::string dataset(str);
+      FLAGS_dataset = dataset;
+    } else if (sscanf(argv[i], "--key_type=%s", str) == 1) {
+      std::string key_type(str);
+      FLAGS_key_type = key_type;
     } else if (sscanf(argv[i], "--test_dir=%s", str) == 1) {
       std::string test_dir(str);
       if (test_dir[test_dir.size() - 1] == '/') {
@@ -184,235 +181,100 @@ void parse_flags(int argc, char **argv) {
     printf("Number of lists does not match num_keys flag");
     abort();
   }
+  if (FLAGS_dataset != "uniform") {
+    abort();
+  }
   print_flag_values();
 }
 
-
-IteratorWithModel<KEY_TYPE> *build_iterator_with_model(
-    int iter_idx, uint64_t num_keys, int key_bytes, char *common_keys,
-    uint64_t num_common_keys, TestInput *test_input) {
-  char *keys = read_or_create_sstable_into_mem(
-      FLAGS_test_dir, "iter_" + std::to_string(iter_idx), num_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
-  keys = merge(keys, num_keys, common_keys, num_common_keys, key_bytes);
-  num_keys += num_common_keys;
-  test_input->total_input_keys_cnt += num_keys;
-
-  // Construct Model Builder.
-  ModelBuilder<KEY_TYPE> *m;
-  if (test_input->is_learned()) {
-#if USE_STRING_KEYS
-    m = new SlicePLRModelBuilder(FLAGS_PLR_error_bound);
-#else
-    m = new IntPLRModelBuilder<KEY_TYPE>(FLAGS_PLR_error_bound);
-#endif
-  } else {
-    m = new DummyModelBuilder<KEY_TYPE>();
-  }
-
-  // Construct Iterator Builder.
-  IteratorBuilder<KEY_TYPE> *iterator_builder;
-  if (FLAGS_disk_backed) {
-    // TODO: Move DB name generation to own function.
-    std::string fileName = get_sstable_path(
-        FLAGS_test_dir, "DB_" + std::to_string(iter_idx), num_keys, key_bytes);
-#if USE_STRING_KEYS
-    iterator_builder = new SliceFileIteratorBuilder(
-        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, fileName);
-#else
-    iterator_builder =
-        new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, fileName);
-#endif
-  } else {
-    std::string iterName = "iter_" + std::to_string(iter_idx);
-#if USE_STRING_KEYS
-    iterator_builder =
-        new SliceArrayBuilder(keys, num_keys, FLAGS_key_size_bytes, iterName);
-#else
-    iterator_builder =
-        new IntDiskBuilder<KEY_TYPE>(iterName.c_str(), BUFFER_SIZE, iterName);
-#endif
-  }
-
-  IteratorWithModelBuilder<KEY_TYPE> *builder =
-      new IteratorWithModelBuilder<KEY_TYPE>(iterator_builder, m);
-
-  auto iterator_build_start = std::chrono::high_resolution_clock::now();
-  for (uint64_t j = 0; j < num_keys; j++) {
-#if USE_STRING_KEYS
-    builder->add(Slice(keys + j * FLAGS_key_size_bytes, FLAGS_key_size_bytes));
-#else
-    builder->add(to_int(keys + j * FLAGS_key_size_bytes));
-#endif
-  }
-
-  IteratorWithModel<KEY_TYPE> *iterator_with_model = builder->finish();
-  printf("Finished training model!\n");
-
-  auto iterator_build_end = std::chrono::high_resolution_clock::now();
-  uint64_t iterator_build_duration_ns =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(iterator_build_end -
-                                                           iterator_build_start)
-          .count();
-  float iterator_build_duration_sec = iterator_build_duration_ns / 1e9;
-  printf("Iterator %d creation duration time: %.3lf sec\n", iter_idx,
-         iterator_build_duration_sec);
-  printf("Iterator %d model size bytes: %lu\n", iter_idx,
-         iterator_with_model->model_size_bytes());
-
-  return iterator_with_model;
-}
-
-TestInput prepare_input() {
-  if (!std::filesystem::exists(FLAGS_test_dir)) {
-    std::string command = "mkdir -p " + FLAGS_test_dir;
-    system(command.c_str());
-  }
-
-  TestInput test_input;
-  test_input.num_of_lists = FLAGS_num_keys.size();
-  test_input.iterators_with_model =
-      new IteratorWithModel<KEY_TYPE> *[test_input.num_of_lists];
-  test_input.iterators = new Iterator<KEY_TYPE> *[test_input.num_of_lists];
-  test_input.total_input_keys_cnt = 0;
-  test_input.merge_mode = FLAGS_merge_mode;
-
-#if USE_STRING_KEYS
-  test_input.comparator = new SliceComparator();
-#else
-  test_input.comparator = new IntComparator<KEY_TYPE>();
-#endif
-
-  // Generate common keys to be inserted in both iterators.
-  char *common_keys = read_or_create_sstable_into_mem(
-      FLAGS_test_dir, "common_keys", FLAGS_num_common_keys, FLAGS_key_size_bytes, FLAGS_num_sort_threads);
-
-  for (int i = 0; i < test_input.num_of_lists; i++) {
-    test_input.iterators_with_model[i] = build_iterator_with_model(
-        i, FLAGS_num_keys[i], FLAGS_key_size_bytes, common_keys,
-        FLAGS_num_common_keys, &test_input);
-    test_input.iterators[i] =
-        test_input.iterators_with_model[i]->get_iterator();
-  }
-
-  uint64_t total_num_of_keys = test_input.total_input_keys_cnt;
-  IteratorBuilder<KEY_TYPE> *resultBuilder;
-  if (FLAGS_disk_backed) {
-#if USE_STRING_KEYS
-    std::string fileName = FLAGS_test_dir + "/" + FLAGS_output_file;
-    resultBuilder = new SliceFileIteratorBuilder(
-        fileName.c_str(), BUFFER_SIZE, FLAGS_key_size_bytes, "result");
-#else
-    std::string fileName = FLAGS_test_dir + "/" + FLAGS_output_file;
-    resultBuilder =
-        new IntDiskBuilder<KEY_TYPE>(fileName.c_str(), BUFFER_SIZE, "result");
-#endif
-  } else {
-#if USE_STRING_KEYS
-    resultBuilder = new SliceArrayBuilder(total_num_of_keys,
-                                          FLAGS_key_size_bytes, "result");
-#else
-    resultBuilder = new IntArrayBuilder<KEY_TYPE>(total_num_of_keys, "0");
-#endif
-  }
-  test_input.resultBuilder = resultBuilder;
-  return test_input;
+void init_test_dir() {
+  std::string mkdir = "mkdir -p " + FLAGS_test_dir;
+  system(mkdir.c_str());
+  std::string rm_result = "rm " + FLAGS_test_dir + "/result";
+  system(rm_result.c_str());
 }
 
 int main(int argc, char **argv) {
   printf("-----------------\n");
   parse_flags(argc, argv);
-  TestInput input = prepare_input();
+  init_test_dir();
+  BenchmarkInput<Slice> input = create_uniform_input_lists(
+      FLAGS_test_dir, FLAGS_num_keys, FLAGS_merge_mode, FLAGS_key_size_bytes,
+      FLAGS_num_common_keys, FLAGS_PLR_error_bound, FLAGS_disk_backed);
 
   if (FLAGS_print_input) {
-    input.print_input_data();
+    printf("Printing input temporarily removed!");
+    abort();
   }
 
-  Iterator<KEY_TYPE> **iterators = input.iterators;
-  IteratorWithModel<KEY_TYPE> **iterators_with_model =
+  Iterator<Slice> **iterators = input.iterators;
+  IteratorWithModel<Slice> **iterators_with_model =
       input.iterators_with_model;
-  IteratorBuilder<KEY_TYPE> *resultBuilder = input.resultBuilder;
-  Comparator<KEY_TYPE> *c = input.comparator;
+  IteratorBuilder<Slice> *resultBuilder = input.resultBuilder;
+  Comparator<Slice> *c = input.comparator;
   int num_of_lists = input.num_of_lists;
 
-  Iterator<KEY_TYPE> *result;
+  Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
   switch (FLAGS_merge_mode) {
-    case STANDARD_MERGE:
-      result = StandardMerger<KEY_TYPE>::merge(iterators, num_of_lists, c,
-                                               resultBuilder);
-      break;
-    case PARALLEL_STANDARD_MERGE:
-      if (num_of_lists != 2) {
-        printf("Currently only 2 lists can be merged in parallel");
-        abort();
-      }
-      result = ParallelStandardMerger<KEY_TYPE>::merge(
-          iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
-      break;
-    case PARALLEL_LEARNED_MERGE:
-      if (num_of_lists != 2) {
-        printf("Currently only 2 lists can be merged in parallel");
-        abort();
-      }
-      result = ParallelLearnedMerger<KEY_TYPE>::merge(
-          iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads,
-          c, resultBuilder);
-      break;
-    case PARALLEL_LEARNED_MERGE_BULK:
-      if (num_of_lists != 2) {
-        printf("Currently only 2 lists can be merged in parallel");
-        abort();
-      }
-      result = ParallelLearnedMergerBulk<KEY_TYPE>::merge(
-          iterators_with_model[0], iterators_with_model[1], 3, c,
-          resultBuilder);
-      break;
-    case MERGE_WITH_MODEL:
-      result = LearnedMerger<KEY_TYPE>::merge(iterators_with_model,
-                                              num_of_lists, c, resultBuilder);
-      break;
-    case MERGE_WITH_MODEL_BULK:
-      result = LearnedMergerBulk<KEY_TYPE>::merge(
-          iterators_with_model, num_of_lists, c, resultBuilder);
-      break;
-    case STANDARD_MERGE_JOIN:
-      result = SortedMergeJoin<KEY_TYPE>::merge(iterators[0], iterators[1], c,
-                                                resultBuilder);
-      break;
-    case STANDARD_MERGE_BINARY_LOOKUP_JOIN:
-      result = SortedMergeBinaryLookupJoin<KEY_TYPE>::merge(
-          iterators[0], iterators[1], c, resultBuilder);
-      break;
-    case LEARNED_MERGE_JOIN:
-      result = SortedMergeLearnedJoin<KEY_TYPE>::merge(
-          iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
-      break;
-    case NO_OP:
-      break;
-    default:
+  case STANDARD_MERGE:
+    result = StandardMerger<Slice>::merge(iterators, num_of_lists, c,
+                                             resultBuilder);
+    break;
+  case PARALLEL_STANDARD_MERGE:
+    if (num_of_lists != 2) {
+      printf("Currently only 2 lists can be merged in parallel");
       abort();
+    }
+    result = ParallelStandardMerger<Slice>::merge(
+        iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
+    break;
+  case PARALLEL_LEARNED_MERGE:
+    if (num_of_lists != 2) {
+      printf("Currently only 2 lists can be merged in parallel");
+      abort();
+    }
+    result = ParallelLearnedMerger<Slice>::merge(
+        iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads, c,
+        resultBuilder);
+    break;
+  case PARALLEL_LEARNED_MERGE_BULK:
+    if (num_of_lists != 2) {
+      printf("Currently only 2 lists can be merged in parallel");
+      abort();
+    }
+    result = ParallelLearnedMergerBulk<Slice>::merge(
+        iterators_with_model[0], iterators_with_model[1], 3, c, resultBuilder);
+    break;
+  case MERGE_WITH_MODEL:
+    result = LearnedMerger<Slice>::merge(iterators_with_model, num_of_lists,
+                                            c, resultBuilder);
+    break;
+  case MERGE_WITH_MODEL_BULK:
+    result = LearnedMergerBulk<Slice>::merge(iterators_with_model,
+                                                num_of_lists, c, resultBuilder);
+    break;
+  case STANDARD_MERGE_JOIN:
+    result = SortedMergeJoin<Slice>::merge(iterators[0], iterators[1], c,
+                                              resultBuilder);
+    break;
+  case STANDARD_MERGE_BINARY_LOOKUP_JOIN:
+    result = SortedMergeBinaryLookupJoin<Slice>::merge(
+        iterators[0], iterators[1], c, resultBuilder);
+    break;
+  case LEARNED_MERGE_JOIN:
+    result = SortedMergeLearnedJoin<Slice>::merge(
+        iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
+    break;
+  case NO_OP:
+    break;
+  default:
+    abort();
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
                          .count();
-  if (FLAGS_print_result) {
-    result->seekToFirst();
-    printf("Merged List: %lu\n", result->num_keys());
-    while (result->valid()) {
-#if USE_STRING_KEYS
-      std::string key_str = result->key().toString();
-      printf("%s\n", key_str.c_str());
-#elif USE_INT_128
-      std::string key_str = int128_to_string(result->key());
-      printf("%s\n", key_str.c_str());
-#else
-      std::string key_str = uint64_to_string(result->key());
-      printf("%s\n", key_str.c_str());
-#endif
-      result->next();
-    }
-  }
 
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);

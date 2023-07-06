@@ -1,6 +1,14 @@
 #ifndef SORT_H
 #define SORT_H
 
+#include <mutex>
+#include <thread>
+#include <queue>
+#include <vector>
+#include "slice_comparator.h"
+
+using namespace std;
+
 static SliceComparator sc;
 char *merge(char *a, uint64_t a_count, char *b, uint64_t b_count, uint64_t key_len_bytes) {
   if (b_count == 0) {
@@ -80,19 +88,19 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
   }
 }
 
-void p_qsort(int num_threads, char *arr, uint64_t num_keys, int key_size_bytes) {
+void p_qsort(char *arr, uint64_t num_keys, int key_size_bytes) {
   std::queue<pair<int64_t, int64_t>> *q, *nq;
   q = new std::queue<pair<int64_t, int64_t>>();
   nq = new std::queue<pair<int64_t, int64_t>>();
   printf("%ld\n", num_keys-1);
   q->push(std::pair<int64_t, int64_t>(0, num_keys-1));
 
-  std::thread t[num_threads];
+  std::thread t[NUM_SORT_THREADS];
   while (!q->empty()) {
-    for (int i=0; i<num_threads; i++) {
+    for (int i=0; i<NUM_SORT_THREADS; i++) {
       t[i] = std::thread(pivot_work, i, q, nq, arr, key_size_bytes);
     }
-    for (int i=0; i<num_threads; i++) {
+    for (int i=0; i<NUM_SORT_THREADS; i++) {
       t[i].join();
     }
     swap(q, nq);
