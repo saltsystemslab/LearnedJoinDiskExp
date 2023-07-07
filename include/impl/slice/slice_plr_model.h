@@ -59,7 +59,6 @@ public:
         if (result >= num_keys_) {
           result = num_keys_ - 1;
         }
-        printf("%lf %ld\n", target_key, result);
         return result;
       }
     }

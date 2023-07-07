@@ -183,7 +183,7 @@ void parse_flags(int argc, char **argv) {
 void init_test_dir() {
   std::string mkdir = "mkdir -p " + FLAGS_test_dir;
   system(mkdir.c_str());
-  std::string rm_result = "rm " + FLAGS_test_dir + "/result";
+  std::string rm_result = "rm -f " + FLAGS_test_dir + "/result";
   system(rm_result.c_str());
 }
 
@@ -205,10 +205,21 @@ int main(int argc, char **argv) {
     abort();
   }
 
+  BenchmarkInput input; 
+  input.test_dir = FLAGS_test_dir;
+  input.result_file = FLAGS_output_file;
+  input.num_of_lists = FLAGS_num_keys.size();
+  input.list_sizes = FLAGS_num_keys;
+  input.key_size_bytes = FLAGS_key_size_bytes;
+  input.plr_error_bound = FLAGS_PLR_error_bound;
+  input.is_disk_backed = FLAGS_disk_backed;
+  input.merge_mode = FLAGS_merge_mode;
+  input.iterators_with_model = new IteratorWithModel<Slice> *[input.num_of_lists];
+  input.comparator = comp;
+  input.slice_to_point_converter = converter;
+  input.num_common_keys = FLAGS_num_common_keys;
 
-  BenchmarkInput<Slice> input = create_uniform_input_lists(
-      FLAGS_test_dir, FLAGS_num_keys, FLAGS_merge_mode, FLAGS_key_size_bytes,
-      FLAGS_num_common_keys, FLAGS_PLR_error_bound, FLAGS_disk_backed, FLAGS_output_file, comp, converter);
+  fill_uniform_input_lists(&input);
 
   if (FLAGS_print_input) {
     printf("Printing input temporarily removed!");

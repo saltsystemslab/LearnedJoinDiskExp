@@ -3,6 +3,11 @@
 
 #include "iterator.h"
 #include "iterator_with_model.h"
+#include "slice_plr_model.h"
+#include "comparator.h"
+#include <vector>
+
+using namespace std;
 
 enum MergeMode {
   NO_OP,
@@ -17,16 +22,25 @@ enum MergeMode {
   LEARNED_MERGE_JOIN
 };
 
-template <class T>
 struct BenchmarkInput {
+  std::string test_dir;
+  std::string result_file;
+
   int num_of_lists;
-  MergeMode merge_mode;
-  IteratorWithModel<T> **iterators_with_model;
-  Iterator<T> **iterators;
-  IteratorBuilder<T> *resultBuilder;
-  Comparator<T> *comparator;
-  uint64_t total_input_keys_cnt;
+  vector<uint64_t> list_sizes;
   int key_size_bytes;
+  int plr_error_bound;
+  bool is_disk_backed;
+  uint64_t num_common_keys;
+
+  MergeMode merge_mode;
+  IteratorWithModel<Slice> **iterators_with_model;
+  Comparator<Slice> *comparator;
+  SliceToPlrPointConverter *slice_to_point_converter;
+
+  uint64_t total_input_keys_cnt;
+  Iterator<Slice> **iterators;
+  IteratorBuilder<Slice> *resultBuilder;
   bool is_parallel() {
     return (merge_mode == PARALLEL_LEARNED_MERGE_BULK ||
             PARALLEL_LEARNED_MERGE || PARALLEL_STANDARD_MERGE);
