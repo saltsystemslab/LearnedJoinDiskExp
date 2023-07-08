@@ -29,7 +29,7 @@
 #include "test_input.h"
 
 #include "uniform_random.h"
-#include "real_world.h"
+#include "split_datafile.h"
 
 using namespace std;
 
@@ -45,17 +45,13 @@ static int FLAGS_num_sort_threads = 4;
 static bool FLAGS_assert_sort = false;
 static int FLAGS_PLR_error_bound = 10;
 static uint64_t FLAGS_num_common_keys = 0;
-#if USE_INT_128
-static int FLAGS_key_size_bytes = 16;
-#else
 static int FLAGS_key_size_bytes = 8;
-#endif
 static std::string FLAGS_test_dir = "DB";
 static std::string FLAGS_output_file = "result.txt";
 static std::string FLAGS_datafile = "data";
 // Can be "uniform", "ar", "osm"
 static std::string FLAGS_dataset = "uniform";
-// If dataset uniform, can be 'str', 'uint64_t', 'uint128_t'.
+// If dataset uniform, can be 'str', 'uint64'
 // Use key_size_bytes to set 'str' size.
 static std::string FLAGS_key_type = "str";
 static double FLAGS_split_ratio = 0.3;
@@ -225,52 +221,13 @@ int main(int argc, char **argv) {
   input.comparator = comp;
   input.slice_to_point_converter = converter;
   input.num_common_keys = FLAGS_num_common_keys;
+  input.datafile_path = FLAGS_datafile;
+  input.split_fraction = FLAGS_split_ratio;
 
   if (FLAGS_dataset == "uniform") {
     fill_uniform_input_lists(&input);
   } else if (FLAGS_dataset == "ar") {
-    uint64_t num_keys;
-    uint16_t key_size_bytes;
-    read_sstable_header(&num_keys, &key_size_bytes, FLAGS_datafile);
-    set<uint64_t> split_keys_index = generate_uniform_split(num_keys, FLAGS_split_ratio);
-
-    IteratorWithModel<Slice> *it1 = split_keys_from_datafile(
-        0, FLAGS_PLR_error_bound,
-        FLAGS_test_dir, 
-        FLAGS_datafile, 
-        num_keys, key_size_bytes, 
-        FLAGS_disk_backed, 
-        split_keys_index, false, converter,"list_1");
-
-    IteratorWithModel<Slice> *it2;
-    if (input.is_join()) {
-      it2 = split_keys_from_datafile(
-          1, FLAGS_PLR_error_bound,
-          FLAGS_test_dir, 
-          FLAGS_datafile, 
-          num_keys, key_size_bytes, 
-          FLAGS_disk_backed, 
-          set<uint64_t>(), true, converter,"list_2");
-    } else {
-      it2 = split_keys_from_datafile(
-          1, FLAGS_PLR_error_bound,
-          FLAGS_test_dir, 
-          FLAGS_datafile, 
-          num_keys, key_size_bytes, 
-          FLAGS_disk_backed, 
-          split_keys_index, true, converter, "list_2");
-    } 
-
-    input.iterators_with_model[0] = it1;
-    input.iterators[0] = it1->get_iterator();
-    input.iterators_with_model[1] = it2;
-    input.iterators[1] = it2->get_iterator();
-    if (FLAGS_disk_backed) {
-      std::string result_sstable = FLAGS_test_dir + "/" + FLAGS_output_file;
-      input.resultBuilder = new SliceFileIteratorBuilder(result_sstable.c_str(), 4096, key_size_bytes, "result");
-    } else {
-      input.resultBuilder = new SliceArrayBuilder(num_keys, key_size_bytes, "result");
-    }
+    fill_lists_from_datafile(&input);
   }
 
   if (FLAGS_print_input) {

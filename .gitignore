@@ -2,7 +2,7 @@
 bin
 eval/__pycache__
 eval/.ipynb_checkpoints
-obj/*
+obj
 .vscode/settings.json
 DB/common_5_16
 DB/result
@@ -12,7 +12,7 @@ DB/sstable_1_400_16
 DB/sstable_1_400_16_with_5_common
 test_runs
 tests
-datasets
+datasets/*
 DB/
 *.swp
 ar_14_plr_models_cdf.txt

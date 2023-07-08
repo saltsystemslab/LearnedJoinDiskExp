@@ -13,8 +13,12 @@
 #include "sstable.h"
 #include "slice_comparator.h"
 #include "test_input.h"
+#include "model_train.h"
 
 using namespace std;
+
+// Fills the iterators in BenchmarkInput with uniform random data.
+void fill_uniform_input_lists(BenchmarkInput *input);
 
 void fill_rand_bytes(char *v, uint64_t n) {
   std::random_device rd;  // a seed source for the random number engine
@@ -91,29 +95,7 @@ void fill_uniform_input_lists(BenchmarkInput *test_input) {
                                  key_size_bytes, "inmem:" + sstable_path);
     }
 
-    Model<Slice> *m;
-    if (test_input->is_learned()) {
-      auto model_build_start = std::chrono::high_resolution_clock::now();
-      ModelBuilder<Slice> *mb = new SlicePLRModelBuilder(plr_error_bound, converter);
-      it->seekToFirst();
-      while (it->valid()) {
-        mb->add(it->key());
-        it->next();
-      }
-      m = mb->finish();
-      auto model_build_end = std::chrono::high_resolution_clock::now();
-      uint64_t iterator_build_duration_ns =
-          std::chrono::duration_cast<std::chrono::nanoseconds>(
-              model_build_end - model_build_start)
-              .count();
-      float model_build_duration_sec = iterator_build_duration_ns / 1e9;
-      printf("Iterator %d creation duration time: %.3lf sec\n", i,
-             model_build_duration_sec);
-      printf("Iterator %d model size bytes: %lu\n", i,
-             m->size_bytes());
-    } else {
-      m = new DummyModel<Slice>();
-    }
+    Model<Slice> *m = train_model(it, test_input);
     test_input->iterators_with_model[i] = new IteratorWithModel(it, m);
     test_input->iterators[i] = it;
   }

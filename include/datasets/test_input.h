@@ -41,6 +41,10 @@ struct BenchmarkInput {
   uint64_t total_input_keys_cnt;
   Iterator<Slice> **iterators;
   IteratorBuilder<Slice> *resultBuilder;
+
+  std::string datafile_path;
+  double split_fraction;
+
   bool is_parallel() {
     switch(merge_mode) {
       case PARALLEL_LEARNED_MERGE_BULK:
