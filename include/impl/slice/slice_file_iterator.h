@@ -14,14 +14,14 @@
 class SliceFileIterator : public Iterator<Slice> {
 public:
   SliceFileIterator(int file_descriptor, int file_offset_byte, uint64_t n, uint32_t key_size, std::string id)
-      : file_descriptor_(file_descriptor), key_size_(key_size), cur_idx_(0),
+      : file_descriptor_(file_descriptor), file_offset_byte_(file_offset_byte), key_size_(key_size), cur_idx_(0),
         cur_key_buffer_(new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         peek_key_buffer_(
             new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         id_(id), num_keys_(n), start_offset_idx_(0) {}
 
   SliceFileIterator(int file_descriptor, int file_offset_byte, uint64_t n, uint64_t start_offset_idx, uint32_t key_size, std::string id)
-      : file_descriptor_(file_descriptor), key_size_(key_size), cur_idx_(0),
+      : file_descriptor_(file_descriptor), file_offset_byte_(file_offset_byte), key_size_(key_size), cur_idx_(0),
         cur_key_buffer_(new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         peek_key_buffer_(
             new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
@@ -44,13 +44,14 @@ public:
   std::string id() override { return id_; }
   uint64_t num_keys() const override { return num_keys_; }
   Iterator<Slice> *subRange(uint64_t start, uint64_t end) override {
-    return new SliceFileIterator(file_descriptor_, end - start, start,
+    return new SliceFileIterator(file_descriptor_, file_offset_byte_, end - start, start,
                                  key_size_, id_);
   }
 
 private:
   int file_descriptor_;
   uint64_t cur_idx_;
+  uint64_t file_offset_byte_;
   uint64_t start_offset_idx_;
   uint64_t num_keys_;
   int key_size_;
