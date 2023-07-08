@@ -6,7 +6,17 @@ public:
   FileKeyBlock(int file_descriptor, uint32_t block_size, uint32_t key_size)
       : fd_(file_descriptor), block_size_(block_size), key_size_(key_size),
         keys_per_block_(block_size / key_size), buffer_(new char[block_size]),
-        buffer_loaded_(false) {
+        buffer_loaded_(false), file_offset_(0) {
+    if (keys_per_block_ * key_size != block_size) {
+      printf("Key size does not align with block_size\n");
+      abort();
+    }
+  }
+
+  FileKeyBlock(int file_descriptor, int file_offset, uint32_t block_size, uint32_t key_size)
+      : fd_(file_descriptor), block_size_(block_size), key_size_(key_size),
+        keys_per_block_(block_size / key_size), buffer_(new char[block_size]),
+        buffer_loaded_(false), file_offset_(file_offset) {
     if (keys_per_block_ * key_size != block_size) {
       printf("Key size does not align with block_size\n");
       abort();
@@ -33,6 +43,7 @@ public:
 
 private:
   int fd_;
+  int file_offset_;
   char *buffer_;
   bool buffer_loaded_;
   uint32_t block_size_;
@@ -43,7 +54,7 @@ private:
 
   void loadBuffer(uint64_t key_idx) {
     uint64_t block_id = (key_idx * key_size_) / block_size_;
-    pread(fd_, buffer_, block_size_, block_id * block_size_);
+    pread(fd_, buffer_, block_size_, block_id * block_size_ + file_offset_);
     cur_block_start_idx_ = block_id * keys_per_block_;
     cur_block_end_idx_ = cur_block_start_idx_ + keys_per_block_ - 1;
     buffer_loaded_ = true;

@@ -13,20 +13,18 @@
 
 class SliceFileIterator : public Iterator<Slice> {
 public:
-  SliceFileIterator(int file_descriptor, uint64_t n, uint32_t key_size,
-                    std::string id)
+  SliceFileIterator(int file_descriptor, int file_offset_byte, uint64_t n, uint32_t key_size, std::string id)
       : file_descriptor_(file_descriptor), key_size_(key_size), cur_idx_(0),
-        cur_key_buffer_(new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+        cur_key_buffer_(new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         peek_key_buffer_(
-            new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+            new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         id_(id), num_keys_(n), start_offset_idx_(0) {}
 
-  SliceFileIterator(int file_descriptor, uint64_t n, uint64_t start_offset_idx,
-                    uint32_t key_size, std::string id)
+  SliceFileIterator(int file_descriptor, int file_offset_byte, uint64_t n, uint64_t start_offset_idx, uint32_t key_size, std::string id)
       : file_descriptor_(file_descriptor), key_size_(key_size), cur_idx_(0),
-        cur_key_buffer_(new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+        cur_key_buffer_(new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         peek_key_buffer_(
-            new FileKeyBlock(file_descriptor, PAGE_SIZE, key_size)),
+            new FileKeyBlock(file_descriptor, file_offset_byte, PAGE_SIZE, key_size)),
         id_(id), num_keys_(n), start_offset_idx_(start_offset_idx) {}
 
   ~SliceFileIterator() {
@@ -164,7 +162,7 @@ Iterator<Slice> *SliceFileIteratorBuilder::build() {
     perror("popen");
     abort();
   }
-  return new SliceFileIterator(read_only_fd, num_keys_, key_size_, id_);
+  return new SliceFileIterator(read_only_fd, 0, num_keys_, key_size_, id_);
 }
 
 void SliceFileIteratorBuilder::flushBufferToDisk() {

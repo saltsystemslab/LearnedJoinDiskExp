@@ -5,6 +5,8 @@
 #include "model.h"
 #include "plr.h"
 #include "slice.h"
+#include <iostream>
+using namespace std;
 
 PLR_SEGMENT_POINT interpret_slice_to_number(const Slice &t) { return 0; }
 
@@ -37,7 +39,16 @@ class SlicePLRModel : public Model<Slice> {
 public:
   SlicePLRModel(PLRModel *model, uint64_t num_keys, SliceToPlrPointConverter *slice_to_point_converter)
       : model_(model), plr_segment_index_(0), num_keys_(num_keys),
-        start_offset_(0), slice_to_point_converter_(slice_to_point_converter) {}
+        start_offset_(0), slice_to_point_converter_(slice_to_point_converter) {
+#if PRINT_MODEL
+    std::vector<Segment> &segments = model_->lineSegments_;
+    printf("Model Start\n");
+    for (auto s: segments) {
+      printf("seg: %lf %lf %0.32lf %lf\n", s.x, s.last, s.k, s.b);
+    }
+    printf("Model End\n");
+  #endif
+  }
 
   SlicePLRModel(PLRModel *model, uint64_t start_offset, uint64_t num_keys, SliceToPlrPointConverter *slice_to_point_converter)
       : model_(model), start_offset_(start_offset), plr_segment_index_(0),
@@ -81,8 +92,12 @@ public:
     if (result < 0) {
       result = 0;
     }
+    std::cout<<"target_key: "<<target_key<<"approx_pos: " <<result<<" "<<num_keys_<<std::endl;
     if (result >= num_keys_) {
       result = num_keys_ - 1;
+      std::cout<<target_key<<std::endl;
+      std::cout<<segments[left].x<<" "<<segments[left].k<<" "<<segments[left].b<<std::endl;
+      abort();
     }
     return result;
   }
@@ -107,16 +122,24 @@ private:
   void setPLRLineSegmentIndex(uint64_t value) { plr_segment_index_ = value; }
 };
 
+static double last_key = 0.0;
 class SlicePLRModelBuilder : public ModelBuilder<Slice> {
 public:
   SlicePLRModelBuilder(double gamma, SliceToPlrPointConverter *converter)
       : plrBuilder_(new PLRBuilder(gamma)), num_keys_(0), converter_(converter) {}
   void add(const Slice &slice_key) override {
     PLR_SEGMENT_POINT t = converter_->to_plr_point(slice_key);
+    if (t < last_key) {
+      printf("plr_points not sorted!");
+      abort();
+    }
+    last_key = t;
     num_keys_++;
     plrBuilder_->processKey(t);
   }
   SlicePLRModel *finish() override {
+    printf("cdf end");
+    last_key = 0;
     return new SlicePLRModel(plrBuilder_->finishTraining(), num_keys_, converter_);
   }
 

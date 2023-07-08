@@ -84,7 +84,7 @@ void fill_uniform_input_lists(BenchmarkInput *test_input) {
 
     Iterator<Slice> *it;
     if (is_disk_backed) {
-      it = new SliceFileIterator(get_sstable_read_only_fd(sstable_path),
+      it = new SliceFileIterator(get_sstable_read_only_fd(sstable_path), 0,
                                 list_sizes[i], key_size_bytes, sstable_path);
     } else {
       it = new SliceArrayIterator(keys, list_sizes[i] + num_common_keys,
@@ -122,7 +122,6 @@ void fill_uniform_input_lists(BenchmarkInput *test_input) {
     std::string result_sstable = test_dir + "/" + result_file;
     test_input->resultBuilder = new SliceFileIteratorBuilder(result_sstable.c_str(), 4096, key_size_bytes, "result");
   } else {
-    printf("%ld\n", test_input->total_input_keys_cnt);
     test_input->resultBuilder = new SliceArrayBuilder(test_input->total_input_keys_cnt, key_size_bytes, "result");
   }
 }

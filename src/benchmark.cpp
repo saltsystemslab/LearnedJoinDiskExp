@@ -1,4 +1,3 @@
-
 #include <fcntl.h>
 #include <openssl/rand.h>
 #include <stdio.h>
@@ -11,6 +10,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <set>
 
 #include "comparator.h"
 #include "config.h"
@@ -27,7 +27,9 @@
 #include "sort_merge_learned_join.h"
 #include "standard_merge.h"
 #include "test_input.h"
+
 #include "uniform_random.h"
+#include "real_world.h"
 
 using namespace std;
 
@@ -50,11 +52,13 @@ static int FLAGS_key_size_bytes = 8;
 #endif
 static std::string FLAGS_test_dir = "DB";
 static std::string FLAGS_output_file = "result.txt";
+static std::string FLAGS_datafile = "data";
 // Can be "uniform", "ar", "osm"
 static std::string FLAGS_dataset = "uniform";
 // If dataset uniform, can be 'str', 'uint64_t', 'uint128_t'.
 // Use key_size_bytes to set 'str' size.
 static std::string FLAGS_key_type = "str";
+static double FLAGS_split_ratio = 0.3;
 
 bool is_flag(const char *arg, const char *flag) {
   return strncmp(arg, flag, strlen(flag)) == 0;
@@ -136,6 +140,11 @@ void parse_flags(int argc, char **argv) {
     } else if (sscanf(argv[i], "--output_file=%s", str) == 1) {
       std::string output_file(str);
       FLAGS_output_file = output_file;
+    } else if (sscanf(argv[i], "--data_file=%s", str) == 1) {
+      std::string data_file(str);
+      FLAGS_datafile = data_file;
+    } else if (sscanf(argv[i], "--split=%lf", &m) == 1) {
+      FLAGS_split_ratio = m;
     } else if (sscanf(argv[i], "--merge_mode=%s", str) == 1) {
       if (strcmp(str, "standard") == 0) {
         FLAGS_merge_mode = STANDARD_MERGE;
@@ -172,9 +181,6 @@ void parse_flags(int argc, char **argv) {
   }
   if (FLAGS_num_keys.size() != FLAGS_num_of_lists) {
     printf("Number of lists does not match num_keys flag");
-    abort();
-  }
-  if (FLAGS_dataset != "uniform") {
     abort();
   }
   print_flag_values();
@@ -215,11 +221,57 @@ int main(int argc, char **argv) {
   input.is_disk_backed = FLAGS_disk_backed;
   input.merge_mode = FLAGS_merge_mode;
   input.iterators_with_model = new IteratorWithModel<Slice> *[input.num_of_lists];
+  input.iterators = new Iterator<Slice> *[input.num_of_lists];
   input.comparator = comp;
   input.slice_to_point_converter = converter;
   input.num_common_keys = FLAGS_num_common_keys;
 
-  fill_uniform_input_lists(&input);
+  if (FLAGS_dataset == "uniform") {
+    fill_uniform_input_lists(&input);
+  } else if (FLAGS_dataset == "ar") {
+    uint64_t num_keys;
+    uint16_t key_size_bytes;
+    read_sstable_header(&num_keys, &key_size_bytes, FLAGS_datafile);
+    set<uint64_t> split_keys_index = generate_uniform_split(num_keys, FLAGS_split_ratio);
+
+    IteratorWithModel<Slice> *it1 = split_keys_from_datafile(
+        0, FLAGS_PLR_error_bound,
+        FLAGS_test_dir, 
+        FLAGS_datafile, 
+        num_keys, key_size_bytes, 
+        FLAGS_disk_backed, 
+        split_keys_index, false, converter,"list_1");
+
+    IteratorWithModel<Slice> *it2;
+    if (input.is_join()) {
+      it2 = split_keys_from_datafile(
+          1, FLAGS_PLR_error_bound,
+          FLAGS_test_dir, 
+          FLAGS_datafile, 
+          num_keys, key_size_bytes, 
+          FLAGS_disk_backed, 
+          set<uint64_t>(), true, converter,"list_2");
+    } else {
+      it2 = split_keys_from_datafile(
+          1, FLAGS_PLR_error_bound,
+          FLAGS_test_dir, 
+          FLAGS_datafile, 
+          num_keys, key_size_bytes, 
+          FLAGS_disk_backed, 
+          split_keys_index, true, converter, "list_2");
+    } 
+
+    input.iterators_with_model[0] = it1;
+    input.iterators[0] = it1->get_iterator();
+    input.iterators_with_model[1] = it2;
+    input.iterators[1] = it2->get_iterator();
+    if (FLAGS_disk_backed) {
+      std::string result_sstable = FLAGS_test_dir + "/" + FLAGS_output_file;
+      input.resultBuilder = new SliceFileIteratorBuilder(result_sstable.c_str(), 4096, key_size_bytes, "result");
+    } else {
+      input.resultBuilder = new SliceArrayBuilder(num_keys, key_size_bytes, "result");
+    }
+  }
 
   if (FLAGS_print_input) {
     printf("Printing input temporarily removed!");
@@ -228,7 +280,7 @@ int main(int argc, char **argv) {
 
   Iterator<Slice> **iterators = input.iterators;
   IteratorWithModel<Slice> **iterators_with_model =
-      input.iterators_with_model;
+    input.iterators_with_model;
   IteratorBuilder<Slice> *resultBuilder = input.resultBuilder;
   Comparator<Slice> *c = input.comparator;
   int num_of_lists = input.num_of_lists;
@@ -236,64 +288,64 @@ int main(int argc, char **argv) {
   Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
   switch (FLAGS_merge_mode) {
-  case STANDARD_MERGE:
-    result = StandardMerger<Slice>::merge(iterators, num_of_lists, c,
-                                             resultBuilder);
-    break;
-  case PARALLEL_STANDARD_MERGE:
-    if (num_of_lists != 2) {
-      printf("Currently only 2 lists can be merged in parallel");
+    case STANDARD_MERGE:
+      result = StandardMerger<Slice>::merge(iterators, num_of_lists, c,
+          resultBuilder);
+      break;
+    case PARALLEL_STANDARD_MERGE:
+      if (num_of_lists != 2) {
+        printf("Currently only 2 lists can be merged in parallel");
+        abort();
+      }
+      result = ParallelStandardMerger<Slice>::merge(
+          iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
+      break;
+    case PARALLEL_LEARNED_MERGE:
+      if (num_of_lists != 2) {
+        printf("Currently only 2 lists can be merged in parallel");
+        abort();
+      }
+      result = ParallelLearnedMerger<Slice>::merge(
+          iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads, c,
+          resultBuilder);
+      break;
+    case PARALLEL_LEARNED_MERGE_BULK:
+      if (num_of_lists != 2) {
+        printf("Currently only 2 lists can be merged in parallel");
+        abort();
+      }
+      result = ParallelLearnedMergerBulk<Slice>::merge(
+          iterators_with_model[0], iterators_with_model[1], 3, c, resultBuilder);
+      break;
+    case MERGE_WITH_MODEL:
+      result = LearnedMerger<Slice>::merge(iterators_with_model, num_of_lists,
+          c, resultBuilder);
+      break;
+    case MERGE_WITH_MODEL_BULK:
+      result = LearnedMergerBulk<Slice>::merge(iterators_with_model,
+          num_of_lists, c, resultBuilder);
+      break;
+    case STANDARD_MERGE_JOIN:
+      result = SortedMergeJoin<Slice>::merge(iterators[0], iterators[1], c,
+          resultBuilder);
+      break;
+    case STANDARD_MERGE_BINARY_LOOKUP_JOIN:
+      result = SortedMergeBinaryLookupJoin<Slice>::merge(
+          iterators[0], iterators[1], c, resultBuilder);
+      break;
+    case LEARNED_MERGE_JOIN:
+      result = SortedMergeLearnedJoin<Slice>::merge(
+          iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
+      break;
+    case NO_OP:
+      break;
+    default:
       abort();
-    }
-    result = ParallelStandardMerger<Slice>::merge(
-        iterators[0], iterators[1], FLAGS_num_threads, c, resultBuilder);
-    break;
-  case PARALLEL_LEARNED_MERGE:
-    if (num_of_lists != 2) {
-      printf("Currently only 2 lists can be merged in parallel");
-      abort();
-    }
-    result = ParallelLearnedMerger<Slice>::merge(
-        iterators_with_model[0], iterators_with_model[1], FLAGS_num_threads, c,
-        resultBuilder);
-    break;
-  case PARALLEL_LEARNED_MERGE_BULK:
-    if (num_of_lists != 2) {
-      printf("Currently only 2 lists can be merged in parallel");
-      abort();
-    }
-    result = ParallelLearnedMergerBulk<Slice>::merge(
-        iterators_with_model[0], iterators_with_model[1], 3, c, resultBuilder);
-    break;
-  case MERGE_WITH_MODEL:
-    result = LearnedMerger<Slice>::merge(iterators_with_model, num_of_lists,
-                                            c, resultBuilder);
-    break;
-  case MERGE_WITH_MODEL_BULK:
-    result = LearnedMergerBulk<Slice>::merge(iterators_with_model,
-                                                num_of_lists, c, resultBuilder);
-    break;
-  case STANDARD_MERGE_JOIN:
-    result = SortedMergeJoin<Slice>::merge(iterators[0], iterators[1], c,
-                                              resultBuilder);
-    break;
-  case STANDARD_MERGE_BINARY_LOOKUP_JOIN:
-    result = SortedMergeBinaryLookupJoin<Slice>::merge(
-        iterators[0], iterators[1], c, resultBuilder);
-    break;
-  case LEARNED_MERGE_JOIN:
-    result = SortedMergeLearnedJoin<Slice>::merge(
-        iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
-    break;
-  case NO_OP:
-    break;
-  default:
-    abort();
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
+      merge_end - merge_start)
+    .count();
 
   float duration_sec = duration_ns / 1e9;
   printf("Merge duration: %.3lf s\n", duration_sec);

@@ -42,16 +42,28 @@ struct BenchmarkInput {
   Iterator<Slice> **iterators;
   IteratorBuilder<Slice> *resultBuilder;
   bool is_parallel() {
-    return (merge_mode == PARALLEL_LEARNED_MERGE_BULK ||
-            PARALLEL_LEARNED_MERGE || PARALLEL_STANDARD_MERGE);
+    switch(merge_mode) {
+      case PARALLEL_LEARNED_MERGE_BULK:
+      case PARALLEL_LEARNED_MERGE:
+      case PARALLEL_STANDARD_MERGE:
+       return true;
+    }
+    return false;
   }
+
   bool is_learned() {
-    return (merge_mode == PARALLEL_LEARNED_MERGE_BULK ||
-            PARALLEL_LEARNED_MERGE || MERGE_WITH_MODEL ||
-            MERGE_WITH_MODEL_BULK || LEARNED_MERGE_JOIN);
+    switch(merge_mode) {
+      case PARALLEL_LEARNED_MERGE_BULK:
+      case PARALLEL_LEARNED_MERGE:
+      case LEARNED_MERGE_JOIN:
+      case MERGE_WITH_MODEL_BULK:
+      case MERGE_WITH_MODEL:
+       return true;
+    }
+    return false;
   }
   bool is_join() {
-    return (merge_mode == STANDARD_MERGE_JOIN || LEARNED_MERGE_JOIN);
+    return (merge_mode == STANDARD_MERGE_JOIN || merge_mode == LEARNED_MERGE_JOIN);
   }
 };
 
