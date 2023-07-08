@@ -22,6 +22,12 @@ enum MergeMode {
   LEARNED_MERGE_JOIN
 };
 
+enum IndexType {
+  NO_MODEL,
+  PLR,
+  PGM
+};
+
 struct BenchmarkInput {
   std::string test_dir;
   std::string result_file;
@@ -34,6 +40,8 @@ struct BenchmarkInput {
   uint64_t num_common_keys;
 
   MergeMode merge_mode;
+  IndexType index_type;
+
   IteratorWithModel<Slice> **iterators_with_model;
   Comparator<Slice> *comparator;
   SliceToPlrPointConverter *slice_to_point_converter;

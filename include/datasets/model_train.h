@@ -1,12 +1,24 @@
 #ifndef MODEL_TRAIN_H
 #define MODEL_TRAIN_H
 
+#include "slice_pgm_model.h"
 #include "slice_plr_model.h"
 #include "model.h"
 
 Model<Slice> *train_model(Iterator<Slice> *it, BenchmarkInput *input) {
-    ModelBuilder<Slice> *mb = 
-        new SlicePLRModelBuilder(input->plr_error_bound, input->slice_to_point_converter);
+    ModelBuilder<Slice> *mb;
+    if (input->index_type == PGM) {
+        mb = new PGMModelBuilder(input->slice_to_point_converter);
+    }
+    else if (input->index_type == PLR) {
+        mb = new SlicePLRModelBuilder(input->plr_error_bound, input->slice_to_point_converter);
+    } else if (input->index_type == NO_MODEL) {
+        mb = new DummyModelBuilder<Slice>();
+    } else {
+        printf("Unknown model\n");
+        abort();
+    }
+
     it->seekToFirst();
     auto model_build_start = std::chrono::high_resolution_clock::now();
     while (it->valid()) {

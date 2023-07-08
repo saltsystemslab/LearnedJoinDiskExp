@@ -40,6 +40,7 @@ static bool FLAGS_print_result = false;
 static bool FLAGS_print_input = false;
 static vector<uint64_t> FLAGS_num_keys;
 static MergeMode FLAGS_merge_mode = STANDARD_MERGE;
+static IndexType FLAGS_learned_index = PGM;
 static int FLAGS_num_threads = 3;
 static int FLAGS_num_sort_threads = 4;
 static bool FLAGS_assert_sort = false;
@@ -165,7 +166,14 @@ void parse_flags(int argc, char **argv) {
       } else {
         abort();
       }
-      printf("merge_mode: %s\n", str);
+    } else if (sscanf(argv[i], "--index=%s", str) == 1) {
+      if (strcmp(str, "pgm") == 0) {
+        FLAGS_learned_index = PGM;
+      } else if (strcmp(str, "plr") == 0) {
+        FLAGS_learned_index = PLR;
+      } else if (strcmp(str, "no_index")==0) {
+        FLAGS_learned_index = NO_MODEL;
+      }
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
       abort();
@@ -223,6 +231,7 @@ int main(int argc, char **argv) {
   input.num_common_keys = FLAGS_num_common_keys;
   input.datafile_path = FLAGS_datafile;
   input.split_fraction = FLAGS_split_ratio;
+  input.index_type = FLAGS_learned_index;
 
   if (FLAGS_dataset == "uniform") {
     fill_uniform_input_lists(&input);

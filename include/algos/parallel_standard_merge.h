@@ -48,6 +48,7 @@ public:
       Iterator<T> *iter2_subrange = iter2->subRange(iter2_start, iter2_end);
       uint64_t result_end =
           result_start + (iter2_end - iter2_start) + (iter1_end - iter1_start);
+      printf("(%ld %ld) (%ld %ld)\n", iter1_start, iter1_start, iter2_start, iter2_end);
       IteratorBuilder<T> *result_subrange =
           result->subRange(result_start, result_end);
 
