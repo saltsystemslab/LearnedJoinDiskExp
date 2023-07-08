@@ -63,7 +63,7 @@ void pivot_work(int t_id, std::queue<pair<int64_t, int64_t>> *q, std::queue<pair
           j--;
         }
       }
-      return;
+      continue;
     }
 
     int64_t mid = start + (end - start) / 2; // TODO: Pick a random key.

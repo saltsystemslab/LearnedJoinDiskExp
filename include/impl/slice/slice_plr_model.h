@@ -122,7 +122,6 @@ private:
   void setPLRLineSegmentIndex(uint64_t value) { plr_segment_index_ = value; }
 };
 
-static double last_key = 0.0;
 class SlicePLRModelBuilder : public ModelBuilder<Slice> {
 public:
   SlicePLRModelBuilder(double gamma, SliceToPlrPointConverter *converter)
@@ -130,7 +129,7 @@ public:
   void add(const Slice &slice_key) override {
     PLR_SEGMENT_POINT t = converter_->to_plr_point(slice_key);
     if (t < last_key) {
-      printf("plr_points not sorted!");
+      printf("plr_points not sorted! %lf %lf\n", t, last_key);
       abort();
     }
     last_key = t;
@@ -138,8 +137,6 @@ public:
     plrBuilder_->processKey(t);
   }
   SlicePLRModel *finish() override {
-    printf("cdf end");
-    last_key = 0;
     return new SlicePLRModel(plrBuilder_->finishTraining(), num_keys_, converter_);
   }
 
@@ -147,6 +144,7 @@ private:
   SliceToPlrPointConverter *converter_;
   PLRBuilder *plrBuilder_;
   uint64_t num_keys_;
+  PLR_SEGMENT_POINT last_key = 0.0;
 };
 
 #endif
