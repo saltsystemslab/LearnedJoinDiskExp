@@ -28,13 +28,19 @@ public:
   uint64_t guessPositionMonotone(Slice target_slice_key) override {
     PLR_SEGMENT_POINT point = converter_->to_plr_point(target_slice_key);
     auto pos = pgm_index_->search(point).pos;
-    return pos - start_offset_;
+    if (pos > start_offset_) {
+      return pos - start_offset_;
+    }
+    return 0;
   };
 
   uint64_t guessPosition(Slice target_slice_key) override {
     PLR_SEGMENT_POINT point = converter_->to_plr_point(target_slice_key);
     auto pos = pgm_index_->search(point).pos;
-    return pos - start_offset_;
+    if (pos > start_offset_) {
+      return pos - start_offset_;
+    }
+    return 0;
   }
 
   SlicePGMModel *get_model_for_subrange(uint64_t start, uint64_t end) override {
