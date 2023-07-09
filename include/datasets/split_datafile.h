@@ -101,6 +101,7 @@ void fill_lists_from_datafile(BenchmarkInput *input) {
     uint64_t num_keys;
     uint16_t key_size_bytes;
     read_sstable_header(&num_keys, &key_size_bytes, input->datafile_path);
+    input->key_size_bytes = key_size_bytes;
 
     // Indexes of keys that will go into first list.
     // The second list might include them (for a join) or exclude these keys.
@@ -122,6 +123,10 @@ void fill_lists_from_datafile(BenchmarkInput *input) {
     Model<Slice> *m1 = train_model(it1, input);
     input->iterators_with_model[0] = new IteratorWithModel(it1, m1);
     input->iterators[0] = it1;
+
+    if (input->num_of_lists == 1) {
+      return;
+    }
 
     std::string iterator_1_name = "iterator_1";
     IteratorBuilder<Slice> *ib2;

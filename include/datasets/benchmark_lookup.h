@@ -22,6 +22,20 @@ uint64_t lookup_learned_test_uniform(
             .count();
     float lookup_duration_sec = lookup_duration_ns/1e9;
     printf("Lookup Duration: %lf\n", lookup_duration_sec);
+
+    auto scan_search_start = std::chrono::high_resolution_clock::now();
+    it->seekToFirst();
+    while(it->valid()) {
+        LearnedLookup::lower_bound<Slice>(it, comp, it->key());
+        it->next();
+    }
+    auto scan_search_end = std::chrono::high_resolution_clock::now();
+    uint64_t scan_search_duration_ns = 
+        std::chrono::duration_cast<std::chrono::nanoseconds>(scan_search_end - scan_search_start)
+            .count();
+    float scan_search_duration_sec = scan_search_duration_ns/1e9;
+    printf("Scan Search: %lf\n", scan_search_duration_sec);
+
     return lookup_duration_ns;
 }
 
