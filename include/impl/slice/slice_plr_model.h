@@ -92,12 +92,8 @@ public:
     if (result < 0) {
       result = 0;
     }
-    std::cout<<"target_key: "<<target_key<<"approx_pos: " <<result<<" "<<num_keys_<<std::endl;
     if (result >= num_keys_) {
       result = num_keys_ - 1;
-      std::cout<<target_key<<std::endl;
-      std::cout<<segments[left].x<<" "<<segments[left].k<<" "<<segments[left].b<<std::endl;
-      abort();
     }
     return result;
   }

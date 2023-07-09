@@ -25,7 +25,8 @@ enum MergeMode {
 enum IndexType {
   NO_MODEL,
   PLR,
-  PGM
+  PGM,
+  TREE
 };
 
 struct BenchmarkInput {
@@ -41,6 +42,7 @@ struct BenchmarkInput {
 
   MergeMode merge_mode;
   IndexType index_type;
+  int num_merge_threads;
 
   IteratorWithModel<Slice> **iterators_with_model;
   Comparator<Slice> *comparator;
@@ -52,6 +54,10 @@ struct BenchmarkInput {
 
   std::string datafile_path;
   double split_fraction;
+
+  bool is_lookup_test;
+  bool is_binsearch_test;
+  uint64_t num_queries;
 
   bool is_parallel() {
     switch(merge_mode) {
@@ -76,6 +82,42 @@ struct BenchmarkInput {
   }
   bool is_join() {
     return (merge_mode == STANDARD_MERGE_JOIN || merge_mode == LEARNED_MERGE_JOIN);
+  }
+
+  void print_flag_values() {
+    printf("List Sizes: ");
+    for (int i = 0; i < num_of_lists; i++) {
+      printf("%lu ", iterators[i]->num_keys());
+    }
+    printf("\n");
+    printf("Use Disk: %d\n", is_disk_backed);
+    printf("Key Bytes: %d\n", key_size_bytes);
+    if (merge_mode == PARALLEL_LEARNED_MERGE ||
+        merge_mode == PARALLEL_STANDARD_MERGE) {
+      printf("Num Threads: %d\n", num_merge_threads);
+    }
+    if (merge_mode == MERGE_WITH_MODEL ||
+        merge_mode == PARALLEL_LEARNED_MERGE ||
+        merge_mode == LEARNED_MERGE_JOIN) {
+      printf("PLR_Error: %d\n", plr_error_bound);
+    }
+    if (is_lookup_test) {
+      printf("Test: Lookup using indices test\n");
+    }
+    else if (is_binsearch_test) {
+      printf("Test: Lookup using binary search\n");
+    }
+
+    if (index_type == PGM) {
+      printf("PGM Index, Error: 64\n");
+    }
+    if (index_type == PLR) {
+      printf("PLR Index, Error: %d\n", plr_error_bound);
+    }
+    if (index_type == TREE) {
+      printf("Using Tree as Index\n");
+    }
+    
   }
 };
 

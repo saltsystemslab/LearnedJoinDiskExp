@@ -14,6 +14,8 @@ Model<Slice> *train_model(Iterator<Slice> *it, BenchmarkInput *input) {
         mb = new SlicePLRModelBuilder(input->plr_error_bound, input->slice_to_point_converter);
     } else if (input->index_type == NO_MODEL) {
         mb = new DummyModelBuilder<Slice>();
+    } else if (input->index_type == TREE) {
+        mb = new StdTreeModelBuilder();
     } else {
         printf("Unknown model\n");
         abort();

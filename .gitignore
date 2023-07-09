@@ -29,3 +29,7 @@ ur_plr_models.txt
 scripts/amazon_reviews_us_Baby_v1_00.tsv
 scripts/amazon_reviews_us_Wireless_v1_00.tsv
 scripts/baby_keys
+lookup_test/result.txt
+lookup_test/sstable_0_1000000_8
+lookup_test/sstable_0_10000000_8
+lookup_test/sstable_0_100000000_8

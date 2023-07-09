@@ -18,7 +18,6 @@ void read_sstable(std::string sstable, char *rand_nums,
   while (bytes_read < key_len_bytes) {
     bytes_read += pread(fd, rand_nums + bytes_read, key_len_bytes - bytes_read,
                         bytes_read);
-    printf("Read: %ld\n", bytes_read);
   }
   close(fd);
 }

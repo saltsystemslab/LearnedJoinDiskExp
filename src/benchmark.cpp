@@ -27,6 +27,7 @@
 #include "sort_merge_learned_join.h"
 #include "standard_merge.h"
 #include "test_input.h"
+#include "benchmark_lookup.h"
 
 #include "uniform_random.h"
 #include "split_datafile.h"
@@ -56,6 +57,9 @@ static std::string FLAGS_dataset = "uniform";
 // Use key_size_bytes to set 'str' size.
 static std::string FLAGS_key_type = "str";
 static double FLAGS_split_ratio = 0.3;
+static bool FLAGS_is_lookup_test = false;
+static bool FLAGS_is_binsearch_test = false;
+static uint64_t FLAGS_num_lookup_queries = 100;
 
 bool is_flag(const char *arg, const char *flag) {
   return strncmp(arg, flag, strlen(flag)) == 0;
@@ -107,6 +111,12 @@ void parse_flags(int argc, char **argv) {
       }
     } else if (sscanf(argv[i], "--use_disk=%lld%c", &n, &junk) == 1) {
       FLAGS_disk_backed = n;
+    } else if (sscanf(argv[i], "--is_lookup_test=%lld%c", &n, &junk) == 1) {
+      FLAGS_is_lookup_test = n;
+    } else if (sscanf(argv[i], "--is_binsearch_test=%lld%c", &n, &junk) == 1) {
+      FLAGS_is_binsearch_test= n;
+    } else if (sscanf(argv[i], "--num_lookup_queries=%lld%c", &n, &junk) == 1) {
+      FLAGS_num_lookup_queries = n;
     } else if (sscanf(argv[i], "--num_threads=%lld%c", &n, &junk) == 1) {
       FLAGS_num_threads = n;
     } else if (sscanf(argv[i], "--num_sort_threads=%lld%c", &n, &junk) == 1) {
@@ -171,6 +181,8 @@ void parse_flags(int argc, char **argv) {
         FLAGS_learned_index = PGM;
       } else if (strcmp(str, "plr") == 0) {
         FLAGS_learned_index = PLR;
+      } else if (strcmp(str, "tree") == 0) {
+        FLAGS_learned_index = TREE;
       } else if (strcmp(str, "no_index")==0) {
         FLAGS_learned_index = NO_MODEL;
       }
@@ -179,15 +191,10 @@ void parse_flags(int argc, char **argv) {
       abort();
     }
   }
-  if (FLAGS_num_keys.size() != 2) {
-    printf("Number of lists must be 2 for now.");
-    abort();
-  }
   if (FLAGS_num_keys.size() != FLAGS_num_of_lists) {
     printf("Number of lists does not match num_keys flag");
     abort();
   }
-  print_flag_values();
 }
 
 void init_test_dir() {
@@ -232,12 +239,18 @@ int main(int argc, char **argv) {
   input.datafile_path = FLAGS_datafile;
   input.split_fraction = FLAGS_split_ratio;
   input.index_type = FLAGS_learned_index;
+  input.is_lookup_test = FLAGS_is_lookup_test;
+  input.is_binsearch_test = FLAGS_is_binsearch_test;
+  input.num_queries = FLAGS_num_lookup_queries;
+  input.num_merge_threads = FLAGS_num_threads;
 
   if (FLAGS_dataset == "uniform") {
     fill_uniform_input_lists(&input);
   } else if (FLAGS_dataset == "ar") {
     fill_lists_from_datafile(&input);
   }
+
+  input.print_flag_values();
 
   if (FLAGS_print_input) {
     printf("Printing input temporarily removed!");
@@ -250,6 +263,15 @@ int main(int argc, char **argv) {
   IteratorBuilder<Slice> *resultBuilder = input.resultBuilder;
   Comparator<Slice> *c = input.comparator;
   int num_of_lists = input.num_of_lists;
+
+  if (input.is_lookup_test) {
+    lookup_learned_test_uniform(iterators_with_model[0], input.comparator, input.num_queries, input.key_size_bytes);
+    return 0;
+  }
+  if (input.is_binsearch_test) {
+    lookup_binary_search_uniform(iterators_with_model[0], input.comparator, input.num_queries, input.key_size_bytes);
+    return 0;
+  }
 
   Iterator<Slice> *result;
   auto merge_start = std::chrono::high_resolution_clock::now();
