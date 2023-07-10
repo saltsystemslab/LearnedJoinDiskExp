@@ -91,7 +91,12 @@ std::set<uint64_t> generate_uniform_split(uint64_t num_keys, double split) {
   uint64_t num_split_keys = split * num_keys;
   set<uint64_t> split_keys;
   for (uint64_t i = 0; i < num_split_keys; i++) {
-    uint64_t key = distrib(gen);
+    uint64_t key;
+    if (split == 1.0) {
+      key = i;
+    } else {
+      key = distrib(gen);
+    }
     split_keys.insert(key);
   }
   return split_keys;

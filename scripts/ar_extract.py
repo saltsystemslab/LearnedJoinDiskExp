@@ -9,17 +9,22 @@ outfile = sys.argv[2]
 files = []
 for f in os.listdir(tsv_dir):
     if f.endswith(".tsv"):
-        files.append(f)
+        files.append(os.path.join(tsv_dir,f))
 
 header_bytes = 16
 review_id_len = 16
+csv.field_size_limit(sys.maxsize)
 
 keys = []
 num_keys = 0
 for filename in files:
+    print(filename)
+    print(len(keys))
     with open(filename) as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
         for row in reader:
+            if (len(keys) > 200000000):
+                break
             review_id = row['review_id']
             review_id_bytes = bytearray(review_id.encode('ascii'))
             assert(len(review_id_bytes) < review_id_len)

@@ -89,7 +89,7 @@ void fill_uniform_input_lists(BenchmarkInput *test_input) {
     Iterator<Slice> *it;
     if (is_disk_backed) {
       it = new SliceFileIterator(get_sstable_read_only_fd(sstable_path), 0,
-                                list_sizes[i], key_size_bytes, sstable_path);
+                                list_sizes[i] + num_common_keys, key_size_bytes, sstable_path);
     } else {
       it = new SliceArrayIterator(keys, list_sizes[i] + num_common_keys,
                                  key_size_bytes, "inmem:" + sstable_path);

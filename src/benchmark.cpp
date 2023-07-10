@@ -24,7 +24,7 @@
 #include "parallel_standard_merge.h"
 #include "sort_merge_binary_lookup.h"
 #include "sort_merge_join.h"
-#include "sort_merge_learned_join.h"
+#include "learned_inlj.h"
 #include "standard_merge.h"
 #include "test_input.h"
 #include "benchmark_lookup.h"
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
           iterators[0], iterators[1], c, resultBuilder);
       break;
     case LEARNED_MERGE_JOIN:
-      result = SortedMergeLearnedJoin<Slice>::merge(
+      result = LearnedIndexedNestedLoopJoin<Slice>::merge(
           iterators_with_model[0], iterators_with_model[1], c, resultBuilder);
       break;
     case NO_OP:

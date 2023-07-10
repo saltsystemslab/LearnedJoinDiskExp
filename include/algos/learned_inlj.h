@@ -6,7 +6,7 @@
 #include "iterator.h"
 #include "iterator_with_model.h"
 
-template <class T> class SortedMergeLearnedJoin {
+template <class T> class LearnedIndexedNestedLoopJoin {
 public:
   // Writes into result all keys present in both smaller and larger.
   // Assumes that 1) smaller and larger are both sorted and 2) Keys are unique.
@@ -16,10 +16,9 @@ public:
                             IteratorBuilder<T> *result) {
     smaller->seekToFirst();
     larger->seekToFirst();
-    printf("Sorted Merge Learn Join\n");
+    printf("INLJ \n");
     while (smaller->valid()) {
-      uint64_t approx_pos = larger->guessPositionMonotone(smaller->key());
-
+      uint64_t approx_pos = larger->guessPosition(smaller->key());
       // Set to first value lesser than or equal to the smaller key.
       bool is_overshoot = false;
       while (approx_pos && comparator->compare(larger->peek(approx_pos),
@@ -40,7 +39,6 @@ public:
       if (approx_pos == larger->num_keys()) {
         break;
       }
-
       if (comparator->compare(larger->peek(approx_pos), smaller->key()) == 0) {
         result->add(smaller->key());
       }
