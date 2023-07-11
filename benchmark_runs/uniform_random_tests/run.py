@@ -9,14 +9,13 @@ ratio = [1, 10, 50, 60, 80, 100]
 common_keys = [0.1]
 merge_modes = ["standard", "learned", "parallel_learned", "parallel_standard", "standard_join", "learned_join"]
 num_threads = [8]
-key_sizes = [(8, 40_000) , (16, 20_000), (32, 10_000)]
+key_sizes = [(8, 10_000_000) , (16, 5_000_000), (32, 2_500_000)]
 plr_errors = [2, 10, 100, 1000]
 lim = 610000000 * 8
 
 
 def generate_string_key_runs(test_dir, modes):
     env = os.environ
-
     runs = [["numactl", "-N", "1", "-m", "1", "./bin/benchmark"]]
     all_runs = []
     for run in runs:
@@ -25,7 +24,7 @@ def generate_string_key_runs(test_dir, modes):
                     run_args = run.copy()
                     run_args.append("--num_keys=%s,%s" % (key_size[1], key_size[1]*r))
                     run_args.append("--key_bytes=%s" % (key_size[0]))
-                    run_args.append("--key_type=uint64")
+                    run_args.append("--key_type=str")
                     all_runs.append(run_args)
 
     runs = all_runs.copy()

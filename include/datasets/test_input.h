@@ -54,7 +54,9 @@ struct BenchmarkInput {
   IteratorBuilder<Slice> *resultBuilder;
 
   std::string datafile_path;
+  uint64_t num_datafile_keys;
   double split_fraction;
+  bool from_sosd;
 
   bool is_lookup_test;
   bool is_binsearch_test;

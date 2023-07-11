@@ -39,3 +39,8 @@ merge_list_report.txt
 sort_join.txt
 uniform_equijoin_report.txt
 lookup_test/sstable_0_200000000_8
+benchmark_reports/ar_equijoin_report.txt
+benchmark_reports/realworld_dataset_lookup_tests.txt
+benchmark_reports/uniform_dataset_lookup_report.txt
+benchmark_reports/wiki_dataset_equijoin_report.txt
+benchmark_reports/wiki_dataset_report.txt

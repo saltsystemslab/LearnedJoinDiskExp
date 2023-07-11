@@ -69,13 +69,12 @@ Iterator<Slice> *split_keys_from_datafile(
     auto split_keys_iter = split_keys.begin();
     data_to_split->seekToFirst();
     while (data_to_split->valid()) {
-      if (split_keys_iter == split_keys.end() || idx != *split_keys_iter) {
+      uint64_t *k = (uint64_t *)data_to_split->key().data_;
+      // printf("%ld: %ld\n", idx, *k);
+      // printf("%s\n", data_to_split->key().toString().c_str());
+      if (split_keys.find(idx) == split_keys.end()) {
         ib->add(data_to_split->key());
-      } else {
-        while (split_keys_iter != split_keys.end() && idx == *split_keys_iter) {
-          split_keys_iter++;
-        }
-      }       
+      }
       idx++;
       data_to_split->next();
     }
@@ -89,6 +88,7 @@ std::set<uint64_t> generate_uniform_split(uint64_t num_keys, double split) {
   std::uniform_int_distribution<uint64_t> distrib(0, num_keys);
 
   uint64_t num_split_keys = split * num_keys;
+    // printf("sk: %ld\n", num_split_keys);
   set<uint64_t> split_keys;
   for (uint64_t i = 0; i < num_split_keys; i++) {
     uint64_t key;
@@ -98,6 +98,7 @@ std::set<uint64_t> generate_uniform_split(uint64_t num_keys, double split) {
       key = distrib(gen);
     }
     split_keys.insert(key);
+    //printf("sk: %ld\n", key);
   }
   return split_keys;
 }
@@ -105,15 +106,24 @@ std::set<uint64_t> generate_uniform_split(uint64_t num_keys, double split) {
 void fill_lists_from_datafile(BenchmarkInput *input) {
     uint64_t num_keys;
     uint16_t key_size_bytes;
-    read_sstable_header(&num_keys, &key_size_bytes, input->datafile_path);
-    input->key_size_bytes = key_size_bytes;
+    uint64_t header_size;
+    if (input->from_sosd) {
+      num_keys = input->num_datafile_keys;
+      key_size_bytes = input->key_size_bytes; 
+      header_size = 8;
+    } else {
+      read_sstable_header(&num_keys, &key_size_bytes, input->datafile_path);
+      input->key_size_bytes = key_size_bytes;
+      header_size = 16;
+    }
 
+    printf("%ld\n", num_keys); fflush(stdout);
     // Indexes of keys that will go into first list.
     // The second list might include them (for a join) or exclude these keys.
-    set<uint64_t> split_keys_index = generate_uniform_split(num_keys, input->split_fraction);
+    set<uint64_t> split_keys_index; // = generate_uniform_split(num_keys, input->split_fraction);
 
     int fd = open(input->datafile_path.c_str(), O_RDONLY);
-    SliceFileIterator datafile(fd, HEADER_SIZE, num_keys, key_size_bytes, "dataset");
+    SliceFileIterator datafile(fd, header_size, num_keys, key_size_bytes, "dataset");
 
     std::string iterator_0_name = "iterator_0";
     IteratorBuilder<Slice> *ib1;

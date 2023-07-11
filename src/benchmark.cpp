@@ -56,6 +56,8 @@ static std::string FLAGS_dataset = "uniform";
 // If dataset uniform, can be 'str', 'uint64'
 // Use key_size_bytes to set 'str' size.
 static std::string FLAGS_key_type = "str";
+static bool FLAGS_from_sosd = false;
+static uint64_t FLAGS_num_datafile_keys = 0;
 static double FLAGS_split_ratio = 0.3;
 static bool FLAGS_is_lookup_test = false;
 static bool FLAGS_is_binsearch_test = false;
@@ -125,6 +127,9 @@ void parse_flags(int argc, char **argv) {
       FLAGS_num_common_keys = n;
     } else if (sscanf(argv[i], "--plr_error_bound=%lld%c", &n, &junk) == 1) {
       FLAGS_PLR_error_bound = n;
+    } else if (sscanf(argv[i], "--num_datafile_keys=%lld%c", &n, &junk) == 1) {
+      FLAGS_num_datafile_keys = n;
+      printf("num_datafile_keys: %lld\n", n);
     } else if (sscanf(argv[i], "--print_input=%lld%c", &n, &junk) == 1) {
       FLAGS_print_input = n;
     } else if (sscanf(argv[i], "--print_result=%lld%c", &n, &junk) == 1) {
@@ -134,6 +139,8 @@ void parse_flags(int argc, char **argv) {
     } else if (sscanf(argv[i], "--dataset=%s", str) == 1) {
       std::string dataset(str);
       FLAGS_dataset = dataset;
+    } else if (sscanf(argv[i], "--from_sosd=%lld%c", &n, &junk) == 1) {
+      FLAGS_from_sosd = n;
     } else if (sscanf(argv[i], "--key_type=%s", str) == 1) {
       std::string key_type(str);
       FLAGS_key_type = key_type;
@@ -247,6 +254,8 @@ int main(int argc, char **argv) {
   input.is_binsearch_test = FLAGS_is_binsearch_test;
   input.num_queries = FLAGS_num_lookup_queries;
   input.num_merge_threads = FLAGS_num_threads;
+  input.from_sosd = FLAGS_from_sosd;
+  input.num_datafile_keys = FLAGS_num_datafile_keys;
 
   if (FLAGS_dataset == "uniform") {
     fill_uniform_input_lists(&input);

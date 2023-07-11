@@ -17,8 +17,8 @@ Model<Slice> *train_model(Iterator<Slice> *it, BenchmarkInput *input) {
     } else if (input->index_type == TREE) {
         mb = new StdTreeModelBuilder();
     } else if (input->index_type == BINARY_SEARCH) {
-        printf("%s model creation duration: %.3lf sec\n", it->id().c_str(), 0);
-        printf("%s model size bytes: %lu\n", it->id().c_str(), 0);
+        printf("%s model creation duration: %.3lf sec\n", it->id().c_str(), 0.0);
+        printf("%s model size bytes: %lu\n", it->id().c_str(), 0ul);
         return new SliceBinarySearchIndex(it, input->comparator);
     } else {
         printf("Unknown model\n");
@@ -28,6 +28,12 @@ Model<Slice> *train_model(Iterator<Slice> *it, BenchmarkInput *input) {
     it->seekToFirst();
     auto model_build_start = std::chrono::high_resolution_clock::now();
     while (it->valid()) {
+        #if 0
+        Slice s = it->key();
+        uint64_t *num = (uint64_t *)(s.data_);
+        printf("Key: %s\n", s.toString().c_str());
+        printf("Key: %ld\n", *num);
+        #endif
         mb->add(it->key());
         it->next();
     }
