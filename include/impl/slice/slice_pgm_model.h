@@ -11,6 +11,34 @@
 #include <map>
 using namespace std;
 
+class SliceBinarySearchIndex: public Model<Slice> {
+  public:
+    SliceBinarySearchIndex(Iterator<Slice> *it, Comparator<Slice> *c): it_(it), c_(c), start_offset_(0), num_keys_(it->num_keys()) {}
+    SliceBinarySearchIndex(Iterator<Slice> *it, Comparator<Slice> *c, uint64_t start_offset, uint64_t num_keys)
+      : it_(it), c_(c), num_keys_(num_keys), start_offset_(start_offset) {}
+
+    uint64_t guessPositionMonotone(Slice target_slice_key) override {
+      return guessPosition(target_slice_key);
+    }
+    uint64_t guessPosition(Slice target_slice_key) override {
+      return StandardLookup::lower_bound(it_, c_, target_slice_key) - start_offset_;
+    }
+
+  double getMaxError() override { return 0; }
+
+  uint64_t size_bytes() override {
+    return 0;
+  }
+ SliceBinarySearchIndex *get_model_for_subrange(uint64_t start, uint64_t end) override {
+    return new SliceBinarySearchIndex(it_, c_, start, end-start);
+  }
+  private:
+    uint64_t num_keys_;
+    uint64_t start_offset_;
+    Iterator<Slice> *it_;
+    Comparator<Slice> *c_;
+};
+
 class SliceStdTreeModel: public Model<Slice> {
   public:
     SliceStdTreeModel(std::map<std::string, uint64_t> *index): index_(index), start_offset_(0), num_keys_(index->size()) {}
@@ -28,10 +56,10 @@ class SliceStdTreeModel: public Model<Slice> {
       return entry->second - start_offset_;
     }
 
-  double getMaxError() override { return 1; }
+  double getMaxError() override { return 0; }
 
   uint64_t size_bytes() override {
-    return index_->size() * (index_->begin()->first.size());
+    return index_->size() * (index_->begin()->first.size() + 32);
   }
 
  SliceStdTreeModel *get_model_for_subrange(uint64_t start, uint64_t end) override {

@@ -10,3 +10,4 @@ ${BIN}  --is_lookup_test=1 --use_disk=1 --index=plr --plr_error_bound=10
 ${BIN}  --is_lookup_test=1 --use_disk=1 --index=plr --plr_error_bound=50
 ${BIN}  --is_lookup_test=1 --use_disk=1 --index=plr --plr_error_bound=500
 ${BIN}  --is_lookup_test=1 --use_disk=1 --index=tree
+${BIN}  --is_lookup_test=1 --use_disk=1 --index=binary_search

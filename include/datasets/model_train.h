@@ -16,6 +16,10 @@ Model<Slice> *train_model(Iterator<Slice> *it, BenchmarkInput *input) {
         mb = new DummyModelBuilder<Slice>();
     } else if (input->index_type == TREE) {
         mb = new StdTreeModelBuilder();
+    } else if (input->index_type == BINARY_SEARCH) {
+        printf("%s model creation duration: %.3lf sec\n", it->id().c_str(), 0);
+        printf("%s model size bytes: %lu\n", it->id().c_str(), 0);
+        return new SliceBinarySearchIndex(it, input->comparator);
     } else {
         printf("Unknown model\n");
         abort();

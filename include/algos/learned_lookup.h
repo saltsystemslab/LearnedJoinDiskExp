@@ -13,6 +13,9 @@ public:
     uint64_t approx_pos = std::ceil(iterator->guessPosition(target_key));
     uint64_t start = 0;
     uint64_t error_window = std::ceil(iterator->getMaxError());
+    if (error_window == 0) {
+      return approx_pos;
+    }
     if (approx_pos < error_window) {
       start = 0;
     } else {

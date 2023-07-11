@@ -26,7 +26,8 @@ enum IndexType {
   NO_MODEL,
   PLR,
   PGM,
-  TREE
+  TREE,
+  BINARY_SEARCH
 };
 
 struct BenchmarkInput {
@@ -116,6 +117,9 @@ struct BenchmarkInput {
     }
     if (index_type == TREE) {
       printf("Using Tree as Index\n");
+    }
+    if (index_type == BINARY_SEARCH) {
+      printf("Using Binary Search as Index\n");
     }
     
   }

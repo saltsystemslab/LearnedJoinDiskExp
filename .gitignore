@@ -33,3 +33,9 @@ lookup_test/result.txt
 lookup_test/sstable_0_1000000_8
 lookup_test/sstable_0_10000000_8
 lookup_test/sstable_0_100000000_8
+ar_keys_v1_00
+ar_keys_v1_00_hexdump
+merge_list_report.txt
+sort_join.txt
+uniform_equijoin_report.txt
+lookup_test/sstable_0_200000000_8

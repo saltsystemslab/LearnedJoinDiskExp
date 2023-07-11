@@ -185,6 +185,11 @@ void parse_flags(int argc, char **argv) {
         FLAGS_learned_index = TREE;
       } else if (strcmp(str, "no_index")==0) {
         FLAGS_learned_index = NO_MODEL;
+      } else if (strcmp(str, "binary_search")==0) {
+        FLAGS_learned_index = BINARY_SEARCH;
+      } else {
+        printf("Unrecongnized index\n");
+        abort();
       }
     } else {
       printf("WARNING: unrecognized flag %s\n", argv[i]);
@@ -192,8 +197,7 @@ void parse_flags(int argc, char **argv) {
     }
   }
   if (FLAGS_num_keys.size() != FLAGS_num_of_lists) {
-    printf("Number of lists does not match num_keys flag");
-    abort();
+    printf("Warning: Number of lists does not match num_keys flag");
   }
 }
 
@@ -265,11 +269,11 @@ int main(int argc, char **argv) {
   int num_of_lists = input.num_of_lists;
 
   if (input.is_lookup_test) {
-    lookup_learned_test_uniform(iterators_with_model[0], input.comparator, input.num_queries, input.key_size_bytes);
+    lookup_learned_test(input.num_queries, iterators_with_model[0], input.comparator, input.key_size_bytes);
     return 0;
   }
   if (input.is_binsearch_test) {
-    lookup_binary_search_uniform(iterators_with_model[0], input.comparator, input.num_queries, input.key_size_bytes);
+    lookup_binary_search(input.num_queries, iterators_with_model[0], input.comparator, input.key_size_bytes);
     return 0;
   }
 
