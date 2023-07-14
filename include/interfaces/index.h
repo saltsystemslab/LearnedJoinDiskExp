@@ -1,8 +1,8 @@
 #ifndef LEARNEDINDEXMERGE_INDEX_H
 #define LEARNEDINDEXMERGE_INDEX_H
 
-#include <unistd.h>
 #include "iterator.h"
+#include <unistd.h>
 
 namespace li_merge {
 struct Bounds {
@@ -23,8 +23,9 @@ public:
   virtual Index<T> *build() = 0;
 };
 
-template<class T>
-Index<T> *build_index_from_iterator(Iterator<T> *iterator, IndexBuilder<T> *builder) {
+template <class T>
+Index<T> *build_index_from_iterator(Iterator<T> *iterator,
+                                    IndexBuilder<T> *builder) {
   iterator->seekToFirst();
   while (iterator->valid()) {
     builder->add(iterator->key());

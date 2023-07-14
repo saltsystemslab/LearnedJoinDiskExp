@@ -1,23 +1,23 @@
 #include <gtest/gtest.h>
 
-#include "index.h"
-#include "pgm_index.h"
-#include "key_to_point.h"
 #include "in_mem_sstable.h"
+#include "index.h"
+#include "key_to_point.h"
+#include "pgm_index.h"
 #include "synthetic.h"
 
 namespace li_merge {
 
 void check_index(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
-    iterator->seekToFirst();
-    uint64_t pos = 0;
-    while (iterator->valid()) {
-        auto bounds = index->getPositionBounds(iterator->key());
-        ASSERT_LE(bounds.lower,  pos);
-        ASSERT_GE(bounds.upper,  pos);
-        iterator->next();
-        pos = pos + 1;
-    }
+  iterator->seekToFirst();
+  uint64_t pos = 0;
+  while (iterator->valid()) {
+    auto bounds = index->getPositionBounds(iterator->key());
+    ASSERT_LE(bounds.lower, pos);
+    ASSERT_GE(bounds.upper, pos);
+    iterator->next();
+    pos = pos + 1;
+  }
 }
 
 TEST(IndexCreationTest, TestPGMUInt64) {
@@ -31,10 +31,10 @@ TEST(IndexCreationTest, TestPGMUInt64) {
       new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
-    Iterator<KVSlice> *iterator = table->iterator();
-    PgmIndexBuilder<KVSlice> *builder = new PgmIndexBuilder(10, converter);
-    Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-    check_index(iterator, index);
+  Iterator<KVSlice> *iterator = table->iterator();
+  PgmIndexBuilder<KVSlice> *builder = new PgmIndexBuilder(10, converter);
+  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  check_index(iterator, index);
 }
 
 TEST(IndexCreationTest, TestPGM8Byte) {
@@ -48,10 +48,10 @@ TEST(IndexCreationTest, TestPGM8Byte) {
       new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
-    Iterator<KVSlice> *iterator = table->iterator();
-    PgmIndexBuilder<KVSlice> *builder = new PgmIndexBuilder(10, converter);
-    Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-    check_index(iterator, index);
+  Iterator<KVSlice> *iterator = table->iterator();
+  PgmIndexBuilder<KVSlice> *builder = new PgmIndexBuilder(10, converter);
+  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  check_index(iterator, index);
 }
 
 TEST(IndexCreationTest, TestPGM16Byte) {
@@ -65,10 +65,10 @@ TEST(IndexCreationTest, TestPGM16Byte) {
       new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
-    Iterator<KVSlice> *iterator = table->iterator();
-    PgmIndexBuilder<KVSlice> *builder = new PgmIndexBuilder(10, converter);
-    Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-    check_index(iterator, index);
+  Iterator<KVSlice> *iterator = table->iterator();
+  PgmIndexBuilder<KVSlice> *builder = new PgmIndexBuilder(10, converter);
+  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  check_index(iterator, index);
 }
 
-}
+} // namespace li_merge
