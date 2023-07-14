@@ -13,6 +13,6 @@ void generate_uniform_random_distribution(uint64_t num_keys, int key_size_bytes,
                                           int value_size_bytes,
                                           Comparator<> *comparator,
                                           SSTableBuilder *builder);
-} // namespace li_bench
+} // namespace li_merge
 
 #endif // LEARNEDINDEXMERGE_SYNTHETIC_H

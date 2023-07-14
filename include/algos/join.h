@@ -19,6 +19,6 @@ int presorted_merge_join(Iterator<T> *outer_iterator,
                          Iterator<T> *inner_iterator, Comparator<T> *comparator,
                          SSTableBuilder<T> *result_builder);
 
-} // namespace li_merge_join
+} // namespace li_merge
 
 #endif

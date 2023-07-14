@@ -26,10 +26,12 @@ private:
   char *data_;
 };
 
-class KVSliceMemcmp: public Comparator<KVSlice> {
+class KVSliceMemcmp : public Comparator<KVSlice> {
 public:
-    int compare(const KVSlice&a, const KVSlice&b) override {
-    const size_t min_len = (a.key_size_bytes() < b.key_size_bytes()) ? a.key_size_bytes(): b.key_size_bytes();
+  int compare(const KVSlice &a, const KVSlice &b) override {
+    const size_t min_len = (a.key_size_bytes() < b.key_size_bytes())
+                               ? a.key_size_bytes()
+                               : b.key_size_bytes();
     int r = memcmp(a.data(), b.data(), min_len);
     if (r == 0) {
       if (a.key_size_bytes() < b.key_size_bytes())

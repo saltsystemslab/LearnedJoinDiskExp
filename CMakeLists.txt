@@ -23,7 +23,7 @@ add_executable(benchmark_runner src/benchmark_runner.cpp)
 target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json)
 
 enable_testing()
-add_executable(in_mem_sstable_test test/in_mem_sstable.cpp)
+add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
 target_link_libraries(in_mem_sstable_test GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(in_mem_sstable_test)

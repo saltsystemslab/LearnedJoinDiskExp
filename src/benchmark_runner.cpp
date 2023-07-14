@@ -13,7 +13,5 @@ int main(int argc, char **argv) {
   std::ifstream benchmark_ifstream(benchmark_spec_path);
   json benchmark_spec = json::parse(benchmark_ifstream);
 
-
-
   return 0;
 }
