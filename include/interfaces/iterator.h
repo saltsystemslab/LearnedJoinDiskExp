@@ -1,0 +1,9 @@
+#ifndef LEARNEDINDEXMERGE_ITERATOR_H
+#define LEARNEDINDEXMERGE_ITERATOR_H
+
+template <class T>
+class Iterator {
+
+};
+
+#endif //LEARNEDINDEXMERGE_ITERATOR_H

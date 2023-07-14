@@ -1,0 +1,16 @@
+{
+  "name": "wiki_200M_0.1_self_join",
+  "description": "",
+  "key_type": "uint64",
+  "key_size": 8,
+  "input_spec": {
+    "dataset_creation_method": "sample_from_file",
+    "file_path": "wiki_200M_uint64",
+    "file_header_format": "sosd",
+    "input_lists": [
+      {"sample_rate": 0.1},
+      {"sample_rate": 1.0}
+    ],
+    "operation": "join"
+  }
+}
