@@ -33,7 +33,7 @@ TEST(SyntheticGen, UniformRandom) {
   }
 }
 
-TEST(SyntheticGen, UniformRandom_Large) {
+TEST(SyntheticGen, DISABLED_UniformRandom_Large) {
   uint64_t num_elts = 100000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;

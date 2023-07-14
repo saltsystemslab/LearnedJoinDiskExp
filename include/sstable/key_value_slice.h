@@ -4,6 +4,8 @@
 #include <cstring>
 
 #include "comparator.h"
+#include "config.h"
+#include "key_to_point.h"
 
 namespace li_merge {
 class KVSlice {
@@ -59,6 +61,27 @@ public:
       return 1;
     }
     return 0;
+  }
+};
+
+class KVUint64ToDouble : public KeyToPointConverter<KVSlice> {
+public:
+  POINT_FLOAT_TYPE toPoint(const KVSlice &a) override {
+    assert(a.key_size_bytes() == sizeof(uint64_t));
+    uint64_t *ak = (uint64_t *)(a.data());
+    return (POINT_FLOAT_TYPE)(*ak);
+  }
+};
+
+class KVStringToDouble : public KeyToPointConverter<KVSlice> {
+public:
+  POINT_FLOAT_TYPE toPoint(const KVSlice &a) override {
+    POINT_FLOAT_TYPE point_x = 0.0;
+    for (int i = 0; i < a.key_size_bytes(); i++) {
+      unsigned char *c = (unsigned char *)(a.data() + i);
+      point_x = point_x * 256.0 + (*c);
+    }
+    return point_x;
   }
 };
 
