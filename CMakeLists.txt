@@ -14,14 +14,16 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-include_directories(include/interfaces)
 include_directories(include/algos)
+include_directories(include/benchmark)
+include_directories(include/interfaces)
+include_directories(include/sstable)
 
-add_executable(benchmark_runner src/benchmark_runner.cpp include/interfaces/sstable.h)
+add_executable(benchmark_runner src/benchmark_runner.cpp)
 target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json)
 
 enable_testing()
-add_executable(join_test test/algos/join_test.cpp)
-target_link_libraries(join_test GTest::gtest_main)
+add_executable(in_mem_sstable_test test/in_mem_sstable.cpp)
+target_link_libraries(in_mem_sstable_test GTest::gtest_main)
 include(GoogleTest)
-gtest_discover_tests(join_test)
+gtest_discover_tests(in_mem_sstable_test)

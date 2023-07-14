@@ -15,6 +15,6 @@ template <class T>
 int merge_with_indexes(Iterator<T> *outer_iterator, Iterator<T> *inner_iterator,
                        Index<T> *inner_index, Comparator<T> *comparator,
                        SSTableBuilder<T> builder);
-} // namespace li_merge
+} // namespace li_bench
 
 #endif // LEARNEDINDEXMERGE_MERGE_H
