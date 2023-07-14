@@ -1,3 +1,6 @@
 [submodule "third_party/json"]
 	path = third_party/json
 	url = https://github.com/nlohmann/json
+[submodule "third_party/pgm"]
+	path = third_party/pgm
+	url = git@github.com:droidkid/PGM-index
