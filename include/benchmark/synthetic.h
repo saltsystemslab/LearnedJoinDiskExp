@@ -12,11 +12,9 @@
 
 namespace li_merge {
 
-SSTable<KVSlice> *generate_uniform_random_distribution(uint64_t num_keys, 
-                                            int key_size_bytes,
-                                          int value_size_bytes,
-                                          Comparator<KVSlice> *comparator,
-                                          SSTableBuilder<KVSlice> *builder) {
+SSTable<KVSlice> *generate_uniform_random_distribution(
+    uint64_t num_keys, int key_size_bytes, int value_size_bytes,
+    Comparator<KVSlice> *comparator, SSTableBuilder<KVSlice> *builder) {
   uint64_t buf_size = num_keys * (key_size_bytes + value_size_bytes);
   char *data = new char[buf_size];
   RAND_bytes((unsigned char *)data, buf_size);
@@ -30,12 +28,12 @@ SSTable<KVSlice> *generate_uniform_random_distribution(uint64_t num_keys,
               KVSlice kv2(b, key_size_bytes, 0);
               return comparator->compare(kv1, kv2) <= 0;
             });
-  for(uint64_t i=0; i<num_keys; i++) {
+  for (uint64_t i = 0; i < num_keys; i++) {
     KVSlice kv(data_ptrs[i], key_size_bytes, value_size_bytes);
     builder->add(kv);
   }
   return builder->build();
 }
-}  // namespace li_merge
+} // namespace li_merge
 
-#endif  // LEARNEDINDEXMERGE_SYNTHETIC_H
+#endif // LEARNEDINDEXMERGE_SYNTHETIC_H

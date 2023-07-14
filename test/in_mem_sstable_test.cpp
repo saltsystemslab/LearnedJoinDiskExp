@@ -42,7 +42,6 @@ TEST(InMemSSTable, TestCreation) {
   ASSERT_EQ(memcmp(kv.data(), kvb2, 6), 0);
 };
 
-
 TEST(InMemSSTable, TestOutOfOrderInsert) {
   FixedSizeKVInMemSSTableBuilder *builder =
       new FixedSizeKVInMemSSTableBuilder(0, 2, 0, new KVSliceMemcmp());

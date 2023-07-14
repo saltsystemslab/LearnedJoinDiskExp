@@ -13,6 +13,7 @@ FetchContent_Declare(
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+find_package(OpenSSL REQUIRED)
 
 include_directories(include/algos)
 include_directories(include/benchmark)
@@ -24,6 +25,9 @@ target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json)
 
 enable_testing()
 add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
-target_link_libraries(in_mem_sstable_test GTest::gtest_main)
+add_executable(synthetic_gen_test test/synthetic_gen_test.cpp)
+target_link_libraries(in_mem_sstable_test GTest::gtest_main OpenSSL::SSL)
+target_link_libraries(synthetic_gen_test GTest::gtest_main OpenSSL::SSL tbb)
 include(GoogleTest)
 gtest_discover_tests(in_mem_sstable_test)
+gtest_discover_tests(synthetic_gen_test)
