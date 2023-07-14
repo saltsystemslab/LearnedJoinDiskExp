@@ -1,23 +1,26 @@
 #ifndef LEARNEDINDEXMERGE_IN_MEM_SSTABLE_H
 #define LEARNEDINDEXMERGE_IN_MEM_SSTABLE_H
 
+#include <cassert>
+#include <vector>
+
 #include "comparator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
-#include <cassert>
-#include <vector>
 
 namespace li_merge {
 
 class FixedSizeKVInMemSSTable : public SSTable<KVSlice> {
-public:
+ public:
   FixedSizeKVInMemSSTable(char *data, int key_size_bytes, int value_size_bytes,
                           uint64_t num_kv)
-      : data_(data), key_size_bytes_(key_size_bytes),
-        value_size_bytes_(value_size_bytes), num_kv_(num_kv) {}
+      : data_(data),
+        key_size_bytes_(key_size_bytes),
+        value_size_bytes_(value_size_bytes),
+        num_kv_(num_kv) {}
   Iterator<KVSlice> *iterator() override;
 
-private:
+ private:
   char *data_;
   uint64_t num_kv_;
   int key_size_bytes_;
@@ -25,12 +28,14 @@ private:
 };
 
 class FixedSizeKVInMemSSTableBuilder : public SSTableBuilder<KVSlice> {
-public:
+ public:
   FixedSizeKVInMemSSTableBuilder(uint64_t approx_num_keys, int key_size_bytes,
                                  int value_size_bytes,
                                  Comparator<KVSlice> *comparator)
-      : key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),
-        comparator_(comparator), num_kv_(0),
+      : key_size_bytes_(key_size_bytes),
+        value_size_bytes_(value_size_bytes),
+        comparator_(comparator),
+        num_kv_(0),
         last_key_buf_(new char[key_size_bytes + value_size_bytes]) {
     data_.reserve((approx_num_keys * (key_size_bytes + value_size_bytes)));
   }
@@ -38,7 +43,7 @@ public:
   void add(const KVSlice &kv) override;
   SSTable<KVSlice> *build() override;
 
-private:
+ private:
   std::vector<char> data_;
   int key_size_bytes_;
   int value_size_bytes_;
@@ -49,11 +54,14 @@ private:
 };
 
 class FixedSizeKVInMemSSTableIterator : public Iterator<KVSlice> {
-  public:
+ public:
   FixedSizeKVInMemSSTableIterator(char *data, int key_size_bytes,
                                   int value_size_bytes, uint64_t num_keys)
-      : data_(data), key_size_bytes_(key_size_bytes),
-        value_size_bytes_(value_size_bytes), num_keys_(num_keys), cur_idx_(0) {}
+      : data_(data),
+        key_size_bytes_(key_size_bytes),
+        value_size_bytes_(value_size_bytes),
+        num_keys_(num_keys),
+        cur_idx_(0) {}
   bool valid() override { return cur_idx_ < num_keys_; }
   void next() override { cur_idx_++; }
   KVSlice peek(uint64_t pos) override {
@@ -66,7 +74,7 @@ class FixedSizeKVInMemSSTableIterator : public Iterator<KVSlice> {
   uint64_t current_pos() override { return cur_idx_; }
   uint64_t num_elts() override { return num_keys_; }
 
-private:
+ private:
   char *data_;
   uint64_t num_keys_;
   int key_size_bytes_;
@@ -80,7 +88,7 @@ private:
 void FixedSizeKVInMemSSTableBuilder::add(const KVSlice &kv) {
   assert(kv.key_size_bytes() == key_size_bytes_);
   assert(kv.value_size_bytes() == value_size_bytes_);
-  char *kv_data = kv.data();
+  const char *kv_data = kv.data();
   for (int k_offset = 0; k_offset < key_size_bytes_; k_offset++) {
     data_.push_back(*(kv_data + k_offset));
   }
@@ -102,6 +110,6 @@ Iterator<KVSlice> *FixedSizeKVInMemSSTable::iterator() {
                                              value_size_bytes_, num_kv_);
 };
 
-} // namespace li_merge
+}  // namespace li_merge
 
-#endif // LEARNEDINDEXMERGE_IN_MEM_SSTABLE_H
+#endif  // LEARNEDINDEXMERGE_IN_MEM_SSTABLE_H
