@@ -15,7 +15,7 @@ public:
                           uint64_t num_kv)
       : data_(data), key_size_bytes_(key_size_bytes),
         value_size_bytes_(value_size_bytes), num_kv_(num_kv) {}
-  Iterator<KVSlice> *iterator() { return nullptr; };
+  Iterator<KVSlice> *iterator() override;
 
 private:
   char *data_;
@@ -48,20 +48,34 @@ private:
   Comparator<KVSlice> *comparator_;
 };
 
-/*
-template <class T>
 class FixedSizeKVInMemSSTableIterator : public Iterator<KVSlice> {
+  public:
   FixedSizeKVInMemSSTableIterator(char *data, int key_size_bytes,
-                                  int value_size_bytes)
+                                  int value_size_bytes, uint64_t num_keys)
       : data_(data), key_size_bytes_(key_size_bytes),
-        value_size_bytes_(value_size_bytes);
+        value_size_bytes_(value_size_bytes), num_keys_(num_keys), cur_idx_(0) {}
+  bool valid() override { return cur_idx_ < num_keys_; }
+  void next() override { cur_idx_++; }
+  KVSlice peek(uint64_t pos) override {
+    return KVSlice(get_kv_offset(pos), key_size_bytes_, value_size_bytes_);
+  }
+  void seekToFirst() override { cur_idx_ = 0; }
+  KVSlice key() override {
+    return KVSlice(get_kv_offset(cur_idx_), key_size_bytes_, value_size_bytes_);
+  }
+  uint64_t current_pos() override { return cur_idx_; }
+  uint64_t num_elts() override { return num_keys_; }
 
 private:
   char *data_;
+  uint64_t num_keys_;
   int key_size_bytes_;
   int value_size_bytes_;
+  uint64_t cur_idx_;
+  inline char *get_kv_offset(uint64_t pos) {
+    return data_ + (pos * (key_size_bytes_ + value_size_bytes_));
+  }
 };
-*/
 
 void FixedSizeKVInMemSSTableBuilder::add(const KVSlice &kv) {
   assert(kv.key_size_bytes() == key_size_bytes_);
@@ -82,6 +96,11 @@ SSTable<KVSlice> *FixedSizeKVInMemSSTableBuilder::build() {
   return new FixedSizeKVInMemSSTable(data_.data(), key_size_bytes_,
                                      value_size_bytes_, num_kv_);
 }
+
+Iterator<KVSlice> *FixedSizeKVInMemSSTable::iterator() {
+  return new FixedSizeKVInMemSSTableIterator(data_, key_size_bytes_,
+                                             value_size_bytes_, num_kv_);
+};
 
 } // namespace li_merge
 
