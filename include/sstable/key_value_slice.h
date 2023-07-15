@@ -24,6 +24,12 @@ public:
     memcpy(copy_buf, kv.data(), kv.total_size_bytes());
     return KVSlice(copy_buf, kv.key_size_bytes(), kv.value_size_bytes());
   }
+  void dump_kv() const {
+    for (int i = 0; i < key_size_bytes_ + value_size_bytes_; i++) {
+      printf("%02x ", *(unsigned char *)(data_ + i));
+    }
+    printf("\n");
+  }
 
 private:
   int key_size_bytes_;
@@ -79,8 +85,8 @@ public:
   POINT_FLOAT_TYPE toPoint(const KVSlice &a) override {
     POINT_FLOAT_TYPE point_x = 0.0;
     for (int i = 0; i < a.key_size_bytes(); i++) {
-      unsigned char *c = (unsigned char *)(a.data() + i);
-      point_x = point_x * 256.0 + (*c);
+      uint8_t c = *(a.data() + i);
+      point_x = point_x * 256.0 + c;
     }
     return point_x;
   }

@@ -5,6 +5,7 @@
 #include "disk_sstable.h"
 #include "key_value_slice.h"
 #include "merge.h"
+#include "pgm_index.h"
 #include "sstable.h"
 #include <nlohmann/json.hpp>
 
@@ -17,6 +18,7 @@ json run_standard_merge(json test_spec);
 json run_learned_merge(json test_spec);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
+KeyToPointConverter<KVSlice> *get_converter(json test_spec);
 SSTable<KVSlice> *load_sstable(std::string sstable_path, bool load_in_mem);
 
 json run_test(json test_spec) {
@@ -39,10 +41,42 @@ json run_standard_merge(json test_spec) {
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   standardMerge<KVSlice>(inner_table, outer_table, comparator,
                          result_table_builder);
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+  delete comparator;
+
   return result;
 }
 
-json run_learned_merge(json test_spec) { abort(); }
+json run_learned_merge(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  PgmIndexBuilder<KVSlice> *inner_index_builder =
+      new PgmIndexBuilder(0, get_converter(test_spec));
+  PgmIndexBuilder<KVSlice> *outer_index_builder =
+      new PgmIndexBuilder(0, get_converter(test_spec));
+  Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
+  Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+  mergeWithIndexes(inner_table, outer_table, inner_index, outer_index,
+                   comparator, result_table_builder);
+
+  delete inner_table;
+  delete outer_table;
+  delete inner_index_builder;
+  delete outer_index_builder;
+  delete result_table_builder;
+  delete inner_index;
+  delete outer_index;
+  delete comparator;
+
+  return result;
+}
 
 SSTable<KVSlice> *load_sstable(std::string path, bool load_in_mem) {
   FixedSizeKVDiskSSTable *table_disk = new FixedSizeKVDiskSSTable(path);
@@ -60,6 +94,17 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
     return new KVUint64Cmp();
   } else if (key_type == "str") {
     return new KVSliceMemcmp();
+  }
+  fprintf(stderr, "Unknown Key Type in test spec");
+  abort();
+}
+
+KeyToPointConverter<KVSlice> *get_converter(json test_spec) {
+  if (test_spec["key_type"] == "uint64") {
+    return new KVUint64ToDouble();
+  }
+  if (test_spec["key_type"] == "str") {
+    return new KVStringToDouble();
   }
   fprintf(stderr, "Unknown Key Type in test spec");
   abort();

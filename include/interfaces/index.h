@@ -34,6 +34,14 @@ Index<T> *build_index_from_iterator(Iterator<T> *iterator,
   return builder->build();
 }
 
+template <class T>
+Index<T> *build_index(SSTable<T> *table, IndexBuilder<T> *builder) {
+  Iterator<T> *iter = table->iterator();
+  Index<T> *index = build_index_from_iterator(iter, builder);
+  delete iter;
+  return index;
+}
+
 } // namespace li_merge
 
 #endif // LEARNEDINDEXMERGE_INDEX_H
