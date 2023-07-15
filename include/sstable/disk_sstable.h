@@ -54,9 +54,9 @@ public:
   }
   bool valid() override { return cur_idx_ < num_keys_; }
   void next() override { cur_idx_++; }
-  KVSlice peek(uint64_t pos) override { 
+  KVSlice peek(uint64_t pos) override {
     assert(pos < num_keys_);
-    return peek_kv_cache_->get_kv(pos); 
+    return peek_kv_cache_->get_kv(pos);
   }
   void seekToFirst() override { cur_idx_ = 0; }
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }

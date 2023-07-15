@@ -7,6 +7,7 @@
 #include "merge.h"
 #include "pgm_index.h"
 #include "sstable.h"
+#include "synthetic.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -16,6 +17,7 @@ namespace li_merge {
 json run_test(json test_spec);
 json run_standard_merge(json test_spec);
 json run_learned_merge(json test_spec);
+json create_input_sstable(json test_spec);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
 KeyToPointConverter<KVSlice> *get_converter(json test_spec);
@@ -26,9 +28,32 @@ json run_test(json test_spec) {
     return run_standard_merge(test_spec);
   } else if (test_spec["algo"] == "learned_merge") {
     return run_learned_merge(test_spec);
+  } else if (test_spec["algo"] == "create_input") {
+    return create_input_sstable(test_spec);
   }
   fprintf(stderr, "Unknown algorithm in testspec!");
   abort();
+}
+
+json create_input_sstable(json test_spec) {
+  json result;
+  std::string result_path = test_spec["path"];
+  int key_size_bytes = test_spec["key_size"];
+  int value_size_bytes = test_spec["value_size"];
+  uint64_t num_keys = test_spec["num_keys"];
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+
+  SSTableBuilder<KVSlice> *result_table_builder =
+    new FixedSizeKVDiskSSTableBuilder(result_path, key_size_bytes,
+                                             value_size_bytes);
+  if (test_spec["method"] == "uniform_dist") {
+    generate_uniform_random_distribution(num_keys, key_size_bytes, value_size_bytes, comparator, result_table_builder);
+  } else {
+    fprintf(stderr, "Unsupported input creation method!");
+    abort();
+  }
+  result['input_created'] = true;
+  return result;
 }
 
 json run_standard_merge(json test_spec) {
@@ -39,13 +64,24 @@ json run_standard_merge(json test_spec) {
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
+
+  auto merge_start = std::chrono::high_resolution_clock::now();
   standardMerge<KVSlice>(inner_table, outer_table, comparator,
                          result_table_builder);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      merge_end - merge_start)
+    .count();
+  float duration_sec = duration_ns / 1e9;
+
+
   delete inner_table;
   delete outer_table;
   delete result_table_builder;
   delete comparator;
 
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
   return result;
 }
 
@@ -63,8 +99,15 @@ json run_learned_merge(json test_spec) {
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+
+  auto merge_start = std::chrono::high_resolution_clock::now();
   mergeWithIndexes(inner_table, outer_table, inner_index, outer_index,
                    comparator, result_table_builder);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      merge_end - merge_start)
+    .count();
+  float duration_sec = duration_ns / 1e9;
 
   delete inner_table;
   delete outer_table;
@@ -74,6 +117,8 @@ json run_learned_merge(json test_spec) {
   delete inner_index;
   delete outer_index;
   delete comparator;
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
 
   return result;
 }

@@ -24,7 +24,7 @@ include_directories(include/sstable)
 include_directories(third_party/pgm/include)
 
 add_executable(benchmark_runner src/test_runner.cpp include/sstable/disk_sstable.h)
-target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json OpenSSL::SSL tbb)
 
 enable_testing()
 add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
