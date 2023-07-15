@@ -3,6 +3,12 @@
 
 #define PAGE_SIZE 4096
 
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 class FilePageCache {
 public:
   // Return a pointer to buffer containing bytes from that pge.
@@ -19,8 +25,8 @@ public:
   char *get_page(uint64_t page_idx) override {
     if (!is_buffer_loaded_ || page_idx != cur_page_idx_) {
       // We assume that a page can always be read in a single pread call.
-      int bytes_read = pread(fd_, buffer_, PAGE_SIZE,
-                             start_offset_ + page_idx * PAGE_SIZE);
+      int bytes_read =
+          pread(fd_, buffer_, PAGE_SIZE, start_offset_ + page_idx * PAGE_SIZE);
       if (bytes_read < 0) {
         perror("pread");
         abort();

@@ -1,6 +1,8 @@
 #ifndef LEARNEDINDEXMERGE_ITERATOR_H
 #define LEARNEDINDEXMERGE_ITERATOR_H
 
+#include <stdint.h>
+
 namespace li_merge {
 template <class T> class Iterator {
 public:

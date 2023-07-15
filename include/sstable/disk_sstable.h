@@ -2,10 +2,10 @@
 #define LEARNEDINDEXMERGE_DISK_SSTABLE_H
 
 #include "file_page_cache.h"
+#include "in_mem_sstable.h"
 #include "iterator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
-#include "in_mem_sstable.h"
 #include <assert.h>
 #include <fcntl.h>
 #include <string>
@@ -90,7 +90,8 @@ public:
       builder->add(iter->key());
       iter->next();
     }
-    FixedSizeKVInMemSSTable *in_mem_table = (FixedSizeKVInMemSSTable *)builder->build();
+    FixedSizeKVInMemSSTable *in_mem_table =
+        (FixedSizeKVInMemSSTable *)builder->build();
     delete iter;
     return in_mem_table;
   }

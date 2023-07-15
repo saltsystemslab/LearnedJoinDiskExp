@@ -2,10 +2,10 @@
 #define LEARNEDMERGE_INDEX_TEST_RUNNER_H
 
 #include "comparator.h"
-#include "sstable.h"
+#include "disk_sstable.h"
 #include "key_value_slice.h"
 #include "merge.h"
-#include "disk_sstable.h"
+#include "sstable.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -37,7 +37,8 @@ json run_standard_merge(json test_spec) {
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  standard_merge<KVSlice>(inner_table, outer_table, comparator, result_table_builder);
+  standardMerge<KVSlice>(inner_table, outer_table, comparator,
+                         result_table_builder);
   return result;
 }
 
@@ -69,7 +70,7 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
   int key_size_bytes = test_spec["key_size"];
   int value_size_bytes = test_spec["value_size"];
   if (write_result_to_disk) {
-  std::string result_file = test_spec["result_file"];
+    std::string result_file = test_spec["result_file"];
     return new FixedSizeKVDiskSSTableBuilder(result_file, key_size_bytes,
                                              value_size_bytes);
   } else {
@@ -77,6 +78,6 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
         0, key_size_bytes, value_size_bytes, get_comparator(test_spec));
   }
 }
-}
+} // namespace li_merge
 
 #endif

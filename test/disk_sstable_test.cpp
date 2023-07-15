@@ -6,7 +6,7 @@
 namespace li_merge {
 
 void dump_kv(KVSlice *kv) {
-  for (int i=0; i<kv->key_size_bytes() + kv->value_size_bytes(); i++) {
+  for (int i = 0; i < kv->key_size_bytes() + kv->value_size_bytes(); i++) {
     printf("%02x ", *(unsigned char *)(kv->data() + i));
   }
   printf("\n");

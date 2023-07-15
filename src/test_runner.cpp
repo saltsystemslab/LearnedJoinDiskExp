@@ -1,3 +1,4 @@
+#include "runner.h"
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -13,5 +14,6 @@ int main(int argc, char **argv) {
   std::ifstream benchmark_ifstream(benchmark_spec_path);
   json benchmark_spec = json::parse(benchmark_ifstream);
 
+  li_merge::run_test(benchmark_spec);
   return 0;
 }
