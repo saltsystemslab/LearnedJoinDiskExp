@@ -163,7 +163,7 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
   uint64_t approx_pos =
       smallest->index->getApproxPosition(second_smallest->iter->key());
   approx_pos = std::max(approx_pos, smallest->iter->current_pos());
-  approx_pos = std::min(approx_pos, smallest->iter->num_elts()-1);
+  approx_pos = std::min(approx_pos, smallest->iter->num_elts() - 1);
   bool is_overshoot = false;
   while (comparator->compare(smallest->iter->peek(approx_pos),
                              second_smallest->iter->key()) > 0) {
