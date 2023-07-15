@@ -1,6 +1,7 @@
 #ifndef LEARNEDINDEXMERGE_DISK_SSTABLE_H
 #define LEARNEDINDEXMERGE_DISK_SSTABLE_H
 
+#include "file_page_cache.h"
 #include "iterator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
@@ -9,60 +10,48 @@
 #include <string>
 #include <unistd.h>
 
-// 8 bytes num_keys, 4 bytes key_size, 4 bytes value size
 #define HEADER_SIZE 16
-#define BUFFER_SIZE 4096
 
 namespace li_merge {
 
-class DiskSingleBlockCache {
+// TODO(chesetti): Extract SSTable Header into own class.
+
+class FixedKSizeKVFileCache {
 public:
-  DiskSingleBlockCache(int fd, int kv_size_bytes,
-                       uint64_t file_block_size_bytes,
-                       uint64_t file_start_offset)
-      : buffer_(new char[file_block_size_bytes]), fd_(fd),
-        kv_size_bytes_(kv_size_bytes),
-        file_block_size_bytes_(file_block_size_bytes), buffer_loaded_(false),
-        file_start_offset_(file_start_offset) {
-    if (file_block_size_bytes % kv_size_bytes != 0) {
-      fprintf(stderr, "KV size not aligned with Block Size");
-      abort();
-    }
+  FixedKSizeKVFileCache(int fd, int key_size_bytes, int value_size_bytes,
+                        uint64_t file_start_offset)
+      : file_page_cache_(new FileSinglePageCache(fd, file_start_offset)),
+        key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),
+        kv_size_bytes_(key_size_bytes + value_size_bytes) {}
+  KVSlice get_kv(uint64_t kv_idx) {
+    uint64_t page_idx = (kv_idx * kv_size_bytes_) / PAGE_SIZE;
+    uint64_t page_offset = (kv_idx * kv_size_bytes_) % PAGE_SIZE;
+    char *page_data = file_page_cache_->get_page(page_idx);
+    return KVSlice(page_data + page_offset, key_size_bytes_, value_size_bytes_);
   }
-  ~DiskSingleBlockCache() { delete[] buffer_; }
-  char *read(uint64_t kv_idx);
 
 private:
-  int fd_;
-  char *buffer_;
-  bool buffer_loaded_;
-  uint64_t file_block_size_bytes_;
-  uint64_t file_start_offset_;
   int kv_size_bytes_;
-  uint64_t cur_block_idx_;
-  void loadBlock(uint64_t block_idx);
+  int key_size_bytes_;
+  int value_size_bytes_;
+  FilePageCache *file_page_cache_;
 };
 
 class FixedSizeKVDiskSSTableIterator : public Iterator<KVSlice> {
 public:
-  FixedSizeKVDiskSSTableIterator(std::string file_path_) : curBuffer_(0) {
+  FixedSizeKVDiskSSTableIterator(std::string file_path_) : cur_idx_(0) {
     fd_ = open(file_path_.c_str(), O_RDONLY);
     readHeader();
-    curBuffer_ =
-        new DiskSingleBlockCache(fd_, kv_size_bytes_, BUFFER_SIZE, HEADER_SIZE);
-    peekBuffer_ =
-        new DiskSingleBlockCache(fd_, kv_size_bytes_, BUFFER_SIZE, HEADER_SIZE);
+    cur_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
+                                              value_size_bytes_, HEADER_SIZE);
+    peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
+                                               value_size_bytes_, HEADER_SIZE);
   }
   bool valid() override { return cur_idx_ < num_keys_; }
   void next() override { cur_idx_++; }
-  KVSlice peek(uint64_t pos) override {
-    return KVSlice(peekBuffer_->read(pos), key_size_bytes_, value_size_bytes_);
-  }
+  KVSlice peek(uint64_t pos) override { return peek_kv_cache_->get_kv(pos); }
   void seekToFirst() override { cur_idx_ = 0; }
-  KVSlice key() override {
-    return KVSlice(curBuffer_->read(cur_idx_), key_size_bytes_,
-                   value_size_bytes_);
-  }
+  KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
   uint64_t current_pos() override { return cur_idx_; }
   uint64_t num_elts() override { return num_keys_; }
 
@@ -73,8 +62,8 @@ private:
   int key_size_bytes_;
   int value_size_bytes_;
   int kv_size_bytes_;
-  DiskSingleBlockCache *curBuffer_;
-  DiskSingleBlockCache *peekBuffer_;
+  FixedKSizeKVFileCache *cur_kv_cache_;
+  FixedKSizeKVFileCache *peek_kv_cache_;
   void readHeader();
 };
 
@@ -92,13 +81,12 @@ private:
 class FixedSizeKVDiskSSTableBuilder : public SSTableBuilder<KVSlice> {
 public:
   FixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
-                                int value_size_bytes,
-                                uint64_t buffer_size = BUFFER_SIZE)
+                                int value_size_bytes)
       : file_path_(file_path), key_size_bytes_(key_size_bytes),
         value_size_bytes_(value_size_bytes),
         kv_size_bytes_(key_size_bytes + value_size_bytes),
-        buffer_(new char[buffer_size]), buffer_offset_(0),
-        buffer_size_(buffer_size), file_start_offset_(HEADER_SIZE),
+        buffer_(new char[PAGE_SIZE]), buffer_offset_(0),
+        buffer_size_(PAGE_SIZE), file_start_offset_(HEADER_SIZE),
         file_cur_offset_(0), num_keys_(0) {
     remove(file_path.c_str());
     fd_ = open(file_path.c_str(), O_WRONLY | O_CREAT, 0644);
@@ -133,26 +121,6 @@ private:
 };
 
 // ========= IMPLEMENTATTION ===============
-
-char *DiskSingleBlockCache::read(uint64_t kv_idx) {
-  uint64_t block_idx = (kv_idx * kv_size_bytes_) / (file_block_size_bytes_);
-  uint64_t block_offset = (kv_idx * kv_size_bytes_) % (file_block_size_bytes_);
-  if (!buffer_loaded_ || block_idx != cur_block_idx_) {
-    loadBlock(cur_block_idx_);
-  }
-  return buffer_ + block_offset;
-}
-
-void DiskSingleBlockCache::loadBlock(uint64_t block_idx) {
-  uint64_t bytes_read = 0;
-  while (bytes_read < file_block_size_bytes_) {
-    bytes_read += pread(
-        fd_, buffer_ + bytes_read, file_block_size_bytes_ - bytes_read,
-        file_start_offset_ + block_idx * file_block_size_bytes_ + bytes_read);
-  }
-  cur_block_idx_ = block_idx;
-  buffer_loaded_ = true;
-}
 
 void FixedSizeKVDiskSSTableBuilder::writeHeader() {
   char header[HEADER_SIZE];
