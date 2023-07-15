@@ -2,6 +2,7 @@
 #define LEARNEDINDEXMERGE_KEY_VALUE_SLICE_H
 
 #include <cstring>
+#include <cassert>
 
 #include "comparator.h"
 #include "config.h"

@@ -89,7 +89,7 @@ void FixedSizeKVInMemSSTableBuilder::add(const KVSlice &kv) {
        v_offset++) {
     data_.push_back(*(kv_data + v_offset));
   }
-  assert(num_kv_ == 0 || comparator_->compare(kv, last_kv_) >= 0);
+  assert(num_kv_ == 0 || comparator_==nullptr || comparator_->compare(kv, last_kv_) >= 0);
   last_kv_ = KVSlice::copy_kvslice(last_key_buf_, kv);
   num_kv_++;
 }

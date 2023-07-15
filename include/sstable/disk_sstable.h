@@ -5,6 +5,7 @@
 #include "iterator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
+#include "in_mem_sstable.h"
 #include <assert.h>
 #include <fcntl.h>
 #include <string>
@@ -47,6 +48,10 @@ public:
     peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
                                                value_size_bytes_, HEADER_SIZE);
   }
+  ~FixedSizeKVDiskSSTableIterator() {
+    delete cur_kv_cache_;
+    delete peek_kv_cache_;
+  }
   bool valid() override { return cur_idx_ < num_keys_; }
   void next() override { cur_idx_++; }
   KVSlice peek(uint64_t pos) override { return peek_kv_cache_->get_kv(pos); }
@@ -69,13 +74,33 @@ private:
 
 class FixedSizeKVDiskSSTable : public SSTable<KVSlice> {
 public:
-  FixedSizeKVDiskSSTable(std::string file_path) : file_path_(file_path) {}
+  FixedSizeKVDiskSSTable(std::string file_path) : file_path_(file_path) {
+    readHeader();
+  }
   Iterator<KVSlice> *iterator() override {
     return new FixedSizeKVDiskSSTableIterator(file_path_);
   }
+  FixedSizeKVInMemSSTable *load_sstable_in_mem() {
+    FixedSizeKVInMemSSTableBuilder *builder =
+        new FixedSizeKVInMemSSTableBuilder(0, key_size_bytes_,
+                                           value_size_bytes_, nullptr);
+    Iterator<KVSlice> *iter = this->iterator();
+    iter->seekToFirst();
+    while (iter->valid()) {
+      builder->add(iter->key());
+      iter->next();
+    }
+    FixedSizeKVInMemSSTable *in_mem_table = (FixedSizeKVInMemSSTable *)builder->build();
+    delete iter;
+    return in_mem_table;
+  }
 
 private:
+  uint64_t num_keys_;
+  int key_size_bytes_;
+  int value_size_bytes_;
   std::string file_path_;
+  void readHeader();
 };
 
 class FixedSizeKVDiskSSTableBuilder : public SSTableBuilder<KVSlice> {
@@ -167,6 +192,19 @@ void FixedSizeKVDiskSSTableIterator::readHeader() {
   key_size_bytes_ = *((int *)(header + 8));
   value_size_bytes_ = *((int *)(header + 12));
   kv_size_bytes_ = key_size_bytes_ + value_size_bytes_;
+}
+
+void FixedSizeKVDiskSSTable::readHeader() {
+  int fd = open(file_path_.c_str(), O_RDONLY);
+  char header[16];
+  uint64_t bytes_read = 0;
+  while (bytes_read < HEADER_SIZE) {
+    bytes_read += pread(fd, header, HEADER_SIZE - bytes_read, bytes_read);
+  }
+  num_keys_ = *((uint64_t *)(header));
+  key_size_bytes_ = *((int *)(header + 8));
+  value_size_bytes_ = *((int *)(header + 12));
+  close(fd);
 }
 
 } // namespace li_merge
