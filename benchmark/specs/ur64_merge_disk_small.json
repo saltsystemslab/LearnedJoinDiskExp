@@ -1,6 +1,6 @@
 {
   "name": "uniform_random_64bit keys, 64 bit values",
-  "dir": "test_runs/ur_uint64KV_disk",
+  "dir": "test_runs/ur_uint64KV_disk_small",
   "inputs": {
     "common": {
       "key_size": 8,
@@ -12,32 +12,32 @@
     },
     "list": [
       {
-        "name": "10M_1",
-        "num_keys": 10000000
+        "name": "10K_1",
+        "num_keys": 10000
       },
       {
-        "name": "10M_2",
-        "num_keys": 10000000
+        "name": "10K_2",
+        "num_keys": 10000
       },
       {
-        "name": "20M",
-        "num_keys": 20000000
+        "name": "20K",
+        "num_keys": 20000
       },
       {
-        "name": "50M",
-        "num_keys": 50000000
+        "name": "50K",
+        "num_keys": 50000
       },
       {
-        "name": "100M",
-        "num_keys": 100000000
+        "name": "100K",
+        "num_keys": 100000
       },
       {
-        "name": "500M",
-        "num_keys": 500000000
+        "name": "500K",
+        "num_keys": 500000
       },
       {
-        "name": "1000M",
-        "num_keys": 1000000000
+        "name": "1000K",
+        "num_keys": 1000000
       }
     ]
   },
@@ -65,32 +65,46 @@
   "tests": {
     "list": [
       {
-        "dir": "10M_to_10M",
+        "dir": "10K_to_10K",
         "label": "1:1",
         "label_x": 1,
-        "inner_table": "10M_1",
-        "outer_table": "20M"
+        "inner_table": "10K_1",
+        "outer_table": "20K"
       },
       {
-        "dir": "10M_to_20M",
+        "dir": "10K_to_20K",
         "label": "1:2",
         "label_x": 2,
-        "inner_table": "10M_1",
-        "outer_table": "20M"
+        "inner_table": "10K_1",
+        "outer_table": "20K"
       },
       {
-        "dir": "10M_to_50M",
+        "dir": "10K_to_50K",
         "label": "1:5",
         "label_x": 5,
-        "inner_table": "10M_1",
-        "outer_table": "50M"
+        "inner_table": "10K_1",
+        "outer_table": "50K"
       },
       {
-        "dir": "10M_to_100M",
+        "dir": "10K_to_100K",
         "label": "1:10",
         "label_x": 10,
-        "inner_table": "10M_1",
-        "outer_table": "100M"
+        "inner_table": "10K_1",
+        "outer_table": "100K"
+      },
+      {
+        "dir": "10K_to_500K",
+        "label": "1:50",
+        "label_x": 50,
+        "inner_table": "10K_1",
+        "outer_table": "500K"
+      },
+      {
+        "dir": "10K_to_1000K",
+        "label": "1:100",
+        "label_x": 100,
+        "inner_table": "10K_1",
+        "outer_table": "1000K"
       }
     ]
   },
