@@ -23,6 +23,8 @@ include_directories(include/indexes)
 include_directories(include/sstable)
 include_directories(third_party/pgm/include)
 
+li
+
 add_executable(benchmark_runner src/test_runner.cpp include/sstable/disk_sstable.h)
 target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json OpenSSL::SSL tbb)
 
