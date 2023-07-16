@@ -2,12 +2,12 @@
 #define LEARNEDMERGE_INDEX_TEST_RUNNER_H
 
 #include "comparator.h"
+#include "dataset.h"
 #include "disk_sstable.h"
 #include "key_value_slice.h"
 #include "merge.h"
 #include "pgm_index.h"
 #include "rbtree_index.h"
-#include "dataset.h"
 #include "sstable.h"
 #include "synthetic.h"
 #include <nlohmann/json.hpp>
@@ -55,18 +55,18 @@ json create_input_sstable(json test_spec) {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
-    generate_from_datafile(fd, 8, key_size_bytes,
-                       value_size_bytes, num_keys_in_dataset, num_keys,
-                       get_result_builder(test_spec));
+    generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
+                           num_keys_in_dataset, num_keys,
+                           get_result_builder(test_spec));
     close(fd);
   } else if (test_spec["method"] == "from_ar") {
     // TODO(chesetti): Follow the same header format as sosd.
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_ar(fd);
-    generate_from_datafile(fd, 16, key_size_bytes,
-                       value_size_bytes, num_keys_in_dataset, num_keys,
-                       get_result_builder(test_spec));
+    generate_from_datafile(fd, 16, key_size_bytes, value_size_bytes,
+                           num_keys_in_dataset, num_keys,
+                           get_result_builder(test_spec));
     close(fd);
   } else {
     fprintf(stderr, "Unsupported input creation method!");

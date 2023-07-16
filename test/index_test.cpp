@@ -33,7 +33,8 @@ TEST(IndexCreationTest, TestRbTree) {
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
-  IndexBuilder<KVSlice> *builder = new RbTreeIndexBuilder(comparator, key_size_bytes);
+  IndexBuilder<KVSlice> *builder =
+      new RbTreeIndexBuilder(comparator, key_size_bytes);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
 }
