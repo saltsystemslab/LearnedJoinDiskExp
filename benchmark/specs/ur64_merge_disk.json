@@ -1,0 +1,79 @@
+{
+  "name": "uniform_random_64bit keys, 64 bit values",
+  "dir": "test_runs/ur_uint64KV_disk",
+  "inputs": {
+    "common": {
+      "key_size": 8,
+      "value_size": 8,
+      "key_type": "uint64",
+      "method": "uniform_dist",
+      "algo": "create_input",
+      "write_result_to_disk": true
+    },
+    "list": [
+      {
+        "name": "10M_1",
+        "num_keys": 100
+      },
+      {
+        "name": "10M_2",
+        "num_keys": 100
+      },
+      {
+        "name": "20M",
+        "num_keys": 2000
+      },
+      {
+        "name": "50M",
+        "num_keys": 5000
+      },
+      {
+        "name": "100M",
+        "num_keys": 10000
+      }
+    ]
+  },
+  "algos": {
+    "common": {
+      "key_size": 8,
+      "value_size": 8,
+      "key_type": "uint64",
+      "load_sstable_in_mem": false,
+      "write_result_to_disk": true
+    },
+    "list": [
+      {
+        "name": "standard_merge",
+        "algo": "standard_merge"
+      },
+      {
+        "name": "PGM_64",
+        "algo": "learned_merge",
+        "index": "pgm64"
+      }
+    ]
+  },
+  "tests": {
+    "list": [
+      {
+        "dir": "10M_to_10M",
+        "label": "1:1",
+        "inner_table": "10M_1",
+        "outer_table": "20M"
+      },
+      {
+        "dir": "10M_to_20M",
+        "label": "1:2",
+        "inner_table": "10M_1",
+        "outer_table": "20M"
+      },
+      {
+        "dir": "10M_to_50M",
+        "label": "1:5",
+        "inner_table": "10M_1",
+        "outer_table": "50M"
+      }
+    ]
+  },
+  "report_format": "csv"
+}

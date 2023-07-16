@@ -37,22 +37,28 @@ json run_test(json test_spec) {
 
 json create_input_sstable(json test_spec) {
   json result;
-  std::string result_path = test_spec["path"];
+  std::string result_path = test_spec["result_path"];
   int key_size_bytes = test_spec["key_size"];
   int value_size_bytes = test_spec["value_size"];
   uint64_t num_keys = test_spec["num_keys"];
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-
-  SSTableBuilder<KVSlice> *result_table_builder =
-    new FixedSizeKVDiskSSTableBuilder(result_path, key_size_bytes,
-                                             value_size_bytes);
+  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+  auto merge_start = std::chrono::high_resolution_clock::now();
   if (test_spec["method"] == "uniform_dist") {
     generate_uniform_random_distribution(num_keys, key_size_bytes, value_size_bytes, comparator, result_table_builder);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
     abort();
   }
-  result['input_created'] = true;
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      merge_end - merge_start)
+    .count();
+  float duration_sec = duration_ns / 1e9;
+  result["input_created"] = true;
+  result["duration_sec"] = duration_sec;
+
+  delete comparator;
   return result;
 }
 
@@ -160,7 +166,7 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
   int key_size_bytes = test_spec["key_size"];
   int value_size_bytes = test_spec["value_size"];
   if (write_result_to_disk) {
-    std::string result_file = test_spec["result_file"];
+    std::string result_file = test_spec["result_path"];
     return new FixedSizeKVDiskSSTableBuilder(result_file, key_size_bytes,
                                              value_size_bytes);
   } else {

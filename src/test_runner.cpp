@@ -13,7 +13,11 @@ int main(int argc, char **argv) {
   std::string benchmark_spec_path(argv[1]);
   std::ifstream benchmark_ifstream(benchmark_spec_path);
   json benchmark_spec = json::parse(benchmark_ifstream);
-  json output = li_merge::run_test(benchmark_spec);
-  printf("%s\n", output.dump().c_str());
+  json benchmark_output = li_merge::run_test(benchmark_spec);
+
+  json result;
+  result["spec"] = benchmark_spec;
+  result["result"] = benchmark_output;
+  printf("%s\n", result.dump().c_str());
   return 0;
 }
