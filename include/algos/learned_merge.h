@@ -25,9 +25,9 @@ public:
                             IteratorBuilder<T> *result) {
 #if TRACK_STATS
     comparator = new CountingComparator<T>(comparator);
-    cluster_count_fd = open("./DB/cluster.txt", O_WRONLY | O_CREAT | O_TRUNC,
+    cluster_count_fd = open("./cluster.txt", O_WRONLY | O_CREAT | O_TRUNC,
                             S_IRUSR | S_IWUSR);
-    plr_error_fd = open("./DB/plr_error.txt", O_WRONLY | O_CREAT | O_TRUNC,
+    plr_error_fd = open("./plr_error.txt", O_WRONLY | O_CREAT | O_TRUNC,
                         S_IRUSR | S_IWUSR);
     cluster_file_offset = 0;
     plr_error_offset = 0;
@@ -102,7 +102,7 @@ private:
           "overshoot," + std::to_string(overshoot_error) + ",\n";
       plr_error_offset +=
           pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
-    printf("%s\n", entry.c_str());
+    // printf("%s\n", entry.c_str());
 #endif
     }
     // Blind copy until approx_pos
@@ -139,7 +139,7 @@ private:
 #if TRACK_STATS
     undershoot_error++; // 1 for the exit.
     std::string entry = "undershoot," + std::to_string(undershoot_error) + "\n";
-    printf("%s\n", entry.c_str());
+    // printf("%s\n", entry.c_str());
     plr_error_offset +=
         pwrite(plr_error_fd, entry.c_str(), entry.size(), plr_error_offset);
     entry = smallest->id() + "," + std::to_string(cluster_length) + ",\n";

@@ -120,7 +120,7 @@ void fill_lists_from_datafile(BenchmarkInput *input) {
     printf("%ld\n", num_keys); fflush(stdout);
     // Indexes of keys that will go into first list.
     // The second list might include them (for a join) or exclude these keys.
-    set<uint64_t> split_keys_index; // = generate_uniform_split(num_keys, input->split_fraction);
+    set<uint64_t> split_keys_index = generate_uniform_split(num_keys, input->split_fraction);
 
     int fd = open(input->datafile_path.c_str(), O_RDONLY);
     SliceFileIterator datafile(fd, header_size, num_keys, key_size_bytes, "dataset");

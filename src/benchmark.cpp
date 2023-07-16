@@ -41,7 +41,7 @@ static bool FLAGS_print_result = false;
 static bool FLAGS_print_input = false;
 static vector<uint64_t> FLAGS_num_keys;
 static MergeMode FLAGS_merge_mode = STANDARD_MERGE;
-static IndexType FLAGS_learned_index = PGM;
+static IndexType FLAGS_learned_index = NO_MODEL;
 static int FLAGS_num_threads = 3;
 static int FLAGS_num_sort_threads = 4;
 static bool FLAGS_assert_sort = false;
