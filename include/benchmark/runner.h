@@ -8,6 +8,7 @@
 #include "merge.h"
 #include "pgm_index.h"
 #include "rbtree_index.h"
+#include "greedy_plr_index.h"
 #include "sstable.h"
 #include "synthetic.h"
 #include <nlohmann/json.hpp>
@@ -176,6 +177,8 @@ IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);
+  } else if (index_type == "plr64") {
+    return new GreedyPLRIndexBuilder<KVSlice>(64, get_converter(test_spec));
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();

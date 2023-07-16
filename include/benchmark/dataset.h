@@ -1,12 +1,16 @@
 #ifndef LEARNEDINDEXMERGE_MERGE_SOSD_DATASET_H
 #define LEARNEDINDEXMERGE_MERGE_SOSD_DATASET_H
 
+#include "disk_sstable.h"
 #include "key_value_slice.h"
+#include "sstable.h"
 #include <fcntl.h>
 #include <openssl/rand.h>
 #include <random>
 #include <set>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 namespace li_merge {
 

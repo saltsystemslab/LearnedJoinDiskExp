@@ -26,12 +26,24 @@
       },
       {
         "name": "200K",
+        "num_keys": 200000
+      },
+      {
+        "name": "2M",
         "num_keys": 2000000
+      },
+      {
+        "name": "13M",
+        "num_keys": 13000000
+      },
+      {
+        "name": "130M",
+        "num_keys": 130000000
       }
     ]
   },
   "algos": {
-    "repeat": 3,
+    "repeat": 5,
     "common": {
       "key_size": 16,
       "value_size": 0,
@@ -48,6 +60,11 @@
         "name": "learned_merge(PGM_64)",
         "algo": "learned_merge",
         "index": "pgm64"
+      },
+      {
+        "name": "learned_merge(PLR_64)",
+        "algo": "learned_merge",
+        "index": "plr64"
       },
       {
         "name": "RbTree",
@@ -78,6 +95,27 @@
         "label_x": 20,
         "inner_table": "10K_1",
         "outer_table": "200K"
+      },
+      {
+        "dir": "200K_to_2M",
+        "label": "1:10",
+        "label_x": 20000,
+        "inner_table": "200K",
+        "outer_table": "2M"
+      },
+      {
+        "dir": "2M_to_130M",
+        "label": "1:10",
+        "label_x": 130000,
+        "inner_table": "2M",
+        "outer_table": "130M"
+      },
+      {
+        "dir": "13M_to_130M",
+        "label": "1:10",
+        "label_x": 100000,
+        "inner_table": "13M",
+        "outer_table": "130M"
       }
     ]
   },

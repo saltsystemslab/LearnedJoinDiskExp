@@ -3,6 +3,8 @@
 
 #include <cassert>
 #include <cstring>
+#include <stdint.h>
+#include <stdio.h>
 
 #include "comparator.h"
 #include "config.h"

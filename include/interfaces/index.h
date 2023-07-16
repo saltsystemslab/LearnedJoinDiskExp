@@ -3,6 +3,8 @@
 
 #include "iterator.h"
 #include <unistd.h>
+#include "sstable.h"
+#include "index.h"
 
 namespace li_merge {
 struct Bounds {
