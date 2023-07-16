@@ -40,6 +40,9 @@ def main():
         with open(input_json_path, "w") as out:
             out.write(json.dumps(input_json, indent=4))
         result = subprocess.run([runner_bin, input_json_path], capture_output=True, text=True)
+        print("Generating input: " + input_json_path)
+        print("STDOUT: " + result.stdout)
+        print("STDERR: " + result.stderr)
         result_json = json.loads(result.stdout)
         results['input_creation'].append(result_json)
 

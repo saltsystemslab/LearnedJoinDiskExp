@@ -6,9 +6,10 @@
 #include "key_value_slice.h"
 #include "merge.h"
 #include "pgm_index.h"
+#include "rbtree_index.h"
+#include "dataset.h"
 #include "sstable.h"
 #include "synthetic.h"
-#include "rbtree_index.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -50,6 +51,23 @@ json create_input_sstable(json test_spec) {
     generate_uniform_random_distribution(num_keys, key_size_bytes,
                                          value_size_bytes, comparator,
                                          result_table_builder);
+  } else if (test_spec["method"] == "from_sosd") {
+    std::string source = test_spec["source"];
+    int fd = open(source.c_str(), O_RDONLY);
+    uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
+    generate_from_datafile(fd, 8, key_size_bytes,
+                       value_size_bytes, num_keys_in_dataset, num_keys,
+                       get_result_builder(test_spec));
+    close(fd);
+  } else if (test_spec["method"] == "from_ar") {
+    // TODO(chesetti): Follow the same header format as sosd.
+    std::string source = test_spec["source"];
+    int fd = open(source.c_str(), O_RDONLY);
+    uint64_t num_keys_in_dataset = get_num_keys_from_ar(fd);
+    generate_from_datafile(fd, 16, key_size_bytes,
+                       value_size_bytes, num_keys_in_dataset, num_keys,
+                       get_result_builder(test_spec));
+    close(fd);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
     abort();
@@ -156,7 +174,8 @@ IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
   if (index_type == "pgm64") {
     return new PgmIndexBuilder(0, get_converter(test_spec));
   } else if (index_type == "rbtree") {
-    return new RbTreeIndexBuilder(get_comparator(test_spec), test_spec["key_size"]);
+    return new RbTreeIndexBuilder(get_comparator(test_spec),
+                                  test_spec["key_size"]);
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();
