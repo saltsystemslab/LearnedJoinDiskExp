@@ -4,6 +4,7 @@
 #include "index.h"
 #include "key_to_point.h"
 #include "pgm_index.h"
+#include "rbtree_index.h"
 #include "synthetic.h"
 
 namespace li_merge {
@@ -18,6 +19,23 @@ void check_index(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
     iterator->next();
     pos = pos + 1;
   }
+}
+
+TEST(IndexCreationTest, TestRbTree) {
+  uint64_t num_elts = 10000000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVUint64Cmp();
+  KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
+  SSTable<KVSlice> *table = generate_uniform_random_distribution(
+      num_elts, key_size_bytes, value_size_bytes, comparator,
+      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+                                         value_size_bytes, comparator));
+
+  Iterator<KVSlice> *iterator = table->iterator();
+  IndexBuilder<KVSlice> *builder = new RbTreeIndexBuilder(comparator, key_size_bytes);
+  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  check_index(iterator, index);
 }
 
 TEST(IndexCreationTest, TestPGMUInt64) {

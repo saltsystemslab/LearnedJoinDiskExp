@@ -1,11 +1,11 @@
 {
   "name": "uniform_random_64bit keys, 64 bit values",
-  "dir": "test_runs/ur_uint64KV_disk_small",
+  "dir": "test_runs/ur_uint64KV_disk_small_str",
   "inputs": {
     "common": {
       "key_size": 8,
       "value_size": 8,
-      "key_type": "uint64",
+      "key_type": "str",
       "method": "uniform_dist",
       "algo": "create_input",
       "write_result_to_disk": true
@@ -42,11 +42,11 @@
     ]
   },
   "algos": {
-    "repeat": 3,
+    "repeat": 5,
     "common": {
       "key_size": 8,
       "value_size": 8,
-      "key_type": "uint64",
+      "key_type": "str",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true
     },
@@ -59,6 +59,11 @@
         "name": "learned_merge(PGM_64)",
         "algo": "learned_merge",
         "index": "pgm64"
+      },
+      {
+        "name": "RbTree",
+        "algo": "learned_merge",
+        "index": "rbtree"
       }
     ]
   },
@@ -69,7 +74,7 @@
         "label": "1:1",
         "label_x": 1,
         "inner_table": "10K_1",
-        "outer_table": "20K"
+        "outer_table": "10K_2"
       },
       {
         "dir": "10K_to_20K",

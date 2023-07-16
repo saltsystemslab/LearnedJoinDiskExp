@@ -14,6 +14,7 @@ def main():
     if len(sys.argv) < 2:
         print("Please specify input benchmark JSON spec")
         exit()
+    subprocess.run(['cmake', '--clean', 'bench_release'])
     subprocess.run(['cmake', '-B', 'bench_release', '-DCMAKE_BUILD_TYPE=Release', '-S', '.'])
     subprocess.run(['cmake', '--build', 'bench_release', '-j', '6'])
     benchmark_file = open(sys.argv[1])
@@ -68,6 +69,8 @@ def main():
     random.shuffle(run_configs)
     for run_config in run_configs:
         result = subprocess.run([runner_bin, run_config], capture_output=True, text=True)
+        print("RunConfig: " + run_config)
+        print("Output:" + result.stdout)
         result_json = json.loads(result.stdout)
         results['test_results'].append(result_json);
         results_table.append(

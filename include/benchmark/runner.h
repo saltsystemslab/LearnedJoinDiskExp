@@ -8,6 +8,7 @@
 #include "pgm_index.h"
 #include "sstable.h"
 #include "synthetic.h"
+#include "rbtree_index.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -20,6 +21,7 @@ json run_learned_merge(json test_spec);
 json create_input_sstable(json test_spec);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
+IndexBuilder<KVSlice> *get_index_builder(json test_spec);
 KeyToPointConverter<KVSlice> *get_converter(json test_spec);
 SSTable<KVSlice> *load_sstable(std::string sstable_path, bool load_in_mem);
 
@@ -45,15 +47,17 @@ json create_input_sstable(json test_spec) {
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   auto merge_start = std::chrono::high_resolution_clock::now();
   if (test_spec["method"] == "uniform_dist") {
-    generate_uniform_random_distribution(num_keys, key_size_bytes, value_size_bytes, comparator, result_table_builder);
+    generate_uniform_random_distribution(num_keys, key_size_bytes,
+                                         value_size_bytes, comparator,
+                                         result_table_builder);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
     abort();
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      merge_end - merge_start)
-    .count();
+                         merge_end - merge_start)
+                         .count();
   float duration_sec = duration_ns / 1e9;
   result["input_created"] = true;
   result["duration_sec"] = duration_sec;
@@ -76,10 +80,9 @@ json run_standard_merge(json test_spec) {
                          result_table_builder);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      merge_end - merge_start)
-    .count();
+                         merge_end - merge_start)
+                         .count();
   float duration_sec = duration_ns / 1e9;
-
 
   delete inner_table;
   delete outer_table;
@@ -97,10 +100,8 @@ json run_learned_merge(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  PgmIndexBuilder<KVSlice> *inner_index_builder =
-      new PgmIndexBuilder(0, get_converter(test_spec));
-  PgmIndexBuilder<KVSlice> *outer_index_builder =
-      new PgmIndexBuilder(0, get_converter(test_spec));
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec);
   Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
@@ -111,8 +112,8 @@ json run_learned_merge(json test_spec) {
                    comparator, result_table_builder);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      merge_end - merge_start)
-    .count();
+                         merge_end - merge_start)
+                         .count();
   float duration_sec = duration_ns / 1e9;
 
   delete inner_table;
@@ -147,6 +148,17 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
     return new KVSliceMemcmp();
   }
   fprintf(stderr, "Unknown Key Type in test spec");
+  abort();
+}
+
+IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
+  std::string index_type = test_spec["index"];
+  if (index_type == "pgm64") {
+    return new PgmIndexBuilder(0, get_converter(test_spec));
+  } else if (index_type == "rbtree") {
+    return new RbTreeIndexBuilder(get_comparator(test_spec), test_spec["key_size"]);
+  }
+  fprintf(stderr, "Unknown Index Type in test spec");
   abort();
 }
 
