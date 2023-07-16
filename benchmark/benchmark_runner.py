@@ -8,12 +8,14 @@ import pprint
 import random
 import pandas as pd
 
-runner_bin = './build/benchmark_runner'
+runner_bin = './bench_release/benchmark_runner'
 
 def main():
     if len(sys.argv) < 2:
         print("Please specify input benchmark JSON spec")
         exit()
+    subprocess.run(['cmake', '-B', 'bench_release', '-DCMAKE_BUILD_TYPE=Release', '-S', '.'])
+    subprocess.run(['cmake', '--build', 'bench_release', '-j', '6'])
     benchmark_file = open(sys.argv[1])
     benchmark = json.load(benchmark_file)
 

@@ -23,10 +23,10 @@ include_directories(include/indexes)
 include_directories(include/sstable)
 include_directories(third_party/pgm/include)
 
-li
+set(LIBRARY_LIST GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
 
-add_executable(benchmark_runner src/test_runner.cpp include/sstable/disk_sstable.h)
-target_link_libraries(benchmark_runner PRIVATE nlohmann_json::nlohmann_json OpenSSL::SSL tbb)
+add_executable(benchmark_runner src/test_runner.cpp)
+target_link_libraries(benchmark_runner PRIVATE ${LIBRARY_LIST})
 
 enable_testing()
 add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
@@ -35,11 +35,12 @@ add_executable(synthetic_gen_test test/synthetic_gen_test.cpp)
 add_executable(index_test test/index_test.cpp)
 add_executable(test_runner test/test_runner.cpp)
 
-target_link_libraries(in_mem_sstable_test GTest::gtest_main OpenSSL::SSL tbb)
-target_link_libraries(disk_sstable_test GTest::gtest_main OpenSSL::SSL tbb)
-target_link_libraries(synthetic_gen_test GTest::gtest_main OpenSSL::SSL tbb)
-target_link_libraries(index_test GTest::gtest_main OpenSSL::SSL tbb)
-target_link_libraries(test_runner GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
+
+target_link_libraries(in_mem_sstable_test ${LIBRARY_LIST})
+target_link_libraries(disk_sstable_test ${LIBRARY_LIST})
+target_link_libraries(synthetic_gen_test ${LIBRARY_LIST})
+target_link_libraries(index_test ${LIBRARY_LIST})
+target_link_libraries(test_runner ${LIBRARY_LIST})
 
 include(GoogleTest)
 gtest_discover_tests(in_mem_sstable_test)

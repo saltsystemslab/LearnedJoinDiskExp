@@ -1,3 +1,4 @@
 build/*
 .idea/*
 test_runs/*
+bench_release/*

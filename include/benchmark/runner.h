@@ -163,7 +163,6 @@ KeyToPointConverter<KVSlice> *get_converter(json test_spec) {
 
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
   bool write_result_to_disk = test_spec["write_result_to_disk"];
-  printf("%d\n", write_result_to_disk)
   int key_size_bytes = test_spec["key_size"];
   int value_size_bytes = test_spec["value_size"];
   if (write_result_to_disk) {
