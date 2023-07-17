@@ -171,14 +171,16 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
 }
 
 IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
-  std::string index_type = test_spec["index"];
+  std::string index_type = test_spec["index"]["type"];
   if (index_type == "pgm64") {
     return new PgmIndexBuilder(0, get_converter(test_spec));
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);
-  } else if (index_type == "plr64") {
-    return new GreedyPLRIndexBuilder<KVSlice>(64, get_converter(test_spec));
+  } else if (index_type == "plr") {
+    double error_bound = test_spec["index"]["error_bound"];
+    return new GreedyPLRIndexBuilder<KVSlice>(error_bound,
+                                              get_converter(test_spec));
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();
