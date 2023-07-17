@@ -5,6 +5,7 @@
 #include "index.h"
 #include "iterator.h"
 #include "sstable.h"
+#include <algorithm>
 
 namespace li_merge {
 
@@ -13,6 +14,17 @@ template <class T> struct IteratorIndexPair {
   Index<T> *index;
 };
 
+template <class T>
+SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
+                          Comparator<T> *comparator,
+                          SSTableBuilder<T> *builder);
+template <class T>
+SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
+                             Index<T> *outer_index, Index<T> *inner_index,
+                             Comparator<T> *comparator,
+                             SSTableBuilder<T> *resultBuilder);
+
+namespace internal {
 template <class T>
 Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
                           Comparator<T> *comparator);
@@ -29,7 +41,12 @@ template <class T>
 void addClusterToResult(IteratorIndexPair<T> *smallest,
                         IteratorIndexPair<T> *second_smallest,
                         Comparator<T> *comparator,
-                        SSTableBuilder<T> resultBuilder);
+                        SSTableBuilder<T> *resultBuilder);
+} // namespace internal
+
+} // namespace li_merge
+
+namespace li_merge {
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
@@ -42,7 +59,8 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
 
   Iterator<T> *iterators[2] = {inner_iter, outer_iter};
   Iterator<T> *smallest;
-  while ((smallest = findSmallest(iterators, 2, comparator)) != nullptr) {
+  while ((smallest = internal::findSmallest(iterators, 2, comparator)) !=
+         nullptr) {
     builder->add(smallest->key());
     smallest->next();
   }
@@ -66,7 +84,8 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
 
   IteratorIndexPair<T> *smallest = nullptr;
   IteratorIndexPair<T> *second_smallest = nullptr;
-  findTwoSmallest(iterators, 2, comparator, &smallest, &second_smallest);
+  internal::findTwoSmallest(iterators, 2, comparator, &smallest,
+                            &second_smallest);
   while (smallest != nullptr) {
     // There's only one list left, so let's fill up all the way.
     if (second_smallest == nullptr) {
@@ -77,13 +96,17 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
       smallest = nullptr;
       continue;
     }
-    addClusterToResult(smallest, second_smallest, comparator, resultBuilder);
+    internal::addClusterToResult(smallest, second_smallest, comparator,
+                                 resultBuilder);
     smallest = second_smallest;
     second_smallest = nullptr;
-    findSecondSmallest(iterators, 2, comparator, smallest, &second_smallest);
+    internal::findSecondSmallest(iterators, 2, comparator, smallest,
+                                 &second_smallest);
   }
   return resultBuilder->build();
 }
+
+namespace internal {
 
 template <class T>
 Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
@@ -184,6 +207,9 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
     smallest->iter->next();
   }
 }
-} // namespace li_merge
 
+
+} // namespace internal
+
+}
 #endif // LEARNEDINDEXMERGE_MERGE_H

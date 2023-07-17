@@ -15,18 +15,20 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 find_package(OpenSSL REQUIRED)
 
-include_directories(include/)
-include_directories(include/algos)
-include_directories(include/benchmark)
-include_directories(include/interfaces)
-include_directories(include/indexes)
-include_directories(include/sstable)
-include_directories(third_party/pgm/include)
+include_directories(
+  include/
+  include/algos
+  include/benchmark
+  include/interfaces
+  include/indexes
+  include/sstable
+  third_party/pgm/include
+)
 
-set(LIBRARY_LIST GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
+set(THIRD_PARTY GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
 
-add_executable(benchmark_runner src/test_runner.cpp)
-target_link_libraries(benchmark_runner PRIVATE ${LIBRARY_LIST})
+add_executable(benchmark_runner src/test_runner.cpp src/algos/merge.cpp)
+target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})
 
 enable_testing()
 add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
@@ -35,7 +37,7 @@ add_executable(synthetic_gen_test test/synthetic_gen_test.cpp)
 add_executable(index_test test/index_test.cpp)
 add_executable(test_runner test/test_runner.cpp)
 
-
+set(LIBRARY_LIST GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
 target_link_libraries(in_mem_sstable_test ${LIBRARY_LIST})
 target_link_libraries(disk_sstable_test ${LIBRARY_LIST})
 target_link_libraries(synthetic_gen_test ${LIBRARY_LIST})

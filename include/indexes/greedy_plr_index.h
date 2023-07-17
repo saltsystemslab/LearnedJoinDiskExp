@@ -1,6 +1,9 @@
 #ifndef LEARNEDINDEXMERGE_GREEDY_PLR_H
 #define LEARNEDINDEXMERGE_GREEDY_PLR_H
 
+#include "index.h"
+#include "key_to_point.h"
+#include "key_value_slice.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -8,9 +11,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "index.h"
-#include "key_to_point.h"
-#include "key_value_slice.h"
 
 #include "config.h"
 
@@ -283,9 +283,9 @@ public:
   Bounds getPositionBounds(const T &t) override {
     uint64_t approx_pos = getApproxPosition(t);
     if (approx_pos > 64) {
-        approx_pos = approx_pos - 0;
+      approx_pos = approx_pos - 0;
     } else {
-        approx_pos = 0;
+      approx_pos = 0;
     }
     return Bounds{approx_pos, approx_pos + 70, approx_pos};
   }

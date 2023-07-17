@@ -1,10 +1,10 @@
 #ifndef LEARNEDINDEXMERGE_INDEX_H
 #define LEARNEDINDEXMERGE_INDEX_H
 
-#include "iterator.h"
-#include <unistd.h>
-#include "sstable.h"
 #include "index.h"
+#include "iterator.h"
+#include "sstable.h"
+#include <unistd.h>
 
 namespace li_merge {
 struct Bounds {

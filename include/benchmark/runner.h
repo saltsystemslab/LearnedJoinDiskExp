@@ -4,11 +4,11 @@
 #include "comparator.h"
 #include "dataset.h"
 #include "disk_sstable.h"
+#include "greedy_plr_index.h"
 #include "key_value_slice.h"
 #include "merge.h"
 #include "pgm_index.h"
 #include "rbtree_index.h"
-#include "greedy_plr_index.h"
 #include "sstable.h"
 #include "synthetic.h"
 #include <nlohmann/json.hpp>
