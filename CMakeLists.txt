@@ -27,7 +27,7 @@ include_directories(
 
 set(THIRD_PARTY GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
 
-add_executable(benchmark_runner src/test_runner.cpp src/algos/merge.cpp)
+add_executable(benchmark_runner src/test_runner.cpp)
 target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})
 
 enable_testing()

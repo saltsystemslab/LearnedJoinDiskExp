@@ -208,8 +208,7 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
   }
 }
 
-
 } // namespace internal
 
-}
+} // namespace li_merge
 #endif // LEARNEDINDEXMERGE_MERGE_H

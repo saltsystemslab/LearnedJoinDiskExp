@@ -282,12 +282,13 @@ public:
   }
   Bounds getPositionBounds(const T &t) override {
     uint64_t approx_pos = getApproxPosition(t);
-    if (approx_pos > 64) {
+    if (approx_pos > greedy_plr_index_->gamma_) {
       approx_pos = approx_pos - 0;
     } else {
       approx_pos = 0;
     }
-    return Bounds{approx_pos, approx_pos + 70, approx_pos};
+    return Bounds{approx_pos, approx_pos + greedy_plr_index_->gamma_,
+                  approx_pos};
   }
 
 private:
