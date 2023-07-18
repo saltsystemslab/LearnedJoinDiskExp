@@ -49,16 +49,46 @@ json create_input_sstable(json test_spec) {
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   auto merge_start = std::chrono::high_resolution_clock::now();
+
   if (test_spec["method"] == "uniform_dist") {
-    generate_uniform_random_distribution(num_keys, key_size_bytes,
+    SSTable<KVSlice> *keys = generate_uniform_random_distribution(num_keys, key_size_bytes,
                                          value_size_bytes, comparator,
                                          result_table_builder);
+    if (test_spec.contains("common_keys_file")) {
+      SSTable<KVSlice> *common_keys = load_sstable(test_spec["common_keys_file"], true);
+      // TODO(chesetti): This doesn't have to be inmem.
+      SSTableBuilder<KVSlice> *in_mem_result = new FixedSizeKVInMemSSTableBuilder(
+          0, key_size_bytes, value_size_bytes, get_comparator(test_spec));
+      json merge_log;
+      SSTable<KVSlice> *merged_key_list = standardMerge(common_keys, keys, comparator, in_mem_result, &merge_log);
+
+      delete result_table_builder;
+      auto iterator = merged_key_list->iterator();
+      iterator->seekToFirst();
+      result_table_builder = get_result_builder(test_spec);
+      while (iterator->valid()) {
+        result_table_builder->add(iterator->key());
+        iterator->next();
+      }
+      result_table_builder->build();
+    }
+  }
+  else if (test_spec["method"] == "select_common_keys") {
+    std::string source = test_spec["source"];
+    uint64_t num_keys_to_select = test_spec["num_keys_to_select"];
+    int fd = open(source.c_str(), O_RDONLY);
+    uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
+    generate_uniform_random_indexes(num_keys_to_select, num_keys_in_dataset, result_table_builder);
   } else if (test_spec["method"] == "from_sosd") {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
+    std::set<uint64_t> common_keys;
+    if (test_spec.contains("common_keys_index_file")) {
+      load_common_keys(test_spec["common_keys_index_file"], &common_keys);
+    }
     generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
-                           num_keys_in_dataset, num_keys,
+                           num_keys_in_dataset, num_keys, common_keys,
                            get_result_builder(test_spec));
     close(fd);
   } else if (test_spec["method"] == "from_ar") {
@@ -66,8 +96,12 @@ json create_input_sstable(json test_spec) {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_ar(fd);
+    std::set<uint64_t> common_keys;
+    if (test_spec.contains("common_keys_index_file")) {
+      load_common_keys(test_spec["common_keys_index_file"], &common_keys);
+    }
     generate_from_datafile(fd, 16, key_size_bytes, value_size_bytes,
-                           num_keys_in_dataset, num_keys,
+                           num_keys_in_dataset, num_keys, common_keys,
                            get_result_builder(test_spec));
     close(fd);
   } else {

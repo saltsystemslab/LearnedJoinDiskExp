@@ -1,0 +1,25 @@
+{
+  "name": "uniform_random_64bit keys, 64 bit values",
+  "dir": "test_runs/ar_merge_disk_small",
+  "inputs": {
+    "common": {
+      "key_size": 16,
+      "value_size": 0,
+      "key_type": "str",
+      "algo": "create_input",
+      "method": "from_ar",
+      "write_result_to_disk": true,
+      "source": "./datasets/ar_keys_v1_00"
+    },
+    "list": [
+      {
+        "name": "10",
+        "num_keys": 10000
+      },
+      {
+        "name": "10_with_copy",
+        "num_keys": 10000
+      }
+    ]
+  }
+}

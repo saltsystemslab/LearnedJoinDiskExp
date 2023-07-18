@@ -1,0 +1,39 @@
+{
+  "name": "uniform_random_64bit keys, 64 bit values",
+  "dir": "test_runs/ur_join",
+  "inputs": {
+    "common": {
+      "key_size": 8,
+      "value_size": 8,
+      "key_type": "str",
+      "method": "uniform_dist",
+      "algo": "create_input",
+      "write_result_to_disk": true
+    },
+    "list": [
+      {
+        "name": "10",
+        "num_keys_to_select": 10,
+        "method": "select_common_keys"
+      },
+      {
+        "name": "10_with_copy",
+        "num_keys": 10,
+        "common_keys_file": "10"
+      }
+    ]
+  },
+  "algos": {
+    "repeat": 2,
+    "common": {
+      "key_size": 8,
+      "value_size": 8,
+      "key_type": "uint64",
+      "load_sstable_in_mem": false,
+      "write_result_to_disk": true
+    },
+    "list": [
+    ]
+  },
+  "report_format": "csv"
+}

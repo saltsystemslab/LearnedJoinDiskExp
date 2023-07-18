@@ -37,11 +37,14 @@ uint64_t get_num_keys_from_ar(int fd) {
 }
 
 std::set<uint64_t> select_keys_uniform(uint64_t num_keys_to_select,
-                                       uint64_t num_keys) {
+                                       uint64_t num_keys, std::set<uint64_t> common_keys) {
+  std::set<uint64_t> selected_keys;
+  for (auto key: common_keys) {
+    selected_keys.insert(key);
+  }
   std::random_device rd;  // a seed source for the random number engine
   std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<uint64_t> distrib(0, num_keys);
-  std::set<uint64_t> split_keys;
+  std::uniform_int_distribution<uint64_t> distrib(0, num_keys-1);
   for (uint64_t i = 0; i < num_keys_to_select; i++) {
     uint64_t key;
     if (num_keys_to_select == num_keys) {
@@ -49,9 +52,9 @@ std::set<uint64_t> select_keys_uniform(uint64_t num_keys_to_select,
     } else {
       key = distrib(gen);
     }
-    split_keys.insert(key);
+    selected_keys.insert(key);
   }
-  return split_keys;
+  return selected_keys;
 }
 
 SSTable<KVSlice> *generate_from_datafile(int fd, int header_size,
@@ -59,10 +62,10 @@ SSTable<KVSlice> *generate_from_datafile(int fd, int header_size,
                                          int value_size_bytes,
                                          uint64_t num_keys,
                                          uint64_t num_keys_to_extract,
+                                         std::set<uint64_t> common_keys,
                                          SSTableBuilder<KVSlice> *builder) {
-
   std::set<uint64_t> selected_keys =
-      select_keys_uniform(num_keys_to_extract, num_keys);
+      select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
   FixedKSizeKVFileCache sosd_keys(fd, key_size_bytes, 0 /*no values*/,
                                   header_size);
   char kv_buf[key_size_bytes + value_size_bytes];
@@ -73,6 +76,10 @@ SSTable<KVSlice> *generate_from_datafile(int fd, int header_size,
     builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
   }
   return builder->build();
+}
+
+void load_common_keys(std::string common_keys_file_path, std::set<uint64_t>  *common_keys) {
+
 }
 
 } // namespace li_merge

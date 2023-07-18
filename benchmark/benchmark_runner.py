@@ -48,11 +48,13 @@ def main():
     # Create input sstable files.
     results['input_creation'] = []
     for input in benchmark["inputs"]["list"]:
-        input_json = input.copy()
-        input_json.update(benchmark["inputs"]["common"])
+        input_json = benchmark["inputs"]["common"].copy()
+        input_json.update(input)
         input_json['result_path'] = os.path.join(input_dir, input_json['name'])
         input_json_path = os.path.join(input_dir, input_json['name'] + '_spec.json')
         input_file_map[input_json['name']] = input_json['result_path']
+        if "common_keys_file" in input_json:
+            input_json["common_keys_file"] = input_file_map[input_json["common_keys_file"]]
         with open(input_json_path, "w") as out:
             out.write(json.dumps(input_json, indent=4))
         result = subprocess.run([runner_bin, input_json_path], capture_output=True, text=True)

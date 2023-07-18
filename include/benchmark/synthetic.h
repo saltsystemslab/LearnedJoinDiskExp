@@ -9,6 +9,7 @@
 #include "comparator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
+#include "dataset.h"
 
 namespace li_merge {
 
@@ -35,6 +36,19 @@ char **sort_buffer(char *data, uint64_t num_keys, int key_size_bytes,
               return comparator->compare(kv1, kv2) <= 0;
             });
   return data_ptrs;
+}
+
+SSTable<KVSlice> *generate_uniform_random_indexes(
+    uint64_t num_keys_to_select, uint64_t num_keys, SSTableBuilder<KVSlice> *builder) {
+  std::set<uint64_t> selected_keys; // = select_keys_uniform(num_keys_to_select, num_keys, std::set<uint64_t>());
+  for (int i=0; i<10; i++) {
+    selected_keys.insert(i);
+  }
+  for (auto key: selected_keys) {
+    KVSlice kvSlice((char *)key, 8, 0);
+    builder->add(kvSlice);
+  }
+  return builder->build();
 }
 
 SSTable<KVSlice> *generate_uniform_random_distribution(
