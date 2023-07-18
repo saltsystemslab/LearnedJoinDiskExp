@@ -15,7 +15,8 @@ def extract_table(results, metric_fields):
     for result_json in results:
         metric_dict = result_json
         for field in metric_fields[:-1]:
-            metric_dict = metric_dict[field]
+            if metric_dict and field in metric_dict:
+                metric_dict = metric_dict[field]
         metric_val = None
         if metric_dict and metric_fields[-1] in metric_dict:
             metric_val = metric_dict[metric_fields[-1]]

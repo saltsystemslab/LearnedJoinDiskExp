@@ -78,8 +78,16 @@ SSTable<KVSlice> *generate_from_datafile(int fd, int header_size,
   return builder->build();
 }
 
-void load_common_keys(std::string common_keys_file_path, std::set<uint64_t>  *common_keys) {
-
+void load_common_key_indexes(std::string common_keys_file_path, std::set<uint64_t>  *common_keys) {
+    int fd = open(common_keys_file_path.c_str(), O_RDONLY);
+    FixedSizeKVDiskSSTable sstable(common_keys_file_path);
+    Iterator<KVSlice> *it = sstable.iterator();
+    while (it->valid()) {
+      KVSlice s = it->key();
+      uint64_t *k = (uint64_t *)(s.data());
+      common_keys->insert(*k);
+      it->next();
+    }
 }
 
 } // namespace li_merge

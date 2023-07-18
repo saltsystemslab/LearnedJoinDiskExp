@@ -8,15 +8,19 @@
 
 namespace li_merge {
 template <class T>
-int indexed_nested_loop_join(Iterator<T> *outer_iterator,
-                             Iterator<T> *inner_iterator,
-                             Iterator<T> *inner_index,
+SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer,
+                             SSTable<T> *inner,
+                             Index<T> *inner_index,
                              Comparator<T> *comparator,
                              SSTableBuilder<T> *result) {
+  auto outer_iterator = outer->iterator();
+  auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
+  uint64_t inner_num_elts = inner_iterator->num_elts();
   while (outer_iterator->valid()) {
-    uint64_t approx_pos = inner_index->guessPosition(inner_iterator->key());
+    uint64_t approx_pos = inner_index->getApproxPosition(inner_iterator->key());
+    approx_pos = std::min(approx_pos, inner_num_elts-1);
     // Set to first value lesser than or equal to the inner key.
     bool is_overshoot = false;
     while (approx_pos && comparator->compare(inner_iterator->peek(approx_pos),
@@ -34,7 +38,7 @@ int indexed_nested_loop_join(Iterator<T> *outer_iterator,
     }
 
     // No more keys in larger list.
-    if (approx_pos == inner_iterator->num_keys()) {
+    if (approx_pos == inner_iterator->num_elts()) {
       break;
     }
     if (comparator->compare(inner_iterator->peek(approx_pos),
@@ -47,9 +51,11 @@ int indexed_nested_loop_join(Iterator<T> *outer_iterator,
 }
 
 template <class T>
-int presorted_merge_join(Iterator<T> *outer_iterator,
-                         Iterator<T> *inner_iterator, Comparator<T> *comparator,
+SSTable<T> *presorted_merge_join(SSTable<T> *outer,
+                         SSTable<T> *inner, Comparator<T> *comparator,
                          SSTableBuilder<T> *result_builder) {
+  auto outer_iterator = outer->iterator();
+  auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
   while (outer_iterator->valid()) {

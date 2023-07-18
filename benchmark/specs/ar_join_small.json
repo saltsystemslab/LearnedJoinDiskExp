@@ -1,6 +1,6 @@
 {
   "name": "uniform_random_64bit keys, 64 bit values",
-  "dir": "test_runs/ar_merge_disk_small",
+  "dir": "test_runs/ar_join",
   "inputs": {
     "common": {
       "key_size": 16,
@@ -13,13 +13,67 @@
     },
     "list": [
       {
-        "name": "10",
-        "num_keys": 10000
+        "name": "10_common_index",
+        "num_keys": 10,
+        "key_size": 8,
+        "value_size": 0,
+        "method": "select_common_keys"
       },
       {
-        "name": "10_with_copy",
-        "num_keys": 10000
+        "name": "10_common",
+        "common_keys_file": "10_common_index",
+        "num_keys": 0
+      },
+      {
+        "name": "list_2",
+        "common_keys_file": "10_common_index",
+        "num_keys": 10
+      },
+      {
+        "name": "list_1",
+        "common_keys_file": "10_common_index",
+        "num_keys": 10
+      },
+      {
+        "name": "list_2",
+        "common_keys_file": "10_common_index",
+        "num_keys": 10
       }
     ]
-  }
+  },
+  "algos": {
+    "repeat": 2,
+    "common": {
+      "key_size": 16,
+      "value_size": 0,
+      "key_type": "str",
+      "load_sstable_in_mem": false,
+      "write_result_to_disk": true
+    },
+    "list": [
+      {
+        "name": "sort_join",
+        "algo": "sort_join"
+      },
+      {
+        "name": "inlj_pgm",
+        "algo": "inlj",
+        "index": {
+          "type": "pgm64"
+        }
+      }
+    ]
+  },
+  "tests": {
+    "list": [
+      {
+        "dir": "simple_join",
+        "label": "1:1",
+        "label_x": 1,
+        "inner_table": "list_1",
+        "outer_table": "list_2"
+      }
+    ]
+  },
+  "report_format": "csv"
 }

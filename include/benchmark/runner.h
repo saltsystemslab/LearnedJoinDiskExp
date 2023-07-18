@@ -12,6 +12,7 @@
 #include "rbtree_index.h"
 #include "sstable.h"
 #include "synthetic.h"
+#include "join.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -21,6 +22,8 @@ namespace li_merge {
 json run_test(json test_spec);
 json run_standard_merge(json test_spec);
 json run_learned_merge(json test_spec);
+json run_sort_join(json test_spec);
+json run_inlj(json test_spec);
 json create_input_sstable(json test_spec);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
@@ -35,6 +38,10 @@ json run_test(json test_spec) {
     return run_learned_merge(test_spec);
   } else if (test_spec["algo"] == "create_input") {
     return create_input_sstable(test_spec);
+  } else if (test_spec["algo"] == "sort_join") {
+    return run_sort_join(test_spec);
+  } else if (test_spec["algo"] == "inlj") {
+    return run_inlj(test_spec);
   }
   fprintf(stderr, "Unknown algorithm in testspec!");
   abort();
@@ -75,17 +82,18 @@ json create_input_sstable(json test_spec) {
   }
   else if (test_spec["method"] == "select_common_keys") {
     std::string source = test_spec["source"];
-    uint64_t num_keys_to_select = test_spec["num_keys_to_select"];
+    uint64_t num_keys_to_select = test_spec["num_keys"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
     generate_uniform_random_indexes(num_keys_to_select, num_keys_in_dataset, result_table_builder);
+    close(fd);
   } else if (test_spec["method"] == "from_sosd") {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
     std::set<uint64_t> common_keys;
-    if (test_spec.contains("common_keys_index_file")) {
-      load_common_keys(test_spec["common_keys_index_file"], &common_keys);
+    if (test_spec.contains("common_keys_file")) {
+      load_common_key_indexes(test_spec["common_keys_file"], &common_keys);
     }
     generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
@@ -97,8 +105,8 @@ json create_input_sstable(json test_spec) {
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_ar(fd);
     std::set<uint64_t> common_keys;
-    if (test_spec.contains("common_keys_index_file")) {
-      load_common_keys(test_spec["common_keys_index_file"], &common_keys);
+    if (test_spec.contains("common_keys_file")) {
+      load_common_key_indexes(test_spec["common_keys_file"], &common_keys);
     }
     generate_from_datafile(fd, 16, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
@@ -150,6 +158,34 @@ json run_standard_merge(json test_spec) {
   return result;
 }
 
+json run_sort_join(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+
+  auto merge_start = std::chrono::high_resolution_clock::now();
+  presorted_merge_join<KVSlice>(inner_table, outer_table, comparator,
+                         result_table_builder);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  float duration_sec = duration_ns / 1e9;
+
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+  delete comparator;
+
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  return result;
+}
+
 json run_learned_merge(json test_spec) {
   json result;
   SSTable<KVSlice> *inner_table =
@@ -167,6 +203,47 @@ json run_learned_merge(json test_spec) {
   auto merge_start = std::chrono::high_resolution_clock::now();
   mergeWithIndexes(inner_table, outer_table, inner_index, outer_index,
                    comparator, result_table_builder, &merge_log);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  float duration_sec = duration_ns / 1e9;
+
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  result["merge_log"] = merge_log;
+  result["inner_index_size"] = inner_index->size_in_bytes();
+  result["outer_index_size"] = outer_index->size_in_bytes();
+
+  delete inner_table;
+  delete outer_table;
+  delete inner_index_builder;
+  delete outer_index_builder;
+  delete result_table_builder;
+  delete inner_index;
+  delete outer_index;
+  delete comparator;
+
+  return result;
+}
+
+json run_inlj(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec);
+  Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
+  Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+
+  json merge_log;
+  auto merge_start = std::chrono::high_resolution_clock::now();
+  indexed_nested_loop_join<KVSlice>(outer_table, inner_table, inner_index,
+                   comparator, result_table_builder);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
