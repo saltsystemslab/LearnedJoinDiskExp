@@ -6,6 +6,9 @@
 #include "iterator.h"
 #include "sstable.h"
 #include <algorithm>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 namespace li_merge {
 
@@ -16,13 +19,13 @@ template <class T> struct IteratorIndexPair {
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Comparator<T> *comparator,
-                          SSTableBuilder<T> *builder);
+                          Comparator<T> *comparator, SSTableBuilder<T> *builder,
+                          json *merge_log);
 template <class T>
 SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              Index<T> *outer_index, Index<T> *inner_index,
                              Comparator<T> *comparator,
-                             SSTableBuilder<T> *resultBuilder);
+                             SSTableBuilder<T> *resultBuilder, json *merge_log);
 
 namespace internal {
 template <class T>
@@ -41,7 +44,8 @@ template <class T>
 void addClusterToResult(IteratorIndexPair<T> *smallest,
                         IteratorIndexPair<T> *second_smallest,
                         Comparator<T> *comparator,
-                        SSTableBuilder<T> *resultBuilder);
+                        SSTableBuilder<T> *resultBuilder,
+                        json *merge_log);
 } // namespace internal
 
 } // namespace li_merge
@@ -50,8 +54,8 @@ namespace li_merge {
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Comparator<T> *comparator,
-                          SSTableBuilder<T> *builder) {
+                          Comparator<T> *comparator, SSTableBuilder<T> *builder,
+                          json *merge_log) {
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
   inner_iter->seekToFirst();
@@ -71,7 +75,11 @@ template <class T>
 SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              Index<T> *outer_index, Index<T> *inner_index,
                              Comparator<T> *comparator,
-                             SSTableBuilder<T> *resultBuilder) {
+                             SSTableBuilder<T> *resultBuilder,
+                             json *merge_log) {
+#if TRACK_STATS
+  (*merge_log)["max_index_error_correction"] = 0;
+#endif
 
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
@@ -97,7 +105,7 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
       continue;
     }
     internal::addClusterToResult(smallest, second_smallest, comparator,
-                                 resultBuilder);
+                                 resultBuilder, merge_log);
     smallest = second_smallest;
     second_smallest = nullptr;
     internal::findSecondSmallest(iterators, 2, comparator, smallest,
@@ -181,10 +189,12 @@ template <class T>
 void addClusterToResult(IteratorIndexPair<T> *smallest,
                         IteratorIndexPair<T> *second_smallest,
                         Comparator<T> *comparator,
-                        SSTableBuilder<T> *resultBuilder) {
-
+                        SSTableBuilder<T> *resultBuilder, json *merge_log) {
+#if TRACK_STATS
+  uint64_t error_correction = 0;
+#endif
   uint64_t approx_pos =
-      smallest->index->getApproxPosition(second_smallest->iter->key());
+      smallest->index->getApproxPositionMonotoneAccess(second_smallest->iter->key());
   approx_pos = std::max(approx_pos, smallest->iter->current_pos());
   approx_pos = std::min(approx_pos, smallest->iter->num_elts() - 1);
   bool is_overshoot = false;
@@ -192,20 +202,28 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
                              second_smallest->iter->key()) > 0) {
     is_overshoot = true;
     approx_pos--;
+#if TRACK_STATS
+    error_correction++;
+#endif
   }
   while (smallest->iter->current_pos() <= approx_pos) {
     resultBuilder->add(smallest->iter->key());
     smallest->iter->next();
   }
-  if (is_overshoot) {
-    return;
-  }
+  if (!is_overshoot) {
   while (smallest->iter->valid() &&
          comparator->compare(smallest->iter->key(),
                              second_smallest->iter->key()) <= 0) {
-    resultBuilder->add(smallest->iter->key());
-    smallest->iter->next();
+      resultBuilder->add(smallest->iter->key());
+      smallest->iter->next();
+#if TRACK_STATS
+    error_correction++;
+#endif
+    }
   }
+#if TRACK_STATS
+  (*merge_log)["max_index_error_correction"] = std::max<uint64_t>((uint64_t)(*merge_log)["max_index_error_correction"], error_correction);
+#endif
 }
 
 } // namespace internal

@@ -40,9 +40,7 @@ public:
       : converter_(converter) {
     x_points_.reserve(approx_num_keys);
   }
-  void add(const T &t) override {
-    x_points_.push_back(converter_->toPoint(t));
-  }
+  void add(const T &t) override { x_points_.push_back(converter_->toPoint(t)); }
   Index<KVSlice> *build() override {
     return new PgmIndex<T, Epsilon>(
         new pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_), converter_);

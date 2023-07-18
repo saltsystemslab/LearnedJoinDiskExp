@@ -42,7 +42,7 @@
     ]
   },
   "algos": {
-    "repeat": 5,
+    "repeat": 2,
     "common": {
       "key_size": 8,
       "value_size": 8,
@@ -63,11 +63,33 @@
         }
       },
       {
+        "name": "learned_merge(ONE_LEVEL_PGM_64)",
+        "algo": "learned_merge",
+        "index": {
+          "type": "onelevel_pgm64"
+        }
+      },
+      {
+        "name": "learned_merge(ONE_LEVEL_PGM_1000)",
+        "algo": "learned_merge",
+        "index": {
+          "type": "onelevel_pgm1000"
+        }
+      },
+      {
         "name": "learned_merge(PLR_64)",
         "algo": "learned_merge",
         "index": {
           "type": "plr",
           "error_bound": 64.0
+        }
+      },
+      {
+        "name": "learned_merge(PLR_10)",
+        "algo": "learned_merge",
+        "index": {
+          "type": "plr",
+          "error_bound":10.0
         }
       },
       {

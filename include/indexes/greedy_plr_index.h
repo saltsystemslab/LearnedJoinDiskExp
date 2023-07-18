@@ -256,8 +256,7 @@ template <class T> class GreedyPLRIndex : public Index<T> {
 public:
   GreedyPLRIndex(greedy_plr::PLRModel *index, KeyToPointConverter<T> *converter)
       : greedy_plr_index_(index), converter_(converter),
-        num_keys_(index->numKeys_), cur_segment_index_(0) {
-  }
+        num_keys_(index->numKeys_), cur_segment_index_(0) {}
 
   uint64_t getApproxPosition(const T &t) override {
     POINT_FLOAT_TYPE target_key = converter_->toPoint(t);

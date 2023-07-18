@@ -27,6 +27,13 @@ include_directories(
 
 set(THIRD_PARTY GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
 
+if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+    add_compile_definitions(TRACK_STATS 1)
+ENDIF(CMAKE_BUILD_TYPE MATCHES DEBUG)
+if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+    add_compile_definitions(TRACK_STATS 1)
+ENDIF(CMAKE_BUILD_TYPE MATCHES RELEASE)
+
 add_executable(benchmark_runner src/test_runner.cpp)
 target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})
 
