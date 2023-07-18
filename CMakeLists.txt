@@ -27,7 +27,11 @@ include_directories(
 
 set(THIRD_PARTY GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
 
-add_compile_definitions(TRACK_STATS=1)
+option(TRACK_STATS "TRACK STATS" OFF)
+if (TRACK_STATS)
+  add_compile_definitions(TRACK_STATS=1)
+endif()
+
 
 add_executable(benchmark_runner src/test_runner.cpp)
 target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})

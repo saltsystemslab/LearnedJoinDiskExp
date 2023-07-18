@@ -95,6 +95,9 @@ json create_input_sstable(json test_spec) {
     if (test_spec.contains("common_keys_file")) {
       load_common_key_indexes(test_spec["common_keys_file"], &common_keys);
     }
+    if (test_spec.contains("use_all") && test_spec["use_all"] == true) {
+      num_keys = num_keys_in_dataset;
+    }
     generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
                            get_result_builder(test_spec));
@@ -107,6 +110,9 @@ json create_input_sstable(json test_spec) {
     std::set<uint64_t> common_keys;
     if (test_spec.contains("common_keys_file")) {
       load_common_key_indexes(test_spec["common_keys_file"], &common_keys);
+    }
+    if (test_spec.contains("use_all") && test_spec["use_all"] == true) {
+      num_keys = num_keys_in_dataset;
     }
     generate_from_datafile(fd, 16, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
@@ -291,14 +297,21 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
 
 IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
   std::string index_type = test_spec["index"]["type"];
-  if (index_type == "onelevel_pgm64") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
+  if (index_type == "onelevel_pgm16") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 16>(0,
                                                     get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm1000") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 1000>(0,
+  } else if (index_type == "onelevel_pgm64") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
                                                       get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm256") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 256>(0,
+                                                      get_converter(test_spec));
+  } else if (index_type == "pgm16") {
+    return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
   } else if (index_type == "pgm64") {
     return new PgmIndexBuilder<KVSlice, 64>(0, get_converter(test_spec));
+  } else if (index_type == "pgm256") {
+    return new PgmIndexBuilder<KVSlice, 256>(0, get_converter(test_spec));
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);

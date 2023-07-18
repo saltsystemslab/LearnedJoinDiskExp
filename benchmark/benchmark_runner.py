@@ -7,8 +7,25 @@ import subprocess
 import pprint
 import random
 import pandas as pd
+from absl import app
+from absl import flags
 
-runner_bin = './bench_release/benchmark_runner'
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string("run_dir", "test_runs", "JSON Test Spec")
+flags.DEFINE_string("report_dir", "reports", "JSON Test Spec")
+flags.DEFINE_string("spec", "", "JSON Test Spec")
+flags.DEFINE_bool("skip_input", False, "")
+flags.DEFINE_bool("dry_run", False, "")
+flags.DEFINE_bool("regen_report", False, "")
+flags.DEFINE_bool("track_stats", False, "")
+flags.DEFINE_integer("repeat", 0, "")
+
+runner_bin = './bench/benchmark_runner'
+def build_runner():
+    track_stats='-DTRACK_STATS=ON' if FLAGS.track_stats else '-DTRACK_STATS=OFF'
+    subprocess.run(['cmake', '-B', 'bench', track_stats, '-S', '.'])
+    subprocess.run(['cmake', '--build', 'bench', '-j'])
 
 def extract_table(results, metric_fields):
     results_table = []
@@ -27,27 +44,44 @@ def extract_table(results, metric_fields):
             metric_val))
     return results_table
 
-def main():
-    if len(sys.argv) < 2:
-        print("Please specify input benchmark JSON spec")
-        exit()
-    subprocess.run(['cmake', '--clean', 'bench_release'])
-    subprocess.run(['cmake', '-B', 'bench_release', '-DCMAKE_BUILD_TYPE=Debug', '-S', '.'])
-    subprocess.run(['cmake', '--build', 'bench_release', '-j', '6'])
-    benchmark_file = open(sys.argv[1])
+def run(command, force_dry_run=False, prefix=''):
+    if FLAGS.dry_run:
+        force_dry_run = True
+    if FLAGS.regen_report:
+        force_dry_run = True
+    command_str = " ".join(command)
+    result = {"command": command_str}
+    if force_dry_run:
+        result["status"] = "dry_run"
+        return
+    print(prefix ,command_str)
+    process= subprocess.run(command, capture_output=True, text=True)
+    if process.returncode == 0:
+        result_json = json.loads(process.stdout)
+        result.update(result_json)
+    else:
+        result['status'] = 'NZEC'
+    return result
+
+
+def main(argv):
+    build_runner()
+    benchmark_file = open(FLAGS.spec)
     benchmark = json.load(benchmark_file)
 
     # Create benchmark directories
-    bench_dir = os.path.join(benchmark['dir'])
+    bench_dir = os.path.join(FLAGS.run_dir, os.path.splitext(FLAGS.spec)[0])
+    report_dir = os.path.join(FLAGS.report_dir, os.path.splitext(FLAGS.spec)[0])
     input_dir = os.path.join(bench_dir, 'input')
-    shutil.rmtree(bench_dir, ignore_errors=True)
-    os.makedirs(bench_dir)
-    os.makedirs(input_dir)
+    os.makedirs(bench_dir, exist_ok=True)
+    os.makedirs(report_dir, exist_ok=True)
+    os.makedirs(input_dir, exist_ok=True)
+
     input_file_map = {}
     results = {}
-
     # Create input sstable files.
     results['input_creation'] = []
+    idx = 1
     for input in benchmark["inputs"]["list"]:
         input_json = benchmark["inputs"]["common"].copy()
         input_json.update(input)
@@ -58,12 +92,12 @@ def main():
             input_json["common_keys_file"] = input_file_map[input_json["common_keys_file"]]
         with open(input_json_path, "w") as out:
             out.write(json.dumps(input_json, indent=4))
-        result = subprocess.run([runner_bin, input_json_path], capture_output=True, text=True)
-        print("Generating input: " + input_json_path)
-        print("STDOUT: " + result.stdout)
-        print("STDERR: " + result.stderr)
-        result_json = json.loads(result.stdout)
-        results['input_creation'].append(result_json)
+        results['input_creation'].append(run([runner_bin, input_json_path], FLAGS.skip_input, "Generating input: %s/%s" % (idx ,len(benchmark["inputs"]["list"]))))
+        idx += 1
+
+    total_repeats = benchmark['algos']['repeat']
+    if FLAGS.repeat != 0:
+        total_repeats = FLAGS.repeat
 
     columns = ['label', 'label_x']
     # Run tests. Each test is run with a different technique.
@@ -71,10 +105,10 @@ def main():
     run_configs = []
     for test in benchmark['tests']['list']:
         test_dir = os.path.join(bench_dir, test['dir'])
-        os.makedirs(test_dir)
+        os.makedirs(test_dir, exist_ok=True)
         test_results= []
         for technique in benchmark['algos']['list']:
-            for run_repeat in range(0, benchmark['algos']['repeat']):
+            for run_repeat in range(0, total_repeats):
                 test_run_json = benchmark['algos']['common'].copy()
                 test_run_json.update(technique)
                 test_run_json.update(test)
@@ -90,38 +124,74 @@ def main():
     results_table = []
     results = []
     random.shuffle(run_configs)
+    idx = 1
     for run_config in run_configs:
-        result = subprocess.run([runner_bin, run_config], capture_output=True, text=True)
-        print("RunConfig: " + run_config)
-        print("Output:" + result.stdout)
-        result_json = json.loads(result.stdout)
+        result_json = run([runner_bin, run_config], prefix="Running %s/%s" % (idx, len(run_configs)))
         results.append(result_json)
+        idx += 1
+    
+    benchmark_data_json = os.path.join(bench_dir, 'run_results.json')
+    if FLAGS.regen_report:
+        with open(benchmark_data_json, "r") as out:
+            results = json.load(out)
 
-    benchmark_data_json = os.path.join(bench_dir, 'run_report.json')
     with open(benchmark_data_json, "w") as out:
         out.write(json.dumps(results, indent=4))
 
-    results_table = extract_table(results, ('result', 'duration_sec'))
-    df = pd.DataFrame.from_records(results_table)
-    grouped = df.groupby([0, 1, 2]).agg(median_duration=(3, 'median'), variance=(3, 'var')).reset_index()
-    print(grouped)
-    print(grouped.columns)
-    print(grouped.pivot(index=1, columns=2, values='median_duration'))
+    report_lines = []
+    for metric_fields in benchmark["metrics"]:
+        report_lines.append("### " + metric_fields[-1] + "\n\n")
+        results_table = extract_table(results, metric_fields)
+        df = pd.DataFrame.from_records(results_table)
+        grouped = df.groupby([0, 1, 2]).agg(metric=(3, 'median')).reset_index()
+        report_lines.append(grouped.pivot(index=1, columns=2, values='metric').to_markdown() + "\n\n")
+    
+    report = os.path.join(report_dir, 'report.md')
+    print(report)
+    with(open(report, 'w')) as f:
+        f.writelines(report_lines)
+    exit()
+'''
+    debug_results_table = []
+    debug_results = []
+    random.shuffle(run_configs)
+    for run_config in run_configs:
+        if only_report != "true":
+            print("RunConfig: " + run_config)
+            sys.stdout.flush()
+            debug_result = subprocess.run([debug_runner_bin, run_config], capture_output=True, text=True)
+            print("Output:" + debug_result.stdout)
+            sys.stdout.flush()
+            debug_result_json = json.loads(debug_result.stdout)
+            debug_results.append(debug_result_json)
 
-    results_table = extract_table(results, ('result', 'merge_log', 'max_index_error_correction'))
+    benchmark_data_json = os.path.join(bench_dir, 'debug_run_report.json')
+    if only_report != "true":
+        with open(benchmark_data_json, "w") as out:
+            out.write(json.dumps(debug_results, indent=4))
+    else:
+        with open(benchmark_data_json, "r") as out:
+            debug_results = json.load(out)
+
+
+    results_table = extract_table(debug_results, ('result', 'merge_log', 'max_index_error_correction'))
     df = pd.DataFrame.from_records(results_table)
     grouped = df.groupby([0, 1, 2]).agg(max_error_correction=(3, 'median'), variance=(3, 'var')).reset_index()
     print(grouped.pivot(index=1, columns=2, values='max_error_correction'))
+    sys.stdout.flush()
 
-    results_table = extract_table(results, ('result', 'inner_index_size'))
-    df = pd.DataFrame.from_records(results_table)
-    grouped = df.groupby([0, 1, 2]).agg(inner_index_size=(3, 'median'), variance=(3, 'var')).reset_index()
-    print(grouped.pivot(index=1, columns=2, values='inner_index_size'))
-
-    results_table = extract_table(results, ('result', 'merge_log', 'comparison_count'))
+    results_table = extract_table(debug_results, ('result', 'inner_index_size'))
     df = pd.DataFrame.from_records(results_table)
     grouped = df.groupby([0, 1, 2]).agg(max_error_correction=(3, 'median'), variance=(3, 'var')).reset_index()
     print(grouped.pivot(index=1, columns=2, values='max_error_correction'))
+    sys.stdout.flush()
+
+    results_table = extract_table(debug_results, ('result', 'merge_log', 'comparison_count'))
+    df = pd.DataFrame.from_records(results_table)
+    grouped = df.groupby([0, 1, 2]).agg(max_error_correction=(3, 'median'), variance=(3, 'var')).reset_index()
+    print(grouped.pivot(index=1, columns=2, values='max_error_correction'))
+    sys.stdout.flush()
+'''
 
 if __name__ == "__main__":
-    main()
+    app.run(main)

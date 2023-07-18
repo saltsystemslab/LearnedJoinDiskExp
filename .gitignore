@@ -2,4 +2,7 @@ build/*
 .idea/*
 test_runs/*
 bench_release/*
+bench_debug/*
 datasets/*
+reports_backup/*
+bench/*
