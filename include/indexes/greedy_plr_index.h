@@ -256,7 +256,8 @@ template <class T> class GreedyPLRIndex : public Index<T> {
 public:
   GreedyPLRIndex(greedy_plr::PLRModel *index, KeyToPointConverter<T> *converter)
       : greedy_plr_index_(index), converter_(converter),
-        num_keys_(index->numKeys_) {}
+        num_keys_(index->numKeys_), cur_segment_index_(0) {
+  }
 
   uint64_t getApproxPosition(const T &t) override {
     POINT_FLOAT_TYPE target_key = converter_->toPoint(t);
@@ -291,10 +292,45 @@ public:
                   approx_pos};
   }
 
+  uint64_t getApproxPositionMonotoneAccess(const T &t) override {
+    std::vector<greedy_plr::Segment> &segments =
+        greedy_plr_index_->lineSegments_;
+    POINT_FLOAT_TYPE target_key = converter_->toPoint(t);
+    for (uint64_t i = cur_segment_index_; i < (uint64_t)segments.size(); i++) {
+      if (segments[i].last > target_key) {
+        cur_segment_index_ = i;
+        uint64_t result = std::ceil(target_key * segments[i].k + segments[i].b);
+        if (result >= num_keys_) {
+          result = num_keys_ - 1;
+        }
+        return result;
+      }
+    }
+    return num_keys_ - 1;
+  }
+
+  Bounds getPositionBoundsMonotoneAccess(const T &t) override {
+    uint64_t approx_pos = getApproxPosition(t);
+    if (approx_pos > greedy_plr_index_->gamma_) {
+      approx_pos = approx_pos - 0;
+    } else {
+      approx_pos = 0;
+    }
+    return Bounds{approx_pos, approx_pos + greedy_plr_index_->gamma_,
+                  approx_pos};
+  }
+
+  void resetMonotoneAccess() override {
+    cur_segment_index_ = 0;
+    last_point_ = 0;
+  }
+
 private:
   uint64_t num_keys_;
   greedy_plr::PLRModel *greedy_plr_index_;
   KeyToPointConverter<T> *converter_;
+  POINT_FLOAT_TYPE last_point_;
+  uint64_t cur_segment_index_;
 };
 
 template <class T> class GreedyPLRIndexBuilder : public IndexBuilder<T> {

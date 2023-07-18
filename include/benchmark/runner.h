@@ -173,7 +173,7 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
 IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
   std::string index_type = test_spec["index"]["type"];
   if (index_type == "pgm64") {
-    return new PgmIndexBuilder(0, get_converter(test_spec));
+    return new PgmIndexBuilder<KVSlice, 64>(0, get_converter(test_spec));
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);

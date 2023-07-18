@@ -34,6 +34,13 @@ public:
     auto pos = lo->second;
     return Bounds{pos, pos, pos};
   }
+  uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) {
+    return getApproxPosition(t);
+  };
+  Bounds getPositionBoundsMonotoneAccess(const KVSlice &t) {
+    return getPositionBoundsMonotoneAccess(t);
+  };
+  void resetMonotoneAccess() override{};
 
 private:
   RbTree *tree_;
