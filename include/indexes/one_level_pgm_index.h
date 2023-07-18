@@ -39,6 +39,10 @@ public:
   };
   void resetMonotoneAccess() override { cur_segment_index_ = 0; };
 
+  uint64_t size_in_bytes() override {
+    return segments_->size() * sizeof(segments_[0]);
+  }
+
 private:
   uint64_t cur_segment_index_;
   std::vector<typename pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon, 0, float>::Segment> *segments_;

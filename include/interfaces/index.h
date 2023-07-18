@@ -20,6 +20,7 @@ public:
   virtual uint64_t getApproxPositionMonotoneAccess(const T &t) = 0;
   virtual Bounds getPositionBoundsMonotoneAccess(const T &t) = 0;
   virtual void resetMonotoneAccess() = 0;
+  virtual uint64_t size_in_bytes() = 0;
 };
 
 template <class T> class IndexBuilder {

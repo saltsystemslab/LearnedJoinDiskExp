@@ -56,6 +56,9 @@ template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                           Comparator<T> *comparator, SSTableBuilder<T> *builder,
                           json *merge_log) {
+#if TRACK_STATS
+  comparator = new CountingComparator<T>(comparator);
+#endif
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
   inner_iter->seekToFirst();
@@ -68,6 +71,9 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
     builder->add(smallest->key());
     smallest->next();
   }
+#if TRACK_STATS
+  (*merge_log)["comparison_count"] = ((CountingComparator<T> *)(comparator)) -> get_count();
+#endif
   return builder->build();
 }
 
@@ -79,6 +85,7 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              json *merge_log) {
 #if TRACK_STATS
   (*merge_log)["max_index_error_correction"] = 0;
+  comparator = new CountingComparator<T>(comparator);
 #endif
 
   Iterator<T> *inner_iter = inner_table->iterator();
@@ -111,6 +118,9 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
     internal::findSecondSmallest(iterators, 2, comparator, smallest,
                                  &second_smallest);
   }
+#if TRACK_STATS
+  (*merge_log)["comparison_count"] = ((CountingComparator<T> *)(comparator))->get_count();
+#endif
   return resultBuilder->build();
 }
 

@@ -24,7 +24,7 @@ typedef std::pair<std::string, uint64_t> RbTreeEntry;
 
 class RbTreeIndex : public Index<KVSlice> {
 public:
-  RbTreeIndex(RbTree *tree) : tree_(tree){};
+  RbTreeIndex(RbTree *tree, int key_size_bytes) : tree_(tree), key_size_bytes_(key_size_bytes){};
   uint64_t getApproxPosition(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
     return lo->second;
@@ -42,14 +42,19 @@ public:
   };
   void resetMonotoneAccess() override{};
 
+  uint64_t size_in_bytes() override {
+    return tree_->size() * (24 + key_size_bytes_);
+  }
+
 private:
+  int key_size_bytes_;
   RbTree *tree_;
 };
 
 class RbTreeIndexBuilder : public IndexBuilder<KVSlice> {
 public:
   RbTreeIndexBuilder(Comparator<KVSlice> *comp, int key_size_bytes)
-      : num_elts_(0) {
+      : num_elts_(0), key_size_bytes_(key_size_bytes) {
     tree_ = new RbTree(RbTreeComparator(comp, key_size_bytes));
   }
   void add(const KVSlice &t) override {
@@ -57,9 +62,10 @@ public:
         RbTreeEntry(std::string(t.data(), t.key_size_bytes()), num_elts_));
     num_elts_++;
   }
-  Index<KVSlice> *build() override { return new RbTreeIndex(tree_); }
+  Index<KVSlice> *build() override { return new RbTreeIndex(tree_, key_size_bytes_); }
 
 private:
+  int key_size_bytes_;
   uint64_t num_elts_;
   RbTree *tree_;
 };

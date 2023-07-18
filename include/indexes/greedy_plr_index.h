@@ -324,6 +324,10 @@ public:
     last_point_ = 0;
   }
 
+  uint64_t size_in_bytes() override {
+    return greedy_plr_index_->lineSegments_.size() * sizeof(greedy_plr::Segment);
+  }
+
 private:
   uint64_t num_keys_;
   greedy_plr::PLRModel *greedy_plr_index_;

@@ -112,7 +112,7 @@ json run_standard_merge(json test_spec) {
 
   result["duration_ns"] = duration_ns;
   result["duration_sec"] = duration_sec;
-  result["merge_log"] = merge_log;
+      result["merge_log"] = merge_log;
   return result;
 }
 
@@ -139,6 +139,12 @@ json run_learned_merge(json test_spec) {
                          .count();
   float duration_sec = duration_ns / 1e9;
 
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  result["merge_log"] = merge_log;
+  result["inner_index_size"] = inner_index->size_in_bytes();
+  result["outer_index_size"] = outer_index->size_in_bytes();
+
   delete inner_table;
   delete outer_table;
   delete inner_index_builder;
@@ -147,11 +153,8 @@ json run_learned_merge(json test_spec) {
   delete inner_index;
   delete outer_index;
   delete comparator;
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["merge_log"] = merge_log;
 
-  return result;
+      return result;
 }
 
 SSTable<KVSlice> *load_sstable(std::string path, bool load_in_mem) {
