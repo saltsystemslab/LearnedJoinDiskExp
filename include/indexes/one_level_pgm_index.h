@@ -45,7 +45,8 @@ public:
 
 private:
   uint64_t cur_segment_index_;
-  std::vector<typename pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon, 0, float>::Segment> *segments_;
+  std::vector<typename pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon, 0,
+                                     float>::Segment> *segments_;
   pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
 };

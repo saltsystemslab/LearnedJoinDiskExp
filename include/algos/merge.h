@@ -44,8 +44,7 @@ template <class T>
 void addClusterToResult(IteratorIndexPair<T> *smallest,
                         IteratorIndexPair<T> *second_smallest,
                         Comparator<T> *comparator,
-                        SSTableBuilder<T> *resultBuilder,
-                        json *merge_log);
+                        SSTableBuilder<T> *resultBuilder, json *merge_log);
 } // namespace internal
 
 } // namespace li_merge
@@ -72,7 +71,8 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
     smallest->next();
   }
 #if TRACK_STATS
-  (*merge_log)["comparison_count"] = ((CountingComparator<T> *)(comparator)) -> get_count();
+  (*merge_log)["comparison_count"] =
+      ((CountingComparator<T> *)(comparator))->get_count();
 #endif
   return builder->build();
 }
@@ -119,7 +119,8 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                                  &second_smallest);
   }
 #if TRACK_STATS
-  (*merge_log)["comparison_count"] = ((CountingComparator<T> *)(comparator))->get_count();
+  (*merge_log)["comparison_count"] =
+      ((CountingComparator<T> *)(comparator))->get_count();
 #endif
   return resultBuilder->build();
 }
@@ -203,8 +204,8 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
 #if TRACK_STATS
   uint64_t error_correction = 0;
 #endif
-  uint64_t approx_pos =
-      smallest->index->getApproxPositionMonotoneAccess(second_smallest->iter->key());
+  uint64_t approx_pos = smallest->index->getApproxPositionMonotoneAccess(
+      second_smallest->iter->key());
   approx_pos = std::max(approx_pos, smallest->iter->current_pos());
   approx_pos = std::min(approx_pos, smallest->iter->num_elts() - 1);
   bool is_overshoot = false;
@@ -221,18 +222,19 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
     smallest->iter->next();
   }
   if (!is_overshoot) {
-  while (smallest->iter->valid() &&
-         comparator->compare(smallest->iter->key(),
-                             second_smallest->iter->key()) <= 0) {
+    while (smallest->iter->valid() &&
+           comparator->compare(smallest->iter->key(),
+                               second_smallest->iter->key()) <= 0) {
       resultBuilder->add(smallest->iter->key());
       smallest->iter->next();
 #if TRACK_STATS
-    error_correction++;
+      error_correction++;
 #endif
     }
   }
 #if TRACK_STATS
-  (*merge_log)["max_index_error_correction"] = std::max<uint64_t>((uint64_t)(*merge_log)["max_index_error_correction"], error_correction);
+  (*merge_log)["max_index_error_correction"] = std::max<uint64_t>(
+      (uint64_t)(*merge_log)["max_index_error_correction"], error_correction);
 #endif
 }
 

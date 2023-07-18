@@ -325,7 +325,8 @@ public:
   }
 
   uint64_t size_in_bytes() override {
-    return greedy_plr_index_->lineSegments_.size() * sizeof(greedy_plr::Segment);
+    return greedy_plr_index_->lineSegments_.size() *
+           sizeof(greedy_plr::Segment);
   }
 
 private:

@@ -27,9 +27,7 @@ public:
     return getPositionBounds(t);
   };
   void resetMonotoneAccess() override{};
-  uint64_t size_in_bytes() override {
-    return pgm_index_->size_in_bytes();
-  }
+  uint64_t size_in_bytes() override { return pgm_index_->size_in_bytes(); }
 
 private:
   pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;

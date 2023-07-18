@@ -24,7 +24,8 @@ typedef std::pair<std::string, uint64_t> RbTreeEntry;
 
 class RbTreeIndex : public Index<KVSlice> {
 public:
-  RbTreeIndex(RbTree *tree, int key_size_bytes) : tree_(tree), key_size_bytes_(key_size_bytes){};
+  RbTreeIndex(RbTree *tree, int key_size_bytes)
+      : tree_(tree), key_size_bytes_(key_size_bytes){};
   uint64_t getApproxPosition(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
     return lo->second;
@@ -62,7 +63,9 @@ public:
         RbTreeEntry(std::string(t.data(), t.key_size_bytes()), num_elts_));
     num_elts_++;
   }
-  Index<KVSlice> *build() override { return new RbTreeIndex(tree_, key_size_bytes_); }
+  Index<KVSlice> *build() override {
+    return new RbTreeIndex(tree_, key_size_bytes_);
+  }
 
 private:
   int key_size_bytes_;

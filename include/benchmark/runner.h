@@ -7,11 +7,11 @@
 #include "greedy_plr_index.h"
 #include "key_value_slice.h"
 #include "merge.h"
+#include "one_level_pgm_index.h"
 #include "pgm_index.h"
 #include "rbtree_index.h"
 #include "sstable.h"
 #include "synthetic.h"
-#include "one_level_pgm_index.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -112,7 +112,7 @@ json run_standard_merge(json test_spec) {
 
   result["duration_ns"] = duration_ns;
   result["duration_sec"] = duration_sec;
-      result["merge_log"] = merge_log;
+  result["merge_log"] = merge_log;
   return result;
 }
 
@@ -154,7 +154,7 @@ json run_learned_merge(json test_spec) {
   delete outer_index;
   delete comparator;
 
-      return result;
+  return result;
 }
 
 SSTable<KVSlice> *load_sstable(std::string path, bool load_in_mem) {
@@ -181,7 +181,8 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
 IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
   std::string index_type = test_spec["index"]["type"];
   if (index_type == "onelevel_pgm64") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0, get_converter(test_spec));
+    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
+                                                    get_converter(test_spec));
   } else if (index_type == "onelevel_pgm1000") {
     return new OneLevelPgmIndexBuilder<KVSlice, 1000>(0,
                                                       get_converter(test_spec));
