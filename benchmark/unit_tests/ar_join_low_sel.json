@@ -54,6 +54,10 @@
         "algo": "sort_join"
       },
       {
+        "name": "hash_join",
+        "algo": "hash_join"
+      },
+      {
         "name": "PGM_64",
         "algo": "inlj",
         "index": {
