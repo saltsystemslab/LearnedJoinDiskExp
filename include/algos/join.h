@@ -5,8 +5,26 @@
 #include "index.h"
 #include "iterator.h"
 #include "sstable.h"
+#include <unordered_set>
 
 namespace li_merge {
+template <class T>
+SSTable<T> *hash_join(std::unordered_set<std::string> &outer_index,
+                      SSTable<T> *inner,
+                      SSTableBuilder<T> *result) {
+  auto inner_iterator = inner->iterator();
+  inner_iterator->seekToFirst();
+  while (inner_iterator->valid()) {
+    KVSlice kv = inner_iterator->key();
+    std::string key(kv.data(), kv.key_size_bytes());
+    if (outer_index.find(key) != outer_index.end()) {
+      result->add(inner_iterator->key());
+    }
+    inner_iterator->next();
+  }
+  return result->build();
+}
+
 template <class T>
 SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer,
                              SSTable<T> *inner,

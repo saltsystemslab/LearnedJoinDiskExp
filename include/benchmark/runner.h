@@ -14,6 +14,7 @@
 #include "synthetic.h"
 #include "join.h"
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
 using json = nlohmann::json;
 
@@ -23,6 +24,7 @@ json run_test(json test_spec);
 json run_standard_merge(json test_spec);
 json run_learned_merge(json test_spec);
 json run_sort_join(json test_spec);
+json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
 json create_input_sstable(json test_spec);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
@@ -40,6 +42,8 @@ json run_test(json test_spec) {
     return create_input_sstable(test_spec);
   } else if (test_spec["algo"] == "sort_join") {
     return run_sort_join(test_spec);
+  } else if (test_spec["algo"] == "hash_join") {
+    return run_hash_join(test_spec);
   } else if (test_spec["algo"] == "inlj") {
     return run_inlj(test_spec);
   }
@@ -187,6 +191,40 @@ json run_sort_join(json test_spec) {
   delete result_table_builder;
   delete comparator;
 
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  return result;
+}
+
+json run_hash_join(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+
+  std::unordered_set<std::string> outer_index;
+  Iterator<KVSlice> *outer_iter= outer_table->iterator();
+  while (outer_iter->valid()) {
+    KVSlice kv = outer_iter->key();
+    outer_index.insert(std::string(kv.data(), kv.key_size_bytes()));
+    outer_iter->next();
+  }
+
+  auto merge_start = std::chrono::high_resolution_clock::now();
+  hash_join<KVSlice>(outer_index, inner_table, result_table_builder);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  float duration_sec = duration_ns / 1e9;
+
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+
+  result["outer_index_size"] = outer_index.size() * (uint64_t)test_spec["key_size"];
   result["duration_ns"] = duration_ns;
   result["duration_sec"] = duration_sec;
   return result;
