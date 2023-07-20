@@ -22,8 +22,8 @@ flags.DEFINE_bool("track_stats", False, "")
 flags.DEFINE_integer("repeat", 0, "")
 
 runner_bin = './bench/benchmark_runner'
-def build_runner():
-    track_stats='-DTRACK_STATS=ON' if FLAGS.track_stats else '-DTRACK_STATS=OFF'
+def build_runner(force_track_stats=False):
+    track_stats='-DTRACK_STATS=ON' if (FLAGS.track_stats or force_track_stats) else '-DTRACK_STATS=OFF'
     subprocess.run(['cmake', '-B', 'bench', track_stats, '-S', '.'])
     subprocess.run(['cmake', '--build', 'bench', '-j'])
 
@@ -37,6 +37,10 @@ def extract_table(results, metric_fields):
         metric_val = None
         if metric_dict and metric_fields[-1] in metric_dict:
             metric_val = metric_dict[metric_fields[-1]]
+        print(json.dumps(result_json, indent=2))
+        if ('status' in result_json and result_json['status'] == 'NZEC'):
+            print("WARNING: COMMAND FAILED, check %s" % result_json['command'])
+            continue
         results_table.append(
             (result_json['spec']['label'],
             result_json['spec']['label_x'],
@@ -65,9 +69,11 @@ def run(command, force_dry_run=False, prefix=''):
 
 
 def main(argv):
-    build_runner()
     benchmark_file = open(FLAGS.spec)
     benchmark = json.load(benchmark_file)
+
+    if not FLAGS.regen_report:
+        build_runner(("track_stats" in benchmark) and benchmark["track_stats"])
 
     # Create benchmark directories
     bench_dir = os.path.join(FLAGS.run_dir, os.path.splitext(FLAGS.spec)[0])
@@ -151,47 +157,6 @@ def main(argv):
     with(open(report, 'w')) as f:
         f.writelines(report_lines)
     exit()
-'''
-    debug_results_table = []
-    debug_results = []
-    random.shuffle(run_configs)
-    for run_config in run_configs:
-        if only_report != "true":
-            print("RunConfig: " + run_config)
-            sys.stdout.flush()
-            debug_result = subprocess.run([debug_runner_bin, run_config], capture_output=True, text=True)
-            print("Output:" + debug_result.stdout)
-            sys.stdout.flush()
-            debug_result_json = json.loads(debug_result.stdout)
-            debug_results.append(debug_result_json)
-
-    benchmark_data_json = os.path.join(bench_dir, 'debug_run_report.json')
-    if only_report != "true":
-        with open(benchmark_data_json, "w") as out:
-            out.write(json.dumps(debug_results, indent=4))
-    else:
-        with open(benchmark_data_json, "r") as out:
-            debug_results = json.load(out)
-
-
-    results_table = extract_table(debug_results, ('result', 'merge_log', 'max_index_error_correction'))
-    df = pd.DataFrame.from_records(results_table)
-    grouped = df.groupby([0, 1, 2]).agg(max_error_correction=(3, 'median'), variance=(3, 'var')).reset_index()
-    print(grouped.pivot(index=1, columns=2, values='max_error_correction'))
-    sys.stdout.flush()
-
-    results_table = extract_table(debug_results, ('result', 'inner_index_size'))
-    df = pd.DataFrame.from_records(results_table)
-    grouped = df.groupby([0, 1, 2]).agg(max_error_correction=(3, 'median'), variance=(3, 'var')).reset_index()
-    print(grouped.pivot(index=1, columns=2, values='max_error_correction'))
-    sys.stdout.flush()
-
-    results_table = extract_table(debug_results, ('result', 'merge_log', 'comparison_count'))
-    df = pd.DataFrame.from_records(results_table)
-    grouped = df.groupby([0, 1, 2]).agg(max_error_correction=(3, 'median'), variance=(3, 'var')).reset_index()
-    print(grouped.pivot(index=1, columns=2, values='max_error_correction'))
-    sys.stdout.flush()
-'''
 
 if __name__ == "__main__":
     app.run(main)
