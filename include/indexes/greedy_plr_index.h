@@ -272,6 +272,9 @@ public:
     }
     uint64_t result =
         std::ceil((target_key)*segments[left].k + segments[left].b);
+    if (left+1 < segments.size()) {
+      result = std::min<uint64_t>(result, std::ceil(segments[left+1].b));
+    }
     if (result < 0) {
       result = 0;
     }
@@ -299,6 +302,9 @@ public:
       if (segments[i].last > target_key) {
         cur_segment_index_ = i;
         uint64_t result = std::ceil(target_key * segments[i].k + segments[i].b);
+        if (i+1 < segments.size()) {
+          result = std::min<uint64_t>(result, std::ceil(segments[i+1].b));
+        }
         if (result >= num_keys_) {
           result = num_keys_ - 1;
         }
