@@ -1,99 +1,75 @@
 {
-  "name": "uniform_random_64bit keys, 64 bit values",
-  "dir": "test_runs/large_ur_64_join",
   "inputs": {
     "common": {
-      "key_size": 8,
-      "value_size": 8,
+      "key_size": 16,
+      "value_size": 16,
       "key_type": "str",
-      "method": "uniform_dist",
       "algo": "create_input",
-      "write_result_to_disk": true
+      "method": "from_ar",
+      "write_result_to_disk": true,
+      "source": "./datasets/ar_keys_v1_00"
     },
     "list": [
       {
-        "name": "1K",
-        "num_keys": 10
-      },
-      {
-        "name": "100M",
-        "common_keys_file": "1K",
-        "num_keys":1000000 
+        "name": "100M", 
+        "use_all": true,
+        "num_keys": 0
       },
       {
         "name": "50M",
-        "common_keys_file": "1K",
-        "num_keys": 500000
+        "num_keys": 50000000
       },
       {
         "name": "33M",
-        "common_keys_file": "1K",
-        "num_keys": 333333
+        "num_keys": 33333333
       },
       {
         "name": "25M",
-        "common_keys_file": "1K",
-        "num_keys": 250000
+        "num_keys": 25000000
       },
       {
         "name": "20M",
-        "common_keys_file": "1K",
-        "num_keys": 200000
-      },
-      {
-        "name": "20M",
-        "common_keys_file": "1K",
-        "num_keys": 200000
+        "num_keys": 20000000
       },
       {
         "name": "16M",
-        "common_keys_file": "1K",
-        "num_keys": 166666
+        "num_keys": 16666666
       },
       {
         "name": "14M",
-        "common_keys_file": "1K",
-        "num_keys": 142857 
+        "num_keys": 14285700 
       },
       {
         "name": "12M",
-        "common_keys_file": "1K",
-        "num_keys":125000 
+        "num_keys":12500000
       },
       {
         "name": "11M",
-        "common_keys_file": "1K",
-        "num_keys":111111 
+        "num_keys":11111111 
       },
       {
         "name": "10M",
-        "common_keys_file": "1K",
-        "num_keys":100000 
+        "num_keys":10000000 
       },
       {
         "name": "6M",
-        "common_keys_file": "1K",
-        "num_keys":60000 
+        "num_keys":6000000 
       },
       {
         "name": "5M",
-        "common_keys_file": "1K",
-        "num_keys":50000 
+        "num_keys":5000000 
       },
       {
         "name": "4M",
-        "common_keys_file": "1K",
-        "num_keys":40000 
+        "num_keys":4000000 
       },
       {
         "name": "2M",
-        "common_keys_file": "1K",
-        "num_keys":25000 
+        "num_keys":2500000 
       },
       {
         "name": "1M",
-        "common_keys_file": "1K",
-        "num_keys":10000 
+        "num_keys":1000000 
       }
     ]
   },
@@ -101,8 +77,8 @@
   "algos": {
     "repeat": 1,
     "common": {
-      "key_size": 8,
-      "value_size": 8,
+      "key_size": 16,
+      "value_size": 16,
       "key_type": "str",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true
@@ -162,7 +138,7 @@
         "label_x": 3,
         "outer_table": "33M",
         "inner_table": "100M"
-      },
+      }
       {
         "dir": "25M_to_100M",
         "label": "25M_to_100M",

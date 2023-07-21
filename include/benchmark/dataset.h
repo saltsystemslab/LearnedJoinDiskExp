@@ -14,6 +14,15 @@
 
 namespace li_merge {
 
+void fix_value(char *buf, int key_len, int value_len) {
+  char *key_buf = buf;
+  char *value_buf = buf + key_len;
+  // We copy the key as value. This is so diffs match on identitcal keys when there are multiple orders.
+  memset(value_buf, 0, value_len);
+  memcpy(value_buf, key_buf, std::min(key_len, value_len));
+}
+
+
 uint64_t get_num_keys_from_sosd_dataset(int fd) {
   char bytes[8];
   int bytes_read = pread(fd, bytes, 8, 0); // Read first 8 bytes.
@@ -70,7 +79,7 @@ SSTable<KVSlice> *generate_from_datafile(
   for (auto key_idx : selected_keys) {
     KVSlice k = sosd_keys.get_kv(key_idx);
     memcpy(kv_buf, k.data(), key_size_bytes);
-    RAND_bytes((unsigned char *)(kv_buf + key_size_bytes), value_size_bytes);
+    fix_value(kv_buf, key_size_bytes, value_size_bytes);
     builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
   }
   return builder->build();

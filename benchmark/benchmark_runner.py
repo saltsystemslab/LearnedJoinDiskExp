@@ -152,9 +152,9 @@ def main(argv):
                 if not filecmp.cmp(result_files[idx[0]], result_files[idx[0]-1]):
                     results_differ = True
             if results_differ:
-                print(os.path.join(bench_dir, test['dir']) + " DIFF: FAIL")
+                print(test_result + " DIFF: FAIL")
             else:
-                print(test['dir'] + " DIFF: OK")
+                print(test_result + " DIFF: OK")
 
 
 

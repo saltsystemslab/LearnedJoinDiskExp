@@ -1,10 +1,9 @@
 {
   "name": "uniform_random_64bit keys, 64 bit values",
-  "dir": "test_runs/large_ar_merge",
   "inputs": {
     "common": {
       "key_size": 16,
-      "value_size": 0,
+      "value_size": 16,
       "key_type": "str",
       "algo": "create_input",
       "method": "from_ar",
@@ -13,28 +12,68 @@
     },
     "list": [
       {
-        "name": "10K",
-        "num_keys": 10000
-      },
-      {
-        "name": "100K",
-        "num_keys": 100000
-      },
-      {
-        "name": "1M",
+        "name": "100M",
         "num_keys": 1000000
       },
       {
+        "name": "50M",
+        "num_keys": 500000
+      },
+      {
+        "name": "33M",
+        "num_keys": 333333
+      },
+      {
+        "name": "25M",
+        "num_keys": 250000
+      },
+      {
+        "name": "20M",
+        "num_keys": 200000
+      },
+      {
+        "name": "20M",
+        "num_keys": 200000
+      },
+      {
+        "name": "16M",
+        "num_keys": 166666
+      },
+      {
+        "name": "14M",
+        "num_keys": 142857 
+      },
+      {
+        "name": "12M",
+        "num_keys":125000 
+      },
+      {
+        "name": "11M",
+        "num_keys":111111 
+      },
+      {
         "name": "10M",
-        "num_keys": 10000000
+        "num_keys":100000 
       },
       {
-        "name": "100M_LIST_2",
-        "num_keys": 100000000
+        "name": "6M",
+        "num_keys":60000 
       },
       {
-        "name": "100M",
-        "num_keys": 100000000
+        "name": "5M",
+        "num_keys":50000 
+      },
+      {
+        "name": "4M",
+        "num_keys":40000 
+      },
+      {
+        "name": "2M",
+        "num_keys":25000 
+      },
+      {
+        "name": "1M",
+        "num_keys":10000 
       }
     ]
   },
@@ -42,7 +81,7 @@
     "repeat": 1,
     "common": {
       "key_size": 16,
-      "value_size": 0,
+      "value_size": 16,
       "key_type": "str",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true
@@ -60,23 +99,17 @@
         }
       },
       {
-        "name": "PLR_64",
-        "algo": "learned_merge",
-        "index": {
-          "type": "plr",
-          "error_bound": 64
-        }
-      },
-      {
         "name": "ONELEVEL_PGM_64",
-        "algo": "learned_merge",
+        "algo": "learned_merge_threshold",
+        "threshold": 10,
         "index": {
           "type": "onelevel_pgm64"
         }
       },
       {
         "name": "RbTree",
-        "algo": "learned_merge",
+        "algo": "learned_merge_threshold",
+        "threshold": 10,
         "index": {
           "type": "rbtree"
         }
@@ -86,39 +119,102 @@
   "tests": {
     "list": [
       {
-        "dir": "100M_to_100M",
-        "label": "1:1",
-        "label_x": 1,
-        "inner_table": "100M_LIST_2",
-        "outer_table": "100M"
+        "dir": "50M_to_100M",
+        "label": "50M_to_100M",
+        "label_x": 2,
+        "outer_table": "50M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "33M_to_100M",
+        "label": "33M_to_100M",
+        "label_x": 3,
+        "outer_table": "33M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "25M_to_100M",
+        "label": "25M_to_100M",
+        "label_x": 4,
+        "outer_table": "25M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "20M_to_100M",
+        "label": "20M_to_100M",
+        "label_x": 5,
+        "outer_table": "20M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "16M_to_100M",
+        "label": "16M_to_100M",
+        "label_x": 6,
+        "outer_table": "16M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "14M_to_100M",
+        "label": "14M_to_100M",
+        "label_x": 7,
+        "outer_table": "14M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "12M_to_100M",
+        "label": "12M_to_100M",
+        "label_x": 8,
+        "outer_table": "12M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "11M_to_100M",
+        "label": "11M_to_100M",
+        "label_x": 9,
+        "outer_table": "11M",
+        "inner_table": "100M"
       },
       {
         "dir": "10M_to_100M",
-        "label": "10:10",
+        "label": "10M_to_100M",
         "label_x": 10,
-        "inner_table": "10M",
-        "outer_table": "100M"
+        "outer_table": "10M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "6M_to_100M",
+        "label": "6M_to_100M",
+        "label_x": 16,
+        "outer_table": "6M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "5M_to_100M",
+        "label": "5M_to_100M",
+        "label_x": 20,
+        "outer_table": "5M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "4M_to_100M",
+        "label": "4M_to_100M",
+        "label_x": 25,
+        "outer_table": "4M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "2M_to_100M",
+        "label": "2M_to_100M",
+        "label_x": 40,
+        "outer_table": "2M",
+        "inner_table": "100M"
       },
       {
         "dir": "1M_to_100M",
-        "label": "1:100",
+        "label": "1M_to_100M",
         "label_x": 100,
-        "inner_table": "1M",
-        "outer_table": "100M"
-      },
-      {
-        "dir": "100K_to_100M",
-        "label": "1:1000",
-        "label_x": 1000,
-        "inner_table": "100K",
-        "outer_table": "100M"
-      },
-      {
-        "dir": "10K_to_100M",
-        "label": "1:10000",
-        "label_x": 10000,
-        "inner_table": "10K",
-        "outer_table": "100M"
+        "outer_table": "1M",
+        "inner_table": "100M"
       }
     ]
   },

@@ -1,6 +1,5 @@
 {
-  "name": "uniform_random_64bit keys, 64 bit values",
-  "dir": "test_runs/large_ur_64_join",
+  "track_stats": true,
   "inputs": {
     "common": {
       "key_size": 8,
@@ -12,94 +11,61 @@
     },
     "list": [
       {
-        "name": "1K",
-        "num_keys": 10
-      },
-      {
         "name": "100M",
-        "common_keys_file": "1K",
-        "num_keys":1000000 
+        "num_keys": 1000000
       },
       {
         "name": "50M",
-        "common_keys_file": "1K",
         "num_keys": 500000
       },
       {
         "name": "33M",
-        "common_keys_file": "1K",
         "num_keys": 333333
       },
       {
         "name": "25M",
-        "common_keys_file": "1K",
         "num_keys": 250000
       },
       {
         "name": "20M",
-        "common_keys_file": "1K",
         "num_keys": 200000
       },
       {
         "name": "20M",
-        "common_keys_file": "1K",
         "num_keys": 200000
       },
       {
         "name": "16M",
-        "common_keys_file": "1K",
         "num_keys": 166666
       },
       {
         "name": "14M",
-        "common_keys_file": "1K",
         "num_keys": 142857 
       },
       {
         "name": "12M",
-        "common_keys_file": "1K",
         "num_keys":125000 
       },
       {
         "name": "11M",
-        "common_keys_file": "1K",
         "num_keys":111111 
       },
       {
         "name": "10M",
-        "common_keys_file": "1K",
         "num_keys":100000 
       },
       {
         "name": "6M",
-        "common_keys_file": "1K",
         "num_keys":60000 
       },
       {
         "name": "5M",
-        "common_keys_file": "1K",
         "num_keys":50000 
-      },
-      {
-        "name": "4M",
-        "common_keys_file": "1K",
-        "num_keys":40000 
-      },
-      {
-        "name": "2M",
-        "common_keys_file": "1K",
-        "num_keys":25000 
-      },
-      {
-        "name": "1M",
-        "common_keys_file": "1K",
-        "num_keys":10000 
       }
     ]
   },
-
   "algos": {
-    "repeat": 1,
+    "repeat": 5,
     "common": {
       "key_size": 8,
       "value_size": 8,
@@ -109,38 +75,29 @@
     },
     "list": [
       {
-        "name": "sort_join",
-        "algo": "sort_join"
-      },
-      {
-        "name": "hash_join",
-        "algo": "hash_join"
+        "name": "standard_merge",
+        "algo": "standard_merge"
       },
       {
         "name": "PGM_64",
-        "algo": "inlj",
+        "algo": "learned_merge_threshold",
+        "threshold": 5,
         "index": {
           "type": "pgm64"
         }
       },
       {
-        "name": "PLR_64",
-        "algo": "inlj",
-        "index": {
-          "type": "plr",
-          "error_bound": 64
-        }
-      },
-      {
-        "name": "ONELEVEL_PGM_64",
-        "algo": "inlj",
+        "name": "ONELEVEL_PGM_64_THRESH",
+        "algo": "learned_merge_threshold",
+        "threshold": 5,
         "index": {
           "type": "onelevel_pgm64"
         }
       },
       {
         "name": "RbTree",
-        "algo": "inlj",
+        "algo": "learned_merge_threshold",
+        "threshold": 5,
         "index": {
           "type": "rbtree"
         }
@@ -225,34 +182,12 @@
         "label_x": 20,
         "outer_table": "5M",
         "inner_table": "100M"
-      },
-      {
-        "dir": "4M_to_100M",
-        "label": "4M_to_100M",
-        "label_x": 25,
-        "outer_table": "4M",
-        "inner_table": "100M"
-      },
-      {
-        "dir": "2M_to_100M",
-        "label": "2M_to_100M",
-        "label_x": 40,
-        "outer_table": "2M",
-        "inner_table": "100M"
-      },
-      {
-        "dir": "1M_to_100M",
-        "label": "1M_to_100M",
-        "label_x": 100,
-        "outer_table": "1M",
-        "inner_table": "100M"
       }
     ]
   },
   "report_format": "csv",
   "metrics": [
-    ["result", "duration_sec"],
-    ["result", "inner_index_size"],
-    ["result", "outer_index_size"]
+        ["result", "duration_sec"],
+        ["result", "merge_log", "comparison_count"]
   ]
 }

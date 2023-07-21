@@ -3,8 +3,8 @@
   "dir": "test_runs/large_ur_64_join",
   "inputs": {
     "common": {
-      "key_size": 8,
-      "value_size": 8,
+      "key_size": 16,
+      "value_size": 16,
       "key_type": "str",
       "method": "uniform_dist",
       "algo": "create_input",
@@ -101,8 +101,8 @@
   "algos": {
     "repeat": 1,
     "common": {
-      "key_size": 8,
-      "value_size": 8,
+      "key_size": 16,
+      "value_size": 16,
       "key_type": "str",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true

@@ -3,17 +3,21 @@
   "dir": "test_runs/large_ur_64_join",
   "inputs": {
     "common": {
-      "key_size": 8,
-      "value_size": 8,
+      "key_size": 16,
+      "value_size": 16,
       "key_type": "str",
-      "method": "uniform_dist",
       "algo": "create_input",
-      "write_result_to_disk": true
+      "method": "from_ar",
+      "write_result_to_disk": true,
+      "source": "./datasets/ar_keys_v1_00"
     },
     "list": [
       {
         "name": "1K",
-        "num_keys": 10
+        "num_keys": 10,
+        "key_size": 8,
+        "value_size": 0,
+        "method": "select_common_keys"
       },
       {
         "name": "100M",
@@ -101,8 +105,8 @@
   "algos": {
     "repeat": 1,
     "common": {
-      "key_size": 8,
-      "value_size": 8,
+      "key_size": 16,
+      "value_size": 16,
       "key_type": "str",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true
