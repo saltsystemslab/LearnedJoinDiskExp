@@ -40,7 +40,8 @@ public:
     auto pos = lo->second;
     return Bounds{lo->second, lo->second, hi->second};
   }
-  uint64_t getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
+  uint64_t
+  getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
     return getApproxLowerBoundPosition(t);
   };
   uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) {

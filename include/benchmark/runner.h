@@ -297,7 +297,7 @@ json run_learned_merge_threshold(json test_spec) {
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
   mergeWithIndexesThreshold(outer_table, inner_table, inner_index, threshold,
-                   comparator, result_table_builder, &merge_log);
+                            comparator, result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)

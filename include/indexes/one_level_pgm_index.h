@@ -31,7 +31,7 @@ public:
     }
     if (cur_segment_index_)
       cur_segment_index_--;
-      return std::min<size_t>((*segments_)[cur_segment_index_](point),
+    return std::min<size_t>((*segments_)[cur_segment_index_](point),
                             (*segments_)[cur_segment_index_ + 1].intercept);
   };
   uint64_t getApproxLowerBoundPosition(const T &t) override {

@@ -326,7 +326,8 @@ public:
     }
     return num_keys_ - 1;
   }
-  uint64_t getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
+  uint64_t
+  getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
     uint64_t position = getApproxPositionMonotoneAccess(t);
     if (position >= greedy_plr_index_->gamma_) {
       position = std::ceil(position - greedy_plr_index_->gamma_);

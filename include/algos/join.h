@@ -10,8 +10,7 @@
 namespace li_merge {
 template <class T>
 SSTable<T> *hash_join(std::unordered_set<std::string> &outer_index,
-                      SSTable<T> *inner,
-                      SSTableBuilder<T> *result) {
+                      SSTable<T> *inner, SSTableBuilder<T> *result) {
   auto inner_iterator = inner->iterator();
   inner_iterator->seekToFirst();
   while (inner_iterator->valid()) {
@@ -26,11 +25,10 @@ SSTable<T> *hash_join(std::unordered_set<std::string> &outer_index,
 }
 
 template <class T>
-SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer,
-                             SSTable<T> *inner,
-                             Index<T> *inner_index,
-                             Comparator<T> *comparator,
-                             SSTableBuilder<T> *result) {
+SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer, SSTable<T> *inner,
+                                     Index<T> *inner_index,
+                                     Comparator<T> *comparator,
+                                     SSTableBuilder<T> *result) {
   auto outer_iterator = outer->iterator();
   auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();
@@ -38,7 +36,7 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer,
   uint64_t inner_num_elts = inner_iterator->num_elts();
   while (outer_iterator->valid()) {
     uint64_t approx_pos = inner_index->getApproxPosition(outer_iterator->key());
-    approx_pos = std::min(approx_pos, inner_num_elts-1);
+    approx_pos = std::min(approx_pos, inner_num_elts - 1);
     // Set to first value lesser than or equal to the inner key.
     bool is_overshoot = false;
     while (approx_pos && comparator->compare(inner_iterator->peek(approx_pos),
@@ -69,9 +67,9 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer,
 }
 
 template <class T>
-SSTable<T> *presorted_merge_join(SSTable<T> *outer,
-                         SSTable<T> *inner, Comparator<T> *comparator,
-                         SSTableBuilder<T> *result_builder) {
+SSTable<T> *presorted_merge_join(SSTable<T> *outer, SSTable<T> *inner,
+                                 Comparator<T> *comparator,
+                                 SSTableBuilder<T> *result_builder) {
   auto outer_iterator = outer->iterator();
   auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();

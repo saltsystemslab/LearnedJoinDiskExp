@@ -37,14 +37,15 @@ uint64_t get_num_keys_from_ar(int fd) {
 }
 
 std::set<uint64_t> select_keys_uniform(uint64_t num_keys_to_select,
-                                       uint64_t num_keys, std::set<uint64_t> common_keys) {
+                                       uint64_t num_keys,
+                                       std::set<uint64_t> common_keys) {
   std::set<uint64_t> selected_keys;
-  for (auto key: common_keys) {
+  for (auto key : common_keys) {
     selected_keys.insert(key);
   }
   std::random_device rd;  // a seed source for the random number engine
   std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<uint64_t> distrib(0, num_keys-1);
+  std::uniform_int_distribution<uint64_t> distrib(0, num_keys - 1);
   for (uint64_t i = 0; i < num_keys_to_select; i++) {
     uint64_t key;
     if (num_keys_to_select == num_keys) {
@@ -57,13 +58,10 @@ std::set<uint64_t> select_keys_uniform(uint64_t num_keys_to_select,
   return selected_keys;
 }
 
-SSTable<KVSlice> *generate_from_datafile(int fd, int header_size,
-                                         int key_size_bytes,
-                                         int value_size_bytes,
-                                         uint64_t num_keys,
-                                         uint64_t num_keys_to_extract,
-                                         std::set<uint64_t> common_keys,
-                                         SSTableBuilder<KVSlice> *builder) {
+SSTable<KVSlice> *generate_from_datafile(
+    int fd, int header_size, int key_size_bytes, int value_size_bytes,
+    uint64_t num_keys, uint64_t num_keys_to_extract,
+    std::set<uint64_t> common_keys, SSTableBuilder<KVSlice> *builder) {
   std::set<uint64_t> selected_keys =
       select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
   FixedKSizeKVFileCache sosd_keys(fd, key_size_bytes, 0 /*no values*/,
@@ -78,16 +76,17 @@ SSTable<KVSlice> *generate_from_datafile(int fd, int header_size,
   return builder->build();
 }
 
-void load_common_key_indexes(std::string common_keys_file_path, std::set<uint64_t>  *common_keys) {
-    int fd = open(common_keys_file_path.c_str(), O_RDONLY);
-    FixedSizeKVDiskSSTable sstable(common_keys_file_path);
-    Iterator<KVSlice> *it = sstable.iterator();
-    while (it->valid()) {
-      KVSlice s = it->key();
-      uint64_t *k = (uint64_t *)(s.data());
-      common_keys->insert(*k);
-      it->next();
-    }
+void load_common_key_indexes(std::string common_keys_file_path,
+                             std::set<uint64_t> *common_keys) {
+  int fd = open(common_keys_file_path.c_str(), O_RDONLY);
+  FixedSizeKVDiskSSTable sstable(common_keys_file_path);
+  Iterator<KVSlice> *it = sstable.iterator();
+  while (it->valid()) {
+    KVSlice s = it->key();
+    uint64_t *k = (uint64_t *)(s.data());
+    common_keys->insert(*k);
+    it->next();
+  }
 }
 
 } // namespace li_merge
