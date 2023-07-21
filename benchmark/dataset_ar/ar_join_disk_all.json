@@ -138,7 +138,7 @@
         "label_x": 3,
         "outer_table": "33M",
         "inner_table": "100M"
-      }
+      },
       {
         "dir": "25M_to_100M",
         "label": "25M_to_100M",
