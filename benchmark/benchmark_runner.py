@@ -37,7 +37,6 @@ def extract_table(results, metric_fields):
         metric_val = None
         if metric_dict and metric_fields[-1] in metric_dict:
             metric_val = metric_dict[metric_fields[-1]]
-        print(json.dumps(result_json, indent=2))
         if ('status' in result_json and result_json['status'] == 'NZEC'):
             print("WARNING: COMMAND FAILED, check %s" % result_json['command'])
             continue

@@ -1,0 +1,144 @@
+{
+  "name": "uniform_random_64bit keys, 64 bit values",
+  "dir": "test_runs/large_ur_64_join",
+  "inputs": {
+    "common": {
+      "key_size": 8,
+      "value_size": 8,
+      "key_type": "str",
+      "method": "uniform_dist",
+      "algo": "create_input",
+      "write_result_to_disk": true
+    },
+    "list": [
+      {
+        "name": "1K",
+        "num_keys": 1000
+      },
+      {
+        "name": "10K",
+        "common_keys_file": "1K",
+        "num_keys": 10000
+      },
+      {
+        "name": "100K",
+        "common_keys_file": "1K",
+        "num_keys": 100000
+      },
+      {
+        "name": "1M",
+        "common_keys_file": "1K",
+        "num_keys": 1000000
+      },
+      {
+        "name": "10M",
+        "common_keys_file": "1K",
+        "num_keys": 10000000
+      },
+      {
+        "name": "100M",
+        "common_keys_file": "1K",
+        "num_keys": 100000000
+      },
+      {
+        "name": "100M_OUTER",
+        "common_keys_file": "1K",
+        "num_keys": 100000000
+      }
+    ]
+  },
+  "algos": {
+    "repeat": 1,
+    "common": {
+      "key_size": 8,
+      "value_size": 8,
+      "key_type": "str",
+      "load_sstable_in_mem": false,
+      "write_result_to_disk": true
+    },
+    "list": [
+      {
+        "name": "sort_join",
+        "algo": "sort_join"
+      },
+      {
+        "name": "hash_join",
+        "algo": "hash_join"
+      },
+      {
+        "name": "PGM_64",
+        "algo": "inlj",
+        "index": {
+          "type": "pgm64"
+        }
+      },
+      {
+        "name": "PLR_64",
+        "algo": "inlj",
+        "index": {
+          "type": "plr",
+          "error_bound": 64
+        }
+      },
+      {
+        "name": "ONELEVEL_PGM_64",
+        "algo": "inlj",
+        "index": {
+          "type": "onelevel_pgm64"
+        }
+      },
+      {
+        "name": "RbTree",
+        "algo": "inlj",
+        "index": {
+          "type": "rbtree"
+        }
+      }
+    ]
+  },
+  "tests": {
+    "list": [
+      {
+        "dir": "10K_to_100M",
+        "label": "1:10000",
+        "label_x": 10000,
+        "outer_table": "10K",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "100K_to_100M",
+        "label": "1:1000",
+        "label_x": 1000,
+        "outer_table": "100K",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "1M_to_100M",
+        "label": "1:100",
+        "label_x": 100,
+        "outer_table": "1M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "10M_to_100M",
+        "label": "1:10",
+        "label_x": 10,
+        "outer_table": "10M",
+        "inner_table": "100M"
+      },
+      {
+        "dir": "100M_to_100M",
+        "label": "1:1",
+        "label_x": 1,
+        "outer_table": "100M_OUTER",
+        "inner_table": "100M"
+      },
+    ]
+  },
+  "report_format": "csv",
+  "metrics": [
+    ["result", "duration_sec"],
+    ["result", "inner_index_size"],
+    ["result", "outer_index_size"]
+  ]
+}
