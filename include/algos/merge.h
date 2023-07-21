@@ -57,7 +57,7 @@ namespace li_merge {
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Comparator<T> *comparator, SSTableBuilder<T> *builder,
+                          Comparator<T> *comparator, SSTableBuilder<T> *resultBuilder,
                           json *merge_log) {
 #if TRACK_STATS
   comparator = new CountingComparator<T>(comparator);
@@ -67,28 +67,25 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   inner_iter->seekToFirst();
   outer_iter->seekToFirst();
 
-  while (inner_iter->valid() && outer_iter->valid()) {
-    if (comparator->compare(inner_iter->key(), outer_iter->key()) < 0) {
-      builder->add(inner_iter->key());
+  while (outer_iter->valid()) {
+    while (inner_iter->valid() &&
+           comparator->compare(inner_iter->key(), outer_iter->key()) <= 0) {
+      resultBuilder->add(inner_iter->key());
       inner_iter->next();
-    } else {
-      builder->add(outer_iter->key());
-      outer_iter->next();
     }
+    resultBuilder->add(outer_iter->key());
+    outer_iter->next();
+
   }
   while (inner_iter->valid()) {
-    builder->add(inner_iter->key());
+    resultBuilder->add(inner_iter->key());
     inner_iter->next();
-  }
-  while (outer_iter->valid()) {
-    builder->add(outer_iter->key());
-    outer_iter->next();
   }
 #if TRACK_STATS
   (*merge_log)["comparison_count"] =
       ((CountingComparator<T> *)(comparator))->get_count();
 #endif
-  return builder->build();
+  return resultBuilder->build();
 }
 
 template <class T>
@@ -172,9 +169,11 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
       // Don't copy the bounds.lower item, it could be equal to the item we
       // searched for.
       while (inner_iter->valid() && inner_iter->current_pos() < lower_bound) {
+        #if DEBUG
         if (comparator->compare(inner_iter->key(), outer_iter->key()) > 0) {
           abort();
         }
+        #endif
         resultBuilder->add(inner_iter->key());
         inner_iter->next();
       }

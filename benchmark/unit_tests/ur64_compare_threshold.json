@@ -15,19 +15,33 @@
         "num_keys": 1000
       },
       {
+        "name": "20K",
+        "num_keys": 20000
+      },
+      {
+        "name": "25K",
+        "num_keys": 25000
+      },
+      {
+        "name": "50K",
+        "num_keys": 50000
+      },
+      {
         "name": "10K",
-        "common_keys_file": "1K",
         "num_keys": 10000
       },
       {
+        "name": "100K_OUTER",
+        "num_keys": 100000
+      },
+      {
         "name": "100K",
-        "common_keys_file": "1K",
         "num_keys": 100000
       }
     ]
   },
   "algos": {
-    "repeat": 1,
+    "repeat": 5,
     "common": {
       "key_size": 8,
       "value_size": 8,
@@ -41,25 +55,25 @@
         "algo": "standard_merge"
       },
       {
-        "name": "learned_merge_threshold_onelevel_pgm",
-        "algo": "learned_merge_threshold",
-        "threshold": 5,
+        "name": "learned_merge_onelevel_pgm",
+        "algo": "learned_merge",
+        "threshold": 0,
         "index": {
           "type": "onelevel_pgm64"
         }
       },
       {
-        "name": "learned_merge_threshold_pgm",
+        "name": "learned_merge_threshold_onelevel_pgm",
         "algo": "learned_merge_threshold",
-        "threshold": 5,
+        "threshold": 0,
         "index": {
-          "type": "pgm64"
+          "type": "onelevel_pgm64"
         }
       },
       {
         "name": "RbTree_threshold",
         "algo": "learned_merge_threshold",
-        "threshold": 5,
+        "threshold": 0,
         "index": {
           "type": "rbtree"
         }
@@ -80,6 +94,34 @@
         "label": "1:10",
         "label_x": 10,
         "outer_table": "10K",
+        "inner_table": "100K"
+      },
+      {
+        "dir": "25K_to_100K",
+        "label": "1:4",
+        "label_x": 4,
+        "outer_table": "25K",
+        "inner_table": "100K"
+      },
+      {
+        "dir": "20K_to_100K",
+        "label": "1:5",
+        "label_x": 5,
+        "outer_table": "20K",
+        "inner_table": "100K"
+      },
+      {
+        "dir": "50K_to_100K",
+        "label": "1:2",
+        "label_x": 2,
+        "outer_table": "50K",
+        "inner_table": "100K"
+      },
+      {
+        "dir": "100K_to_100K",
+        "label": "1:1",
+        "label_x": 1,
+        "outer_table": "100K_OUTER",
         "inner_table": "100K"
       }
     ]

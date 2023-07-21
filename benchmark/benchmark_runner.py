@@ -1,14 +1,12 @@
 #!/usr/bin/python3
-import sys
 import json
 import os
-import shutil
 import subprocess
-import pprint
 import random
 import pandas as pd
 from absl import app
 from absl import flags
+import filecmp
 
 FLAGS = flags.FLAGS
 
@@ -20,6 +18,7 @@ flags.DEFINE_bool("dry_run", False, "")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("track_stats", False, "")
 flags.DEFINE_integer("repeat", 0, "")
+flags.DEFINE_bool("check_results", True, "")
 
 runner_bin = './bench/benchmark_runner'
 def build_runner(force_track_stats=False):
@@ -104,14 +103,14 @@ def main(argv):
     if FLAGS.repeat != 0:
         total_repeats = FLAGS.repeat
 
-    columns = ['label', 'label_x']
-    # Run tests. Each test is run with a different technique.
-    results['test_results'] = []
+    # Generate test configs. 
+    # Each test is run with a different technique.
     run_configs = []
+    test_results= {}
     for test in benchmark['tests']['list']:
         test_dir = os.path.join(bench_dir, test['dir'])
         os.makedirs(test_dir, exist_ok=True)
-        test_results= []
+        test_results[test_dir] = []
         for technique in benchmark['algos']['list']:
             for run_repeat in range(0, total_repeats):
                 test_run_json = benchmark['algos']['common'].copy()
@@ -120,14 +119,16 @@ def main(argv):
                 test_run_json['inner_table'] = input_file_map[test_run_json['inner_table']]
                 test_run_json['outer_table'] = input_file_map[test_run_json['outer_table']]
                 test_run_json['result_path'] = os.path.join(test_dir, technique['name'] + '_' + str(run_repeat))
+                test_results[test_dir].append(test_run_json['result_path'])
                 test_run_json_path = os.path.join(test_dir, technique['name'] + '_' + str(run_repeat) + '_spec.json')
                 run_configs.append(test_run_json_path)
                 with open(test_run_json_path, "w") as out:
                     out.write(json.dumps(test_run_json, indent=4))
 
-
     results_table = []
     results = []
+
+    # Shuffle the tests and run.
     random.shuffle(run_configs)
     idx = 1
     for run_config in run_configs:
@@ -142,6 +143,20 @@ def main(argv):
 
     with open(benchmark_data_json, "w") as out:
         out.write(json.dumps(results, indent=4))
+    
+    if FLAGS.check_results:
+        for test_result in test_results:
+            result_files = test_results[test_result]
+            results_differ = False
+            for idx in enumerate(result_files[1:]):
+                if not filecmp.cmp(result_files[idx[0]], result_files[idx[0]-1]):
+                    results_differ = True
+            if results_differ:
+                print(os.path.join(bench_dir, test['dir']) + " DIFF: FAIL")
+            else:
+                print(test['dir'] + " DIFF: OK")
+
+
 
     report_lines = []
     for metric_fields in benchmark["metrics"]:
