@@ -4,3 +4,6 @@
 [submodule "third_party/pgm"]
 	path = third_party/pgm
 	url = git@github.com:droidkid/PGM-index
+[submodule "third_party/LearnedIndexDiskExp"]
+	path = third_party/LearnedIndexDiskExp
+	url = https://github.com/rmitbggroup/LearnedIndexDiskExp

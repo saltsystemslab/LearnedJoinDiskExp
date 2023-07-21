@@ -15,7 +15,7 @@ SSTable<T> *hash_join(std::unordered_set<std::string> &outer_index,
   inner_iterator->seekToFirst();
   while (inner_iterator->valid()) {
     KVSlice kv = inner_iterator->key();
-    std::string key(kv.data(), kv.key_size_bytes());
+    std::string const key(kv.data(), kv.key_size_bytes());
     if (outer_index.find(key) != outer_index.end()) {
       result->add(inner_iterator->key());
     }

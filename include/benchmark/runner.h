@@ -13,6 +13,7 @@
 #include "rbtree_index.h"
 #include "sstable.h"
 #include "synthetic.h"
+#include "btree_index.h"
 #include <nlohmann/json.hpp>
 #include <unordered_set>
 
@@ -404,6 +405,8 @@ IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);
+  } else if (index_type == "btree") {
+    return new BTreeIndexBuilder(test_spec["key_size"]);
   } else if (index_type == "plr") {
     double error_bound = test_spec["index"]["error_bound"];
     return new GreedyPLRIndexBuilder<KVSlice>(error_bound,
