@@ -27,10 +27,14 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              Comparator<T> *comparator,
                              SSTableBuilder<T> *resultBuilder, json *merge_log);
 
-namespace internal {
 template <class T>
-Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
-                          Comparator<T> *comparator);
+SSTable<T> *
+mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
+                          Index<T> *outer_index, Index<T> *inner_index,
+                          Comparator<T> *comparator,
+                          SSTableBuilder<T> *resultBuilder, json *merge_log);
+
+namespace internal {
 template <class T>
 void findTwoSmallest(IteratorIndexPair<T> **iterators, int n,
                      Comparator<T> *comparator, IteratorIndexPair<T> **smallest,
@@ -63,12 +67,22 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   inner_iter->seekToFirst();
   outer_iter->seekToFirst();
 
-  Iterator<T> *iterators[2] = {inner_iter, outer_iter};
-  Iterator<T> *smallest;
-  while ((smallest = internal::findSmallest(iterators, 2, comparator)) !=
-         nullptr) {
-    builder->add(smallest->key());
-    smallest->next();
+  while (inner_iter->valid() && outer_iter->valid()) {
+    if (comparator->compare(inner_iter->key(), outer_iter->key()) < 0) {
+      builder->add(inner_iter->key());
+      inner_iter->next();
+    } else {
+      builder->add(outer_iter->key());
+      outer_iter->next();
+    }
+  }
+  while (inner_iter->valid()) {
+    builder->add(inner_iter->key());
+    inner_iter->next();
+  }
+  while (outer_iter->valid()) {
+    builder->add(outer_iter->key());
+    outer_iter->next();
   }
 #if TRACK_STATS
   (*merge_log)["comparison_count"] =
@@ -125,24 +139,66 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
   return resultBuilder->build();
 }
 
-namespace internal {
-
 template <class T>
-Iterator<T> *findSmallest(Iterator<T> **iterators, int n,
-                          Comparator<T> *comparator) {
-  Iterator<T> *smallest = nullptr;
-  for (int i = 0; i < n; i++) {
-    auto child = iterators[i];
-    if (child->valid()) {
-      if (smallest == nullptr) {
-        smallest = child;
-      } else if (comparator->compare(child->key(), smallest->key()) < 0) {
-        smallest = child;
+SSTable<T> *
+mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
+                          Index<T> *inner_index, uint64_t threshold,
+                          Comparator<T> *comparator, 
+                          SSTableBuilder<T> *resultBuilder, json *merge_log) {
+#if TRACK_STATS
+  (*merge_log)["max_index_error_correction"] = 0;
+  comparator = new CountingComparator<T>(comparator);
+#endif
+
+  Iterator<T> *inner_iter = inner_table->iterator();
+  Iterator<T> *outer_iter = outer_table->iterator();
+  inner_iter->seekToFirst();
+  outer_iter->seekToFirst();
+
+  IteratorIndexPair<T> inner = IteratorIndexPair<T>{inner_iter, inner_index};
+
+  while (outer_iter -> valid()) {
+    if (!inner_iter->valid()) {
+      resultBuilder->add(outer_iter->key());
+      outer_iter->next();
+      continue;
+    }
+    uint64_t lower_bound = inner_index->getApproxLowerBoundPositionMonotoneAccess(outer_iter->key());
+    lower_bound = std::max(lower_bound, inner_iter->current_pos());
+    uint64_t distance = lower_bound - inner_iter->current_pos(); 
+    if (distance >= threshold) {
+      // Don't copy the bounds.lower item, it could be equal to the item we searched for.
+      while (inner_iter->valid() && inner_iter->current_pos() < lower_bound) {
+        if (comparator->compare(inner_iter->key(), outer_iter->key()) > 0) {
+          abort();
+        }
+        resultBuilder->add(inner_iter->key());
+        inner_iter->next();
       }
     }
+    while (inner_iter->valid() && 
+      comparator->compare(inner_iter->key(), outer_iter->key()) <= 0) {
+      resultBuilder->add(inner_iter->key());
+      inner_iter->next();
+    }
+    resultBuilder->add(outer_iter->key());
+    outer_iter->next();
   }
-  return smallest;
+
+  while (inner_iter->valid()) {
+      resultBuilder->add(inner_iter->key());
+      inner_iter->next();
+  }
+
+#if TRACK_STATS
+  (*merge_log)["comparison_count"] =
+      ((CountingComparator<T> *)(comparator))->get_count();
+#endif
+  return resultBuilder->build();
 }
+
+namespace internal {
+
 
 template <class T>
 void findTwoSmallest(IteratorIndexPair<T> **iterators, int n,

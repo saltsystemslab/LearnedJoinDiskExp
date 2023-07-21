@@ -30,11 +30,19 @@ public:
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
     return lo->second;
   }
+  uint64_t getApproxLowerBoundPosition(const KVSlice &t) override {
+    auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
+    return lo->second;
+  }
   Bounds getPositionBounds(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
+    auto hi = tree_->upper_bound(std::string(t.data(), t.key_size_bytes()));
     auto pos = lo->second;
-    return Bounds{pos, pos, pos};
+    return Bounds{lo->second, lo->second, hi->second};
   }
+  uint64_t getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
+    return getApproxLowerBoundPosition(t);
+  };
   uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) {
     return getApproxPosition(t);
   };

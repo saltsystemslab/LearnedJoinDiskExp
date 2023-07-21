@@ -20,12 +20,19 @@ public:
     auto bounds = pgm_index_->search(converter_->toPoint(t));
     return Bounds{bounds.lo, bounds.hi, bounds.pos};
   }
+  uint64_t getApproxLowerBoundPosition(const T &t) override {
+    auto bounds = pgm_index_->search(converter_->toPoint(t));
+    return bounds.lo;
+  }
   uint64_t getApproxPositionMonotoneAccess(const T &t) override {
     return getApproxPosition(t);
   };
   Bounds getPositionBoundsMonotoneAccess(const T &t) override {
     return getPositionBounds(t);
   };
+  uint64_t getApproxLowerBoundPositionMonotoneAccess(const T &t) override {
+    return getApproxLowerBoundPosition(t);
+  }
   void resetMonotoneAccess() override{};
   uint64_t size_in_bytes() override { return pgm_index_->size_in_bytes(); }
 

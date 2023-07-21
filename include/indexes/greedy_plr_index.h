@@ -272,9 +272,11 @@ public:
     }
     uint64_t result =
         std::ceil((target_key)*segments[left].k + segments[left].b);
+#if 0
     if (left+1 < segments.size()) {
       result = std::min<uint64_t>(result, std::ceil(segments[left+1].b));
     }
+#endif
     if (result < 0) {
       result = 0;
     }
@@ -283,6 +285,15 @@ public:
     }
     return result;
   }
+  uint64_t getApproxLowerBoundPosition(const KVSlice &t) override {
+    uint64_t position = getApproxPosition(t);
+    if (position >= greedy_plr_index_->gamma_) {
+      position = position - greedy_plr_index_->gamma_;
+    } else {
+      position = 0;
+    }
+    return position;
+  };
   Bounds getPositionBounds(const T &t) override {
     uint64_t approx_pos = getApproxPosition(t);
     if (approx_pos > greedy_plr_index_->gamma_) {
@@ -302,9 +313,11 @@ public:
       if (segments[i].last > target_key) {
         cur_segment_index_ = i;
         uint64_t result = std::ceil(target_key * segments[i].k + segments[i].b);
+#if 0
         if (i+1 < segments.size()) {
           result = std::min<uint64_t>(result, std::ceil(segments[i+1].b));
         }
+#endif
         if (result >= num_keys_) {
           result = num_keys_ - 1;
         }
@@ -313,6 +326,15 @@ public:
     }
     return num_keys_ - 1;
   }
+  uint64_t getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
+    uint64_t position = getApproxPositionMonotoneAccess(t);
+    if (position >= greedy_plr_index_->gamma_) {
+      position = std::ceil(position - greedy_plr_index_->gamma_);
+    } else {
+      position = 0;
+    }
+    return position;
+  };
 
   Bounds getPositionBoundsMonotoneAccess(const T &t) override {
     uint64_t approx_pos = getApproxPosition(t);

@@ -31,11 +31,29 @@ public:
     }
     if (cur_segment_index_)
       cur_segment_index_--;
-    return std::min<size_t>((*segments_)[cur_segment_index_](point),
+      return std::min<size_t>((*segments_)[cur_segment_index_](point),
                             (*segments_)[cur_segment_index_ + 1].intercept);
+  };
+  uint64_t getApproxLowerBoundPosition(const T &t) override {
+    uint64_t position = getApproxLowerBoundPosition(t);
+    if (position >= Epsilon) {
+      position = position - Epsilon;
+    } else {
+      position = 0;
+    }
+    return position;
   };
   Bounds getPositionBoundsMonotoneAccess(const T &t) override {
     return getPositionBounds(t);
+  };
+  uint64_t getApproxLowerBoundPositionMonotoneAccess(const T &t) override {
+    uint64_t position = getApproxPositionMonotoneAccess(t);
+    if (position >= Epsilon) {
+      position = position - Epsilon;
+    } else {
+      position = 0;
+    }
+    return position;
   };
   void resetMonotoneAccess() override { cur_segment_index_ = 0; };
 
