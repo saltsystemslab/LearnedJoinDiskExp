@@ -17,11 +17,11 @@ namespace li_merge {
 void fix_value(char *buf, int key_len, int value_len) {
   char *key_buf = buf;
   char *value_buf = buf + key_len;
-  // We copy the key as value. This is so diffs match on identitcal keys when there are multiple orders.
+  // We copy the key as value. This is so diffs match on identitcal keys when
+  // there are multiple orders.
   memset(value_buf, 0, value_len);
   memcpy(value_buf, key_buf, std::min(key_len, value_len));
 }
-
 
 uint64_t get_num_keys_from_sosd_dataset(int fd) {
   char bytes[8];

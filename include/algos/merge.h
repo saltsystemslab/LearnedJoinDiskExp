@@ -57,8 +57,8 @@ namespace li_merge {
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Comparator<T> *comparator, SSTableBuilder<T> *resultBuilder,
-                          json *merge_log) {
+                          Comparator<T> *comparator,
+                          SSTableBuilder<T> *resultBuilder, json *merge_log) {
 #if TRACK_STATS
   comparator = new CountingComparator<T>(comparator);
 #endif
@@ -75,7 +75,6 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
     }
     resultBuilder->add(outer_iter->key());
     outer_iter->next();
-
   }
   while (inner_iter->valid()) {
     resultBuilder->add(inner_iter->key());
@@ -169,11 +168,11 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
       // Don't copy the bounds.lower item, it could be equal to the item we
       // searched for.
       while (inner_iter->valid() && inner_iter->current_pos() < lower_bound) {
-        #if DEBUG
+#if DEBUG
         if (comparator->compare(inner_iter->key(), outer_iter->key()) > 0) {
           abort();
         }
-        #endif
+#endif
         resultBuilder->add(inner_iter->key());
         inner_iter->next();
       }

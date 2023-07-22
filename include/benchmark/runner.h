@@ -13,9 +13,9 @@
 #include "rbtree_index.h"
 #include "sstable.h"
 #include "synthetic.h"
-#include "btree_index.h"
 #include <nlohmann/json.hpp>
 #include <unordered_set>
+#include "btree_index.h"
 
 using json = nlohmann::json;
 

@@ -20,8 +20,9 @@ create_uniform_random_distribution_buffer(uint64_t num_keys, int key_size_bytes,
   uint64_t buf_size = num_keys * (key_size_bytes + value_size_bytes);
   char *data = new char[buf_size];
   RAND_bytes((unsigned char *)data, buf_size);
-  for (int i=0; i<num_keys; i++) {
-    fix_value(data + i*(key_size_bytes + value_size_bytes), key_size_bytes, value_size_bytes);
+  for (int i = 0; i < num_keys; i++) {
+    fix_value(data + i * (key_size_bytes + value_size_bytes), key_size_bytes,
+              value_size_bytes);
   }
   return data;
 }
