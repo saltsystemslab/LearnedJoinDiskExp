@@ -3,7 +3,7 @@
     "common": {
       "key_size": 8,
       "value_size": 8,
-      "key_type": "str",
+      "key_type": "uint64",
       "method": "uniform_dist",
       "algo": "create_input",
       "write_result_to_disk": true
@@ -63,17 +63,14 @@
       },
       {
         "name": "4M",
-        "common_keys_file": "1K",
         "num_keys":40000 
       },
       {
         "name": "2M",
-        "common_keys_file": "1K",
         "num_keys":25000 
       },
       {
         "name": "1M",
-        "common_keys_file": "1K",
         "num_keys":10000 
       }
     ]
@@ -83,7 +80,7 @@
     "common": {
       "key_size": 8,
       "value_size": 8,
-      "key_type": "str",
+      "key_type": "uint64",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true
     },
@@ -114,6 +111,14 @@
         "threshold": 5,
         "index": {
           "type": "rbtree"
+        }
+      },
+      {
+        "name": "bTree",
+        "algo": "learned_merge_threshold",
+        "threshold": 5,
+        "index": {
+          "type": "btree"
         }
       }
     ]

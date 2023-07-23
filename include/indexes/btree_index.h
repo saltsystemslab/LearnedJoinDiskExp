@@ -56,7 +56,9 @@ public:
   Bounds getPositionBoundsMonotoneAccess(const KVSlice &t) { abort(); };
   void resetMonotoneAccess() override{};
 
-  uint64_t size_in_bytes() override { return 0; }
+  uint64_t size_in_bytes() override { 
+    return tree_->get_inner_size();
+  }
 
 private:
   int key_size_bytes_;
