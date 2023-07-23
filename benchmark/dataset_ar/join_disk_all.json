@@ -9,32 +9,48 @@
       },
       "list": [
          {
-            "algo": "standard_merge",
-            "name": "standard_merge"
+            "algo": "sort_join",
+            "name": "sort_join"
          },
          {
-            "algo": "learned_merge_threshold",
-            "index": {
-               "type": "pgm64"
-            },
-            "name": "PGM_64",
-            "threshold": 10
+            "algo": "hash_join",
+            "name": "hash_join"
          },
          {
-            "algo": "learned_merge_threshold",
+            "algo": "inlj",
             "index": {
                "type": "onelevel_pgm64"
             },
-            "name": "ONELEVEL_PGM_64_THRESH",
-            "threshold": 10
+            "name": "ONELEVEL_PGM_64"
          },
          {
-            "algo": "learned_merge_threshold",
+            "algo": "inlj",
+            "index": {
+               "type": "pgm64"
+            },
+            "name": "PGM_64"
+         },
+         {
+            "algo": "inlj",
+            "index": {
+               "error_bound": 64,
+               "type": "plr"
+            },
+            "name": "PLR_64"
+         },
+         {
+            "algo": "inlj",
             "index": {
                "type": "rbtree"
             },
-            "name": "RbTree",
-            "threshold": 5
+            "name": "RbTree"
+         },
+         {
+            "algo": "inlj",
+            "index": {
+               "type": "btree"
+            },
+            "name": "Btree"
          }
       ],
       "repeat": 1
@@ -52,7 +68,8 @@
       "list": [
          {
             "name": "100M",
-            "num_keys": 100000000
+            "num_keys": 0,
+            "use_all": true
          },
          {
             "name": "50M",
@@ -120,6 +137,10 @@
       [
          "result",
          "inner_index_size"
+      ],
+      [
+         "result",
+         "outer_index_size"
       ]
    ],
    "report_format": "csv",
