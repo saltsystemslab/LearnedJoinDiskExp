@@ -44,13 +44,6 @@
                "type": "rbtree"
             },
             "name": "RbTree"
-         },
-         {
-            "algo": "inlj",
-            "index": {
-               "type": "btree"
-            },
-            "name": "Btree"
          }
       ],
       "repeat": 1
