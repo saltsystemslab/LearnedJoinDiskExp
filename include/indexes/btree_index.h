@@ -27,7 +27,17 @@ class BTreeIndex : public Index<KVSlice> {
 public:
   BTreeIndex(BTree *tree, int key_size_bytes)
       : tree_(tree), key_size_bytes_(key_size_bytes){};
-  uint64_t getApproxPosition(const KVSlice &t) override { abort(); }
+  uint64_t getApproxPosition(const KVSlice &t) override { 
+    uint64_t *key = (uint64_t *)(t.data());
+    int c;
+    BTree::Condition cond;
+    cond.include_min = false;
+    cond.min = (*key)-1;
+    cond.max = -1;
+    cond.include_max = true;
+    auto iter = tree_->get_index_iterator(cond, &c);
+    return iter.cur_value();
+  }
   uint64_t getApproxLowerBoundPosition(const KVSlice &t) override { abort(); }
   Bounds getPositionBounds(const KVSlice &t) override { abort(); }
   uint64_t
