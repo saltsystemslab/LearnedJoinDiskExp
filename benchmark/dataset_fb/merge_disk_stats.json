@@ -1,10 +1,10 @@
 {
    "algos": {
       "common": {
-         "key_size": 16,
-         "key_type": "str",
+         "key_size": 8,
+         "key_type": "uint64",
          "load_sstable_in_mem": false,
-         "value_size": 16,
+         "value_size": 8,
          "write_result_to_disk": true
       },
       "list": [
