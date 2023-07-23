@@ -61,7 +61,7 @@
          "key_size": 8,
          "key_type": "uint64",
          "method": "from_sosd",
-         "source": "./datasets/fb_100M_uint64",
+         "source": "./datasets/fb_200M_uint64",
          "value_size": 8,
          "write_result_to_disk": true
       },
