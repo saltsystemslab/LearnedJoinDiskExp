@@ -3,7 +3,7 @@
     "common": {
       "key_size": 8,
       "value_size": 8,
-      "key_type": "str",
+      "key_type": "uint64",
       "method": "uniform_dist",
       "algo": "create_input",
       "write_result_to_disk": true
@@ -68,7 +68,7 @@
     "common": {
       "key_size": 8,
       "value_size": 8,
-      "key_type": "str",
+      "key_type": "uint64",
       "load_sstable_in_mem": false,
       "write_result_to_disk": true
     },

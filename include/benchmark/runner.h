@@ -31,7 +31,7 @@ json run_inlj(json test_spec);
 json create_input_sstable(json test_spec);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
-IndexBuilder<KVSlice> *get_index_builder(json test_spec);
+IndexBuilder<KVSlice> *get_index_builder(std::string table_path, json test_spec);
 KeyToPointConverter<KVSlice> *get_converter(json test_spec);
 SSTable<KVSlice> *load_sstable(std::string sstable_path, bool load_in_mem);
 
@@ -151,8 +151,8 @@ json run_standard_merge(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec["outer_table"], test_spec);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
 
@@ -183,8 +183,8 @@ json run_sort_join(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec["outer_table"], test_spec);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
 
@@ -248,8 +248,8 @@ json run_learned_merge(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec["outer_table"], test_spec);
   Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
@@ -289,7 +289,7 @@ json run_learned_merge_threshold(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
@@ -326,8 +326,8 @@ json run_inlj(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec);
+  IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec["outer_table"], test_spec);
   Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
@@ -382,7 +382,7 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
   abort();
 }
 
-IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
+IndexBuilder<KVSlice> *get_index_builder(std::string table_path, json test_spec) {
   if (!test_spec.contains("index")) {
     return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
   }
@@ -406,7 +406,7 @@ IndexBuilder<KVSlice> *get_index_builder(json test_spec) {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);
   } else if (index_type == "btree") {
-    return new BTreeIndexBuilder(test_spec["key_size"]);
+    return new BTreeIndexBuilder(table_path + "_btree", test_spec["key_size"]);
   } else if (index_type == "plr") {
     double error_bound = test_spec["index"]["error_bound"];
     return new GreedyPLRIndexBuilder<KVSlice>(error_bound,
