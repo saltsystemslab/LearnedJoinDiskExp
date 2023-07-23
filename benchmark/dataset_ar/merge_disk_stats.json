@@ -52,7 +52,8 @@
          "algo": "create_input",
          "key_size": 16,
          "key_type": "str",
-         "method": "uniform_dist",
+         "method": "from_ar",
+         "source": "./datasets/ar_keys_v1_00",
          "value_size": 16,
          "write_result_to_disk": true
       },
@@ -126,7 +127,8 @@
       ],
       [
          "result",
-         "inner_index_size"
+         "merge_log",
+         "comparison_count"
       ]
    ],
    "report_format": "csv",
@@ -231,5 +233,6 @@
             "outer_table": "1M"
          }
       ]
-   }
+   },
+   "track_stats": true
 }

@@ -9,40 +9,48 @@
       },
       "list": [
          {
-            "algo": "standard_merge",
-            "name": "standard_merge"
+            "algo": "sort_join",
+            "name": "sort_join"
          },
          {
-            "algo": "learned_merge_threshold",
-            "index": {
-               "type": "pgm64"
-            },
-            "name": "PGM_64",
-            "threshold": 10
+            "algo": "hash_join",
+            "name": "hash_join"
          },
          {
-            "algo": "learned_merge_threshold",
+            "algo": "inlj",
             "index": {
                "type": "onelevel_pgm64"
             },
-            "name": "ONELEVEL_PGM_64_THRESH",
-            "threshold": 10
+            "name": "ONELEVEL_PGM_64"
          },
          {
-            "algo": "learned_merge_threshold",
+            "algo": "inlj",
+            "index": {
+               "type": "pgm64"
+            },
+            "name": "PGM_64"
+         },
+         {
+            "algo": "inlj",
+            "index": {
+               "error_bound": 64,
+               "type": "plr"
+            },
+            "name": "PLR_64"
+         },
+         {
+            "algo": "inlj",
             "index": {
                "type": "rbtree"
             },
-            "name": "RbTree",
-            "threshold": 5
+            "name": "RbTree"
          },
          {
-            "algo": "learned_merge_threshold",
+            "algo": "inlj",
             "index": {
                "type": "btree"
             },
-            "name": "bTree",
-            "threshold": 5
+            "name": "Btree"
          }
       ],
       "repeat": 1
@@ -52,68 +60,91 @@
          "algo": "create_input",
          "key_size": 16,
          "key_type": "str",
-         "method": "uniform_dist",
+         "method": "from_ar",
+         "source": "./datasets/ar_keys_v1_00",
          "value_size": 16,
          "write_result_to_disk": true
       },
       "list": [
          {
+            "key_size": 8,
+            "method": "select_common_keys",
+            "name": "1K",
+            "num_keys": 10,
+            "value_size": 0
+         },
+         {
+            "common_keys_file": "1K",
             "name": "100M",
             "num_keys": 100000000
          },
          {
+            "common_keys_file": "1K",
             "name": "50M",
             "num_keys": 50000000
          },
          {
+            "common_keys_file": "1K",
             "name": "33M",
             "num_keys": 33333333
          },
          {
+            "common_keys_file": "1K",
             "name": "25M",
             "num_keys": 25000000
          },
          {
+            "common_keys_file": "1K",
             "name": "20M",
             "num_keys": 20000000
          },
          {
+            "common_keys_file": "1K",
             "name": "16M",
             "num_keys": 16666666
          },
          {
+            "common_keys_file": "1K",
             "name": "14M",
             "num_keys": 14285714
          },
          {
+            "common_keys_file": "1K",
             "name": "12M",
             "num_keys": 12500000
          },
          {
+            "common_keys_file": "1K",
             "name": "11M",
             "num_keys": 11111111
          },
          {
+            "common_keys_file": "1K",
             "name": "10M",
             "num_keys": 10000000
          },
          {
+            "common_keys_file": "1K",
             "name": "6M",
             "num_keys": 6000000
          },
          {
+            "common_keys_file": "1K",
             "name": "5M",
             "num_keys": 5000000
          },
          {
+            "common_keys_file": "1K",
             "name": "4M",
             "num_keys": 4000000
          },
          {
+            "common_keys_file": "1K",
             "name": "2M",
             "num_keys": 2000000
          },
          {
+            "common_keys_file": "1K",
             "name": "1M",
             "num_keys": 1000000
          }
@@ -126,8 +157,11 @@
       ],
       [
          "result",
-         "merge_log",
-         "comparison_count"
+         "inner_index_size"
+      ],
+      [
+         "result",
+         "outer_index_size"
       ]
    ],
    "report_format": "csv",
@@ -232,6 +266,5 @@
             "outer_table": "1M"
          }
       ]
-   },
-   "track_stats": true
+   }
 }

@@ -9,48 +9,40 @@
       },
       "list": [
          {
-            "algo": "sort_join",
-            "name": "sort_join"
+            "algo": "standard_merge",
+            "name": "standard_merge"
          },
          {
-            "algo": "hash_join",
-            "name": "hash_join"
-         },
-         {
-            "algo": "inlj",
-            "index": {
-               "type": "onelevel_pgm64"
-            },
-            "name": "ONELEVEL_PGM_64"
-         },
-         {
-            "algo": "inlj",
+            "algo": "learned_merge_threshold",
             "index": {
                "type": "pgm64"
             },
-            "name": "PGM_64"
+            "name": "PGM_64",
+            "threshold": 10
          },
          {
-            "algo": "inlj",
+            "algo": "learned_merge_threshold",
             "index": {
-               "error_bound": 64,
-               "type": "plr"
+               "type": "onelevel_pgm64"
             },
-            "name": "PLR_64"
+            "name": "ONELEVEL_PGM_64_THRESH",
+            "threshold": 10
          },
          {
-            "algo": "inlj",
+            "algo": "learned_merge_threshold",
             "index": {
                "type": "rbtree"
             },
-            "name": "RbTree"
+            "name": "RbTree",
+            "threshold": 5
          },
          {
-            "algo": "inlj",
+            "algo": "learned_merge_threshold",
             "index": {
                "type": "btree"
             },
-            "name": "Btree"
+            "name": "bTree",
+            "threshold": 5
          }
       ],
       "repeat": 1
@@ -60,87 +52,69 @@
          "algo": "create_input",
          "key_size": 16,
          "key_type": "str",
-         "method": "uniform_dist",
+         "method": "from_ar",
+         "source": "./datasets/ar_keys_v1_00",
          "value_size": 16,
          "write_result_to_disk": true
       },
       "list": [
          {
-            "name": "1K",
-            "num_keys": 1000
-         },
-         {
-            "common_keys_file": "1K",
             "name": "100M",
             "num_keys": 100000000
          },
          {
-            "common_keys_file": "1K",
             "name": "50M",
             "num_keys": 50000000
          },
          {
-            "common_keys_file": "1K",
             "name": "33M",
             "num_keys": 33333333
          },
          {
-            "common_keys_file": "1K",
             "name": "25M",
             "num_keys": 25000000
          },
          {
-            "common_keys_file": "1K",
             "name": "20M",
             "num_keys": 20000000
          },
          {
-            "common_keys_file": "1K",
             "name": "16M",
             "num_keys": 16666666
          },
          {
-            "common_keys_file": "1K",
             "name": "14M",
             "num_keys": 14285714
          },
          {
-            "common_keys_file": "1K",
             "name": "12M",
             "num_keys": 12500000
          },
          {
-            "common_keys_file": "1K",
             "name": "11M",
             "num_keys": 11111111
          },
          {
-            "common_keys_file": "1K",
             "name": "10M",
             "num_keys": 10000000
          },
          {
-            "common_keys_file": "1K",
             "name": "6M",
             "num_keys": 6000000
          },
          {
-            "common_keys_file": "1K",
             "name": "5M",
             "num_keys": 5000000
          },
          {
-            "common_keys_file": "1K",
             "name": "4M",
             "num_keys": 4000000
          },
          {
-            "common_keys_file": "1K",
             "name": "2M",
             "num_keys": 2000000
          },
          {
-            "common_keys_file": "1K",
             "name": "1M",
             "num_keys": 1000000
          }
@@ -154,10 +128,6 @@
       [
          "result",
          "inner_index_size"
-      ],
-      [
-         "result",
-         "outer_index_size"
       ]
    ],
    "report_format": "csv",
