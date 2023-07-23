@@ -1,4 +1,4 @@
-{
+  {
   "name": "uniform_random_64bit keys, 64 bit values",
   "dir": "test_runs/large_ur_64_join",
   "inputs": {
@@ -13,87 +13,82 @@
     "list": [
       {
         "name": "1K",
-        "num_keys": 10
+        "num_keys": 1000
       },
       {
         "name": "100M",
         "common_keys_file": "1K",
-        "num_keys":1000000 
+        "num_keys":100000000 
       },
       {
         "name": "50M",
         "common_keys_file": "1K",
-        "num_keys": 500000
+        "num_keys": 50000000
       },
       {
         "name": "33M",
         "common_keys_file": "1K",
-        "num_keys": 333333
+        "num_keys": 33333333
       },
       {
         "name": "25M",
         "common_keys_file": "1K",
-        "num_keys": 250000
+        "num_keys": 25000000
       },
       {
         "name": "20M",
         "common_keys_file": "1K",
-        "num_keys": 200000
-      },
-      {
-        "name": "20M",
-        "common_keys_file": "1K",
-        "num_keys": 200000
+        "num_keys": 20000000
       },
       {
         "name": "16M",
         "common_keys_file": "1K",
-        "num_keys": 166666
+        "num_keys": 16666666
       },
       {
         "name": "14M",
         "common_keys_file": "1K",
-        "num_keys": 142857 
+        "num_keys": 14285714 
       },
       {
         "name": "12M",
         "common_keys_file": "1K",
-        "num_keys":125000 
+        "num_keys":12500000 
       },
       {
         "name": "11M",
         "common_keys_file": "1K",
-        "num_keys":111111 
+        "num_keys":11111111 
       },
       {
         "name": "10M",
         "common_keys_file": "1K",
-        "num_keys":100000 
+        "num_keys":10000000 
       },
       {
         "name": "6M",
         "common_keys_file": "1K",
-        "num_keys":60000 
+        "num_keys":6000000
       },
       {
         "name": "5M",
         "common_keys_file": "1K",
-        "num_keys":50000 
+        "num_keys":5000000 
       },
       {
         "name": "4M",
         "common_keys_file": "1K",
-        "num_keys":40000 
+        "num_keys":4000000 
       },
       {
         "name": "2M",
         "common_keys_file": "1K",
-        "num_keys":25000 
+        "num_keys":2000000 
       },
       {
         "name": "1M",
         "common_keys_file": "1K",
-        "num_keys":10000 
+        "num_keys":1000000 
       }
     ]
   },
@@ -117,6 +112,13 @@
         "algo": "hash_join"
       },
       {
+        "name": "ONELEVEL_PGM_64",
+        "algo": "inlj",
+        "index": {
+          "type": "onelevel_pgm64"
+        }
+      },
+      {
         "name": "PGM_64",
         "algo": "inlj",
         "index": {
@@ -132,17 +134,17 @@
         }
       },
       {
-        "name": "ONELEVEL_PGM_64",
-        "algo": "inlj",
-        "index": {
-          "type": "onelevel_pgm64"
-        }
-      },
-      {
         "name": "RbTree",
         "algo": "inlj",
         "index": {
           "type": "rbtree"
+        }
+      },
+      {
+        "name": "Btree",
+        "algo": "inlj",
+        "index": {
+          "type": "btree"
         }
       }
     ]
@@ -236,7 +238,7 @@
       {
         "dir": "2M_to_100M",
         "label": "2M_to_100M",
-        "label_x": 40,
+        "label_x": 50,
         "outer_table": "2M",
         "inner_table": "100M"
       },

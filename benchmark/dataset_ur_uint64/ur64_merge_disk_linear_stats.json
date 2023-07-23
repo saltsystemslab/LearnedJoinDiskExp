@@ -12,72 +12,68 @@
     "list": [
       {
         "name": "100M",
-        "num_keys": 1000000
+        "num_keys":100000000 
       },
       {
         "name": "50M",
-        "num_keys": 500000
+        "num_keys": 50000000
       },
       {
         "name": "33M",
-        "num_keys": 333333
+        "num_keys": 33333333
       },
       {
         "name": "25M",
-        "num_keys": 250000
+        "num_keys": 25000000
       },
       {
         "name": "20M",
-        "num_keys": 200000
-      },
-      {
-        "name": "20M",
-        "num_keys": 200000
+        "num_keys": 20000000
       },
       {
         "name": "16M",
-        "num_keys": 166666
+        "num_keys": 16666666
       },
       {
         "name": "14M",
-        "num_keys": 142857 
+        "num_keys": 14285714 
       },
       {
         "name": "12M",
-        "num_keys":125000 
+        "num_keys":12500000 
       },
       {
         "name": "11M",
-        "num_keys":111111 
+        "num_keys":11111111 
       },
       {
         "name": "10M",
-        "num_keys":100000 
+        "num_keys":10000000 
       },
       {
         "name": "6M",
-        "num_keys":60000 
+        "num_keys":6000000
       },
       {
         "name": "5M",
-        "num_keys":50000 
+        "num_keys":5000000 
       },
       {
         "name": "4M",
-        "num_keys":40000 
+        "num_keys":4000000 
       },
       {
         "name": "2M",
-        "num_keys":25000 
+        "num_keys":2000000 
       },
       {
         "name": "1M",
-        "num_keys":10000 
+        "num_keys":1000000 
       }
     ]
   },
   "algos": {
-    "repeat": 5,
+    "repeat": 1,
     "common": {
       "key_size": 8,
       "value_size": 8,
@@ -213,7 +209,7 @@
       {
         "dir": "2M_to_100M",
         "label": "2M_to_100M",
-        "label_x": 40,
+        "label_x": 50,
         "outer_table": "2M",
         "inner_table": "100M"
       },
