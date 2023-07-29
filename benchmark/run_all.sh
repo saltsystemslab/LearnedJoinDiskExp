@@ -1,4 +1,8 @@
 #!/bin/bash
-find ./benchmark/unit_tests/ -name *.json | xargs -I{} ./benchmark/benchmark_runner.py --spec={} 
-find ./benchmark/dataset_ur_uint64/ -name *.json | xargs -I{} ./benchmark/benchmark_runner.py --spec={} 
-find ./benchmark/dataset_ar/ -name *.json | xargs -I{} ./benchmark/benchmark_runner.py --spec={} 
+find benchmark/dataset_ur_uint64/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
+find benchmark/dataset_fb/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
+find benchmark/dataset_wiki/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
+find benchmark/dataset_ar/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
+find benchmark/dataset_ur_16byte/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
+
+find benchmark/dataset_ur_uint64/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1 --regen_report

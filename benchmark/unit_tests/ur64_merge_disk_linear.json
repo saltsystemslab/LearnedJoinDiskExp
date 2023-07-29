@@ -63,6 +63,7 @@
       }
     ]
   },
+  "repeat": 5,
   "algos": {
     "repeat": 5,
     "common": {
@@ -119,9 +120,7 @@
         "label_x": 2,
         "outer_table": "50M",
         "inner_table": "100M"
-      }
-    ],
-    "d": [
+      },
       {
         "dir": "33M_to_100M",
         "label": "33M_to_100M",
@@ -135,7 +134,9 @@
         "label_x": 4,
         "outer_table": "25M",
         "inner_table": "100M"
-      },
+      }
+    ],
+    "d": [
       {
         "dir": "20M_to_100M",
         "label": "20M_to_100M",

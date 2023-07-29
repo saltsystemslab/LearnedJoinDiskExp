@@ -12,8 +12,3 @@ benchmark/large/.ur64_join_disk_low.json.swp
 benchmark/large/run_all.sh
 benchmark/large/ur64_join_disk_low.json
 benchmark/large/ur64_merge_disk.json
-reports/*
-reports/benchmark/dataset_ar/ar_merge_disk/report.md
-reports/benchmark/dataset_ar/ar_merge_disk_stats/report.md
-reports/benchmark/dataset_ar/join_all_sel/report.md
-reports/benchmark/unit_tests/ar_join_all_sel/report.md
