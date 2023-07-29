@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 #include <unordered_set>
 #include "btree_index.h"
+#include <openssl/md5.h>
 
 using json = nlohmann::json;
 
@@ -29,6 +30,7 @@ json run_sort_join(json test_spec);
 json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
 json create_input_sstable(json test_spec);
+std::string md5_checksum(SSTable<KVSlice >*sstable);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
 IndexBuilder<KVSlice> *get_index_builder(std::string table_path, json test_spec);
@@ -158,7 +160,7 @@ json run_standard_merge(json test_spec) {
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  standardMerge<KVSlice>(outer_table, inner_table, comparator,
+  auto resultTable = standardMerge<KVSlice>(outer_table, inner_table, comparator,
                          result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -166,14 +168,16 @@ json run_standard_merge(json test_spec) {
                          .count();
   float duration_sec = duration_ns / 1e9;
 
-  delete inner_table;
-  delete outer_table;
-  delete result_table_builder;
-  delete comparator;
 
   result["duration_ns"] = duration_ns;
   result["duration_sec"] = duration_sec;
   result["merge_log"] = merge_log;
+  result["checksum"] = md5_checksum(resultTable);
+
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+  delete comparator;
   return result;
 }
 
@@ -189,7 +193,7 @@ json run_sort_join(json test_spec) {
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  presorted_merge_join<KVSlice>(inner_table, outer_table, comparator,
+  SSTable<KVSlice> *resultTable = presorted_merge_join<KVSlice>(inner_table, outer_table, comparator,
                                 result_table_builder);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -197,13 +201,14 @@ json run_sort_join(json test_spec) {
                          .count();
   float duration_sec = duration_ns / 1e9;
 
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  result["checksum"] = md5_checksum(resultTable);
   delete inner_table;
   delete outer_table;
   delete result_table_builder;
   delete comparator;
 
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
   return result;
 }
 
@@ -224,21 +229,24 @@ json run_hash_join(json test_spec) {
   }
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  hash_join<KVSlice>(outer_index, inner_table, result_table_builder);
+  auto resultTable = hash_join<KVSlice>(outer_index, inner_table, result_table_builder);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
                          .count();
   float duration_sec = duration_ns / 1e9;
 
-  delete inner_table;
-  delete outer_table;
-  delete result_table_builder;
 
   result["outer_index_size"] =
       outer_index.size() * (uint64_t)test_spec["key_size"];
   result["duration_ns"] = duration_ns;
   result["duration_sec"] = duration_sec;
+  result["checksum"] = md5_checksum(resultTable);
+
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+
   return result;
 }
 
@@ -257,7 +265,7 @@ json run_learned_merge(json test_spec) {
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  mergeWithIndexes(inner_table, outer_table, inner_index, outer_index,
+  auto resultTable = mergeWithIndexes(inner_table, outer_table, inner_index, outer_index,
                    comparator, result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -270,6 +278,7 @@ json run_learned_merge(json test_spec) {
   result["merge_log"] = merge_log;
   result["inner_index_size"] = inner_index->size_in_bytes();
   result["outer_index_size"] = outer_index->size_in_bytes();
+  result["checksum"] = md5_checksum(resultTable);
 
   delete inner_table;
   delete outer_table;
@@ -297,7 +306,7 @@ json run_learned_merge_threshold(json test_spec) {
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  mergeWithIndexesThreshold(outer_table, inner_table, inner_index, threshold,
+  auto resultTable = mergeWithIndexesThreshold(outer_table, inner_table, inner_index, threshold,
                             comparator, result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -309,6 +318,7 @@ json run_learned_merge_threshold(json test_spec) {
   result["duration_sec"] = duration_sec;
   result["merge_log"] = merge_log;
   result["inner_index_size"] = inner_index->size_in_bytes();
+  result["checksum"] = md5_checksum(resultTable);
 
   delete inner_table;
   delete outer_table;
@@ -335,7 +345,7 @@ json run_inlj(json test_spec) {
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  indexed_nested_loop_join<KVSlice>(outer_table, inner_table, inner_index,
+  auto resultTable = indexed_nested_loop_join<KVSlice>(outer_table, inner_table, inner_index,
                                     comparator, result_table_builder);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -348,6 +358,7 @@ json run_inlj(json test_spec) {
   result["merge_log"] = merge_log;
   result["inner_index_size"] = inner_index->size_in_bytes();
   result["outer_index_size"] = outer_index->size_in_bytes();
+  result["checksum"] = md5_checksum(resultTable);
 
   delete inner_table;
   delete outer_table;
@@ -440,6 +451,31 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
         0, key_size_bytes, value_size_bytes, get_comparator(test_spec));
   }
 }
+
+std::string md5_checksum(SSTable<KVSlice >*sstable) {
+  unsigned char *checksum = new unsigned char[MD5_DIGEST_LENGTH];
+  char *md5checksum = new char[MD5_DIGEST_LENGTH * 2 + 1];
+  memset(md5checksum, 0, 2*MD5_DIGEST_LENGTH+1);
+
+    MD5_CTX md5_ctx;
+    MD5_Init(&md5_ctx);
+
+    Iterator<KVSlice> *iter = sstable->iterator();
+    iter->seekToFirst();
+    while (iter->valid()) {
+      KVSlice kv = iter->key();
+      MD5_Update(&md5_ctx, kv.data(), kv.total_size_bytes());
+      iter->next();
+    }
+    MD5_Final(checksum, &md5_ctx);
+    for (int i=0; i<MD5_DIGEST_LENGTH; i++) {
+      snprintf(md5checksum + 2*i, 3, "%02X", checksum[i]);
+    }
+    std::string result(md5checksum);
+    delete md5checksum;
+    delete checksum;
+    return result;
+  }
 } // namespace li_merge
 
 #endif

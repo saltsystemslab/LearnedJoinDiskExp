@@ -7,6 +7,7 @@ import pandas as pd
 from absl import app
 from absl import flags
 import filecmp
+from matplotlib import pyplot as plt
 
 FLAGS = flags.FLAGS
 
@@ -40,8 +41,7 @@ def extract_table(results, metric_fields):
             print("WARNING: COMMAND FAILED, check %s" % result_json['command'])
             continue
         results_table.append(
-            (result_json['spec']['label'],
-            result_json['spec']['label_x'],
+            (result_json['spec']['label_x'],
             result_json['spec']['name'],
             metric_val))
     return results_table
@@ -65,6 +65,11 @@ def run(command, force_dry_run=False, prefix=''):
         result['status'] = 'NZEC'
     return result
 
+def remove_result(result_path):
+    try:
+        os.remove(result_path)
+    except FileNotFoundError:
+        pass
 
 def main(argv):
     benchmark_file = open(FLAGS.spec)
@@ -99,7 +104,7 @@ def main(argv):
         results['input_creation'].append(run([runner_bin, input_json_path], FLAGS.skip_input, "Generating input: %s/%s" % (idx ,len(benchmark["inputs"]["list"]))))
         idx += 1
 
-    total_repeats = benchmark['algos']['repeat']
+    total_repeats = benchmark['repeat']
     if FLAGS.repeat != 0:
         total_repeats = FLAGS.repeat
 
@@ -121,7 +126,10 @@ def main(argv):
                 test_run_json['result_path'] = os.path.join(test_dir, technique['name'] + '_' + str(run_repeat))
                 test_results[test_dir].append(test_run_json['result_path'])
                 test_run_json_path = os.path.join(test_dir, technique['name'] + '_' + str(run_repeat) + '_spec.json')
-                run_configs.append(test_run_json_path)
+                run_configs.append({
+                    'spec_path': test_run_json_path, 
+                    'result_path': test_run_json['result_path']
+                })
                 with open(test_run_json_path, "w") as out:
                     out.write(json.dumps(test_run_json, indent=4))
 
@@ -132,12 +140,14 @@ def main(argv):
     random.shuffle(run_configs)
     idx = 1
     for run_config in run_configs:
-        result_json = run([runner_bin, run_config], prefix="Running %s/%s" % (idx, len(run_configs)))
+        result_json = run([runner_bin, run_config['spec_path']], prefix="Running %s/%s" % (idx, len(run_configs)))
+        if not FLAGS.dry_run:
+            remove_result(run_config['result_path'])
         results.append(result_json)
         idx += 1
     
     benchmark_data_json = os.path.join(bench_dir, 'run_results.json')
-    if FLAGS.regen_report:
+    if FLAGS.regen_report or FLAGS.dry_run:
         with open(benchmark_data_json, "r") as out:
             results = json.load(out)
 
@@ -145,26 +155,38 @@ def main(argv):
         out.write(json.dumps(results, indent=4))
     
     if FLAGS.check_results:
-        for test_result in test_results:
-            result_files = test_results[test_result]
-            results_differ = False
-            for idx in enumerate(result_files[1:]):
-                if not filecmp.cmp(result_files[idx[0]], result_files[idx[0]-1]):
-                    results_differ = True
-            if results_differ:
-                print(test_result + " DIFF: FAIL")
+        result_checksums = {}
+        for result in results:
+            result_path = result['spec']['result_path']
+            result_dir = os.path.dirname(result_path)
+            if result_dir not in result_checksums:
+                result_checksums[result_dir] = []
+            result_checksums[result_dir].append(result['result']['checksum'])
+
+        for result_dir in result_checksums:
+            diff_found = False
+            for idx, checksum in enumerate(result_checksums[result_dir][1:]):
+                if checksum != result_checksums[result_dir][idx-1]:
+                    diff_found = True
+            if diff_found:
+                print(result_dir + "DIFF: FAIL")
             else:
-                print(test_result + " DIFF: OK")
-
-
+                print(result_dir + "DIFF: OK")
 
     report_lines = []
     for metric_fields in benchmark["metrics"]:
         report_lines.append("### " + metric_fields[-1] + "\n\n")
         results_table = extract_table(results, metric_fields)
         df = pd.DataFrame.from_records(results_table)
-        grouped = df.groupby([0, 1, 2]).agg(metric=(3, 'median')).reset_index()
-        report_lines.append(grouped.pivot(index=1, columns=2, values='metric').to_markdown() + "\n\n")
+        grouped = df.groupby([0, 1]).agg(metric=(2, 'median')).reset_index()
+        pivot = grouped.pivot(index=0, columns=1, values='metric')
+        for c in pivot.columns:
+            plt.plot(pivot.index, pivot[c], label=c)
+        plt.legend()
+        plt.savefig(os.path.join(report_dir, metric_fields[-1] + ".png"))
+        plt.close()
+        report_lines.append(grouped.pivot(index=0, columns=1, values='metric').to_markdown() + "\n\n")
+        report_lines.append("![%s.png](%s.png)\n\n" % (metric_fields[-1], metric_fields[-1]))
     
     report = os.path.join(report_dir, 'report.md')
     print(report)
