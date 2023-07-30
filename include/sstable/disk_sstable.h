@@ -110,15 +110,23 @@ private:
 class FixedSizeKVDiskSSTableBuilder : public SSTableBuilder<KVSlice> {
 public:
   FixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
-                                int value_size_bytes)
+                                int value_size_bytes,
+                                uint64_t start_offset_idx = 0,
+                                bool is_new_file = true)
       : file_path_(file_path), key_size_bytes_(key_size_bytes),
         value_size_bytes_(value_size_bytes),
         kv_size_bytes_(key_size_bytes + value_size_bytes),
         buffer_(new char[PAGE_SIZE]), buffer_offset_(0),
-        buffer_size_(PAGE_SIZE), file_start_offset_(HEADER_SIZE),
+        buffer_size_(PAGE_SIZE),
+        file_start_offset_(HEADER_SIZE + start_offset_idx * (key_size_bytes +
+                                                             value_size_bytes)),
         file_cur_offset_(0), num_keys_(0) {
-    remove(file_path.c_str());
-    fd_ = open(file_path.c_str(), O_WRONLY | O_CREAT, 0644);
+    int fd_flags = O_WRONLY;
+    if (is_new_file) {
+      remove(file_path.c_str());
+      fd_flags = fd_flags | O_CREAT;
+    }
+    fd_ = open(file_path.c_str(), fd_flags, 0644);
     if (fd_ == -1) {
       perror("popen");
       abort();
@@ -149,6 +157,44 @@ private:
   void writeHeader();
 };
 
+class PFixedSizeKVDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
+public:
+  PFixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
+                                 int value_size_bytes, uint64_t num_keys)
+      : file_path_(file_path), key_size_bytes_(key_size_bytes),
+        value_size_bytes_(value_size_bytes), num_keys_(num_keys) {
+    remove(file_path.c_str());
+    int fd_flags = O_WRONLY | O_CREAT;
+    fd_ = open(file_path.c_str(), fd_flags, 0644);
+  }
+  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t offset_index) override {
+    return new FixedSizeKVDiskSSTableBuilder(file_path_, key_size_bytes_,
+                                             value_size_bytes_, offset_index, false);
+  }
+  SSTable<KVSlice> *build() override {
+    char header[HEADER_SIZE];
+    assert(sizeof(key_size_bytes_) == 4);
+    assert(sizeof(num_keys_) == 8);
+    memcpy(header, (char *)(&num_keys_), sizeof(num_keys_));
+    memcpy(header + 8, (char *)(&key_size_bytes_), sizeof(key_size_bytes_));
+    memcpy(header + 12, (char *)(&value_size_bytes_),
+           sizeof(value_size_bytes_));
+    uint64_t bytes_written = 0;
+    while (bytes_written < HEADER_SIZE) {
+      bytes_written +=
+          pwrite(fd_, header + bytes_written, HEADER_SIZE - bytes_written, 0);
+    }
+    close(fd_);
+    return new FixedSizeKVDiskSSTable(file_path_);
+  }
+
+private:
+  int fd_;
+  std::string file_path_;
+  int key_size_bytes_;
+  int value_size_bytes_;
+  uint64_t num_keys_;
+};
 // ========= IMPLEMENTATTION ===============
 
 void FixedSizeKVDiskSSTableBuilder::writeHeader() {

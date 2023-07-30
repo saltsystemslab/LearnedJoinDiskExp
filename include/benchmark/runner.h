@@ -76,8 +76,8 @@ json create_input_sstable(json test_spec) {
           load_sstable(test_spec["common_keys_file"], true);
       // TODO(chesetti): This doesn't have to be inmem.
       SSTableBuilder<KVSlice> *in_mem_result =
-          new FixedSizeKVInMemSSTableBuilder(
-              0, key_size_bytes, value_size_bytes, get_comparator(test_spec));
+          FixedSizeKVInMemSSTableBuilder::InMemMalloc(
+              num_keys, key_size_bytes, value_size_bytes, get_comparator(test_spec));
       json merge_log;
       SSTable<KVSlice> *merged_key_list = standardMerge(
           common_keys, keys, comparator, in_mem_result, &merge_log);
