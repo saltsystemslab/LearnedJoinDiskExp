@@ -1,5 +1,6 @@
 {
-      "list": [
+      get_join_algos(key_type, key_size, value_size)::
+      [
          {
             "algo": "sort_join",
             "name": "sort_join"
@@ -37,6 +38,7 @@
             },
             "name": "RbTree"
          },
+      ] + if key_type=="uint64" && key_size==8 then [
          {
             "algo": "inlj",
             "index": {
@@ -44,5 +46,5 @@
             },
             "name": "Btree"
          }
-      ],
+      ] else []
 }
