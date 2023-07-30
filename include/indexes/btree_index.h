@@ -26,7 +26,9 @@ private:
 class BTreeIndex : public Index<KVSlice> {
 public:
   BTreeIndex(BTree *tree, int key_size_bytes)
-      : tree_(tree), key_size_bytes_(key_size_bytes){};
+      : tree_(tree), key_size_bytes_(key_size_bytes){
+        tree_->sync_metanode();
+      };
   uint64_t getApproxPosition(const KVSlice &t) override { 
     uint64_t *key = (uint64_t *)(t.data());
     int c;
@@ -67,7 +69,7 @@ public:
   void resetMonotoneAccess() override{};
 
   uint64_t size_in_bytes() override { 
-    return tree_->get_inner_size();
+    return tree_->get_file_size();
   }
 
 private:
@@ -86,18 +88,24 @@ public:
   }
   void add(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
-    long long junk_ll;
-    int junk_i;
-    tree_->insert_key_entry(*key, num_elts_, &junk_ll, &junk_ll, &junk_ll, &junk_i, &junk_i);
+    elts_.push_back(*key);
     num_elts_++;
   }
   Index<KVSlice> *build() override {
+    LeafNodeIterm *data = new LeafNodeIterm[num_elts_];
+    for (uint64_t i=0; i<num_elts_; i++) {
+      data[i].key = elts_[i];
+      data[i].value = i;
+    }
+    tree_->bulk_load(data, num_elts_);
+    delete data;
     return new BTreeIndex(tree_, key_size_bytes_);
   }
 
 private:
   int key_size_bytes_;
   uint64_t num_elts_;
+  std::vector<uint64_t> elts_;
   BTree *tree_;
 };
 

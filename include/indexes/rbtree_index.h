@@ -68,7 +68,7 @@ public:
     tree_ = new RbTree(RbTreeComparator(comp, key_size_bytes));
   }
   void add(const KVSlice &t) override {
-    tree_->insert(
+    tree_->insert(tree_->end(), 
         RbTreeEntry(std::string(t.data(), t.key_size_bytes()), num_elts_));
     num_elts_++;
   }

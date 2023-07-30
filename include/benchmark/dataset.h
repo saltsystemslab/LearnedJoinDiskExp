@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <algorithm>
 
 namespace li_merge {
 
@@ -48,6 +49,9 @@ uint64_t get_num_keys_from_ar(int fd) {
 std::set<uint64_t> select_keys_uniform(uint64_t num_keys_to_select,
                                        uint64_t num_keys,
                                        std::set<uint64_t> common_keys) {
+  fprintf(stderr, "Selecting Keys!");
+  std::vector<uint64_t> selected_keys_vector;
+  selected_keys_vector.reserve(num_keys_to_select);
   std::set<uint64_t> selected_keys;
   for (auto key : common_keys) {
     selected_keys.insert(key);
@@ -62,8 +66,13 @@ std::set<uint64_t> select_keys_uniform(uint64_t num_keys_to_select,
     } else {
       key = distrib(gen);
     }
-    selected_keys.insert(key);
+    selected_keys_vector.push_back(key);
   }
+  sort(selected_keys_vector.begin(), selected_keys_vector.end());
+  for (auto selected_key : selected_keys_vector) {
+    selected_keys.insert(selected_keys.end(), selected_key);
+  }
+  fprintf(stderr, "Done Selecting Keys!");
   return selected_keys;
 }
 
