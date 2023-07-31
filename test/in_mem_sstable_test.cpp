@@ -71,12 +71,40 @@ TEST(InMemSSTable, TestWrongValueSizeInsert) {
   EXPECT_DEATH(builder->add(kv1), "");
 }
 
-void add_to_table(SSTableBuilder<KVSlice> *builder, char **data_ptrs, int key_size_bytes, int value_size_bytes, uint64_t start, uint64_t end) {
+SSTable<KVSlice> *add_to_table(SSTableBuilder<KVSlice> *builder, char **data_ptrs, int key_size_bytes, int value_size_bytes, uint64_t start, uint64_t end) {
     for (uint64_t idx=start; idx<end; idx++) {
       KVSlice kv(data_ptrs[idx], key_size_bytes, value_size_bytes);
       builder->add(kv);
     }
-    builder->build();
+    return builder->build();
+}
+
+TEST(InMemSSTable, TestSubRange) {
+  uint64_t num_elts = 5000000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVSliceMemcmp();
+  SSTableBuilder<KVSlice> *builder = FixedSizeKVInMemSSTableBuilder::InMemMalloc(
+      num_elts, key_size_bytes, value_size_bytes, comparator);
+
+  char *data = create_uniform_random_distribution_buffer(
+      num_elts, key_size_bytes, value_size_bytes, comparator);
+  char **data_ptrs =
+      sort_buffer(data, num_elts, key_size_bytes, value_size_bytes, comparator);
+  auto table = add_to_table(builder, data_ptrs, key_size_bytes, value_size_bytes, 0, 5000000);
+
+  uint64_t start = 200000;
+  uint64_t end = 300000;
+  auto subRangeTable = table->getSSTableForSubRange(start, end);
+  auto subRangeIter = subRangeTable->iterator();
+  for (uint64_t i=start; i<end; i++) {
+    KVSlice cur_kv(data_ptrs[i], key_size_bytes, value_size_bytes);
+    ASSERT_TRUE(memcmp(subRangeIter->key().data(), cur_kv.data(),
+                       key_size_bytes + value_size_bytes) == 0);
+    subRangeIter->next();
+  }
+  ASSERT_EQ(subRangeIter->num_elts(), end-start);
+  ASSERT_FALSE(subRangeIter->valid());
 }
 
 TEST(PInMemSTable, PTestCreation_MultiThread) {

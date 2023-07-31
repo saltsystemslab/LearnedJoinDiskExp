@@ -40,9 +40,12 @@ private:
 
 class FixedSizeKVDiskSSTableIterator : public Iterator<KVSlice> {
 public:
-  FixedSizeKVDiskSSTableIterator(std::string file_path_) : cur_idx_(0) {
-    fd_ = open(file_path_.c_str(), O_RDONLY);
+  FixedSizeKVDiskSSTableIterator(std::string file_path, uint64_t start_idx,
+                                 uint64_t end_idx)
+      : cur_idx_(start_idx), start_idx_(start_idx), end_idx_(end_idx) {
+    fd_ = open(file_path.c_str(), O_RDONLY);
     readHeader();
+    num_keys_ = end_idx - start_idx;
     cur_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
                                               value_size_bytes_, HEADER_SIZE);
     peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
@@ -52,23 +55,25 @@ public:
     delete cur_kv_cache_;
     delete peek_kv_cache_;
   }
-  bool valid() override { return cur_idx_ < num_keys_; }
+  bool valid() override { return cur_idx_ < end_idx_; }
   void next() override { cur_idx_++; }
   KVSlice peek(uint64_t pos) override {
-    assert(pos < num_keys_);
-    return peek_kv_cache_->get_kv(pos);
+    assert(pos + start_idx_ < end_idx_);
+    return peek_kv_cache_->get_kv(pos + start_idx_);
   }
-  void seekToFirst() override { cur_idx_ = 0; }
+  void seekToFirst() override { cur_idx_ = start_idx_; }
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
   uint64_t current_pos() override { return cur_idx_; }
   uint64_t num_elts() override { return num_keys_; }
 
 private:
   int fd_;
-  uint64_t cur_idx_;
-  uint64_t num_keys_;
-  int key_size_bytes_;
-  int value_size_bytes_;
+  uint64_t cur_idx_; // cur_idx_ always (start_idx_, end_idx_]
+  uint64_t start_idx_;
+  uint64_t end_idx_;
+  uint64_t num_keys_; // total number of keys in this iterator.
+  int key_size_bytes_; // loaded from header
+  int value_size_bytes_; // loaded from header
   int kv_size_bytes_;
   FixedKSizeKVFileCache *cur_kv_cache_;
   FixedKSizeKVFileCache *peek_kv_cache_;
@@ -79,9 +84,18 @@ class FixedSizeKVDiskSSTable : public SSTable<KVSlice> {
 public:
   FixedSizeKVDiskSSTable(std::string file_path) : file_path_(file_path) {
     readHeader();
+    start_idx_ = 0;
+    end_idx_ = num_keys_;
+  }
+  FixedSizeKVDiskSSTable(std::string file_path, uint64_t start, uint64_t end)
+      : file_path_(file_path) {
+    readHeader();
+    num_keys_ = end - start;
+    start_idx_ = start;
+    end_idx_ = end;
   }
   Iterator<KVSlice> *iterator() override {
-    return new FixedSizeKVDiskSSTableIterator(file_path_);
+    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_);
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =
@@ -98,11 +112,16 @@ public:
     delete iter;
     return in_mem_table;
   }
+  SSTable<KVSlice> *getSSTableForSubRange(uint64_t start, uint64_t end) override {
+    return new FixedSizeKVDiskSSTable(file_path_, start, end);
+  }
 
 private:
   uint64_t num_keys_;
   int key_size_bytes_;
   int value_size_bytes_;
+  uint64_t start_idx_;
+  uint64_t end_idx_;
   std::string file_path_;
   void readHeader();
 };
@@ -168,8 +187,8 @@ public:
     fd_ = open(file_path.c_str(), fd_flags, 0644);
   }
   SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t offset_index) override {
-    return new FixedSizeKVDiskSSTableBuilder(file_path_, key_size_bytes_,
-                                             value_size_bytes_, offset_index, false);
+    return new FixedSizeKVDiskSSTableBuilder(
+        file_path_, key_size_bytes_, value_size_bytes_, offset_index, false);
   }
   SSTable<KVSlice> *build() override {
     char header[HEADER_SIZE];

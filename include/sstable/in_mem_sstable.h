@@ -17,6 +17,12 @@ public:
       : data_(data), key_size_bytes_(key_size_bytes),
         value_size_bytes_(value_size_bytes), num_kv_(num_kv) {}
   Iterator<KVSlice> *iterator() override;
+  SSTable<KVSlice> *getSSTableForSubRange(uint64_t start,
+                                          uint64_t end) override {
+    return new FixedSizeKVInMemSSTable(
+        data_ + start * (key_size_bytes_ + value_size_bytes_), key_size_bytes_,
+        value_size_bytes_, end - start);
+  }
 
 private:
   char *data_;
@@ -35,11 +41,12 @@ public:
         num_kv_(0), last_key_buf_(new char[key_size_bytes + value_size_bytes]) {
   }
 
-  static FixedSizeKVInMemSSTableBuilder *InMemMalloc(uint64_t num_keys, int key_size_bytes,
-                                 int value_size_bytes,
-                                 Comparator<KVSlice> *comparator) {
+  static FixedSizeKVInMemSSTableBuilder *
+  InMemMalloc(uint64_t num_keys, int key_size_bytes, int value_size_bytes,
+              Comparator<KVSlice> *comparator) {
     char *data = new char[num_keys * (key_size_bytes + value_size_bytes)];
-    return new FixedSizeKVInMemSSTableBuilder(data, key_size_bytes, value_size_bytes, comparator);
+    return new FixedSizeKVInMemSSTableBuilder(data, key_size_bytes,
+                                              value_size_bytes, comparator);
   }
   ~FixedSizeKVInMemSSTableBuilder() { delete[] last_key_buf_; }
   void add(const KVSlice &kv) override;

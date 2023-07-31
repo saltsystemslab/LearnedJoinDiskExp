@@ -98,7 +98,6 @@ public:
   }
   void add(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
-    printf("%lu\n", *key);
     elts_.push_back(*key);
     num_elts_++;
   }
