@@ -21,6 +21,13 @@ template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                           Comparator<T> *comparator, SSTableBuilder<T> *builder,
                           json *merge_log);
+
+template <class T>
+SSTable<T> *parallelStandardMerge(SSTable<T> *outer_table,
+                                  SSTable<T> *inner_table,
+                                  Index<T> *inner_index,
+                                  Comparator<T> *comparator, int num_threads,
+                                  PSSTableBuilder<T> *builder, json *merge_log);
 template <class T>
 SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              Index<T> *outer_index, Index<T> *inner_index,
@@ -54,6 +61,65 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
 } // namespace li_merge
 
 namespace li_merge {
+
+template <class T>
+SSTable<T> *
+parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
+                      Index<T> *inner_index, Comparator<T> *comparator,
+                      int num_threads, SSTableBuilder<T> *resultBuilder,
+                      json *merge_log) {
+#if TRACK_STATS
+  comparator = new CountingComparator<T>(comparator);
+#endif
+  Iterator<T> *inner_iter = inner_table->iterator();
+  Iterator<T> *outer_iter = outer_table->iterator();
+  inner_iter->seekToFirst();
+  outer_iter->seekToFirst();
+
+  uint64_t num_items = outer_iter->num_elts();
+  uint64_t block_size = num_items / num_threads;
+  uint64_t spill = num_items % num_threads;
+
+  uint64_t outer_start = 0;
+  uint64_t outer_end = 0;
+  uint64_t inner_start = 0;
+  uint64_t inner_end = 0;
+  for (int i = 0; i < num_threads; i++) {
+    outer_end = outer_start + block_size;
+    if (spill) {
+      outer_end++;
+      spill--;
+    }
+    uint64_t inner_end =
+        inner_index->getApproxLowerBoundPosition(outer_iter->peek(outer_start));
+    printf("%lu\n", inner_end);
+    while (inner_end < inner_iter->num_elts() &&
+           comparator->compare(inner_iter->peek(inner_end),
+                               outer_iter->peek(outer_start)) <= 0) {
+      inner_end++;
+    }
+    while (inner_end > 0 &&
+           comparator->compare(inner_iter->peek(inner_end - 1),
+                               outer_iter->peek(outer_start)) > 0) {
+      inner_end--;
+    }
+    if (i == num_threads-1) {
+      inner_end = inner_iter->num_elts();
+    }
+    
+    printf("T%d: [%lu, %lu] [%lu %lu]\n", i, outer_start, outer_end, inner_start,
+           inner_end);
+    outer_start = outer_end;
+    inner_start = inner_end;
+  }
+
+  // Partition the tables.
+#if TRACK_STATS
+  (*merge_log)["comparison_count"] =
+      ((CountingComparator<T> *)(comparator))->get_count();
+#endif
+  return resultBuilder->build();
+}
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,

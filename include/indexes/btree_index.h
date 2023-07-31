@@ -40,7 +40,17 @@ public:
     auto iter = tree_->get_index_iterator(cond, &c);
     return iter.cur_value();
   }
-  uint64_t getApproxLowerBoundPosition(const KVSlice &t) override { abort(); }
+  uint64_t getApproxLowerBoundPosition(const KVSlice &t) override { 
+    uint64_t *key = (uint64_t *)(t.data());
+    int c;
+    BTree::Condition cond;
+    cond.include_min = false;
+    cond.min = (*key)-1;
+    cond.max = -1;
+    cond.include_max = true;
+    auto iter = tree_->get_index_iterator(cond, &c);
+    return iter.cur_value();
+  }
   Bounds getPositionBounds(const KVSlice &t) override { abort(); }
   uint64_t
   getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
@@ -52,7 +62,7 @@ public:
     cond.max = -1;
     cond.include_max = true;
     auto iter = tree_->get_index_iterator(cond, &c);
-    return iter.cur_value();
+      return iter.cur_value();
   };
   uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) { 
     uint64_t *key = (uint64_t *)(t.data());
@@ -88,16 +98,18 @@ public:
   }
   void add(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
+    printf("%lu\n", *key);
     elts_.push_back(*key);
     num_elts_++;
   }
   Index<KVSlice> *build() override {
-    LeafNodeIterm *data = new LeafNodeIterm[num_elts_];
-    for (uint64_t i=0; i<num_elts_; i++) {
+    elts_.push_back(-1);
+    LeafNodeIterm *data = new LeafNodeIterm[num_elts_ + 1];
+    for (uint64_t i=0; i<num_elts_ + 1; i++) {
       data[i].key = elts_[i];
       data[i].value = i;
     }
-    tree_->bulk_load(data, num_elts_);
+    tree_->bulk_load(data, num_elts_+1);
     delete data;
     return new BTreeIndex(tree_, key_size_bytes_);
   }

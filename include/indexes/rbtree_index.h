@@ -32,6 +32,9 @@ public:
   }
   uint64_t getApproxLowerBoundPosition(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
+    if (lo == tree_->end()) {
+      return tree_->size();
+    }
     return lo->second;
   }
   Bounds getPositionBounds(const KVSlice &t) override {

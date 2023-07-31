@@ -1,4 +1,8 @@
 #!/bin/bash
+find benchmark/dataset_ar/*.jsonnet | xargs -I {} jsonnet {} -o {}.json
+find benchmark/dataset_ar/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
+find benchmark/dataset_ar/*.json | xargs -I {} rm {} 
+
 find benchmark/dataset_osm/*.jsonnet | xargs -I {} jsonnet {} -o {}.json
 find benchmark/dataset_osm/*.json | xargs -I {} ./benchmark/benchmark_runner.py --spec={} --repeat=1
 find benchmark/dataset_osm/*.json | xargs -I {} rm {} 

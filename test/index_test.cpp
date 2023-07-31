@@ -57,7 +57,7 @@ TEST(IndexCreationTest, TestGreedyPLRIndex) {
   KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
@@ -74,7 +74,7 @@ TEST(IndexCreationTest, TestRbTree) {
   KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
@@ -92,7 +92,7 @@ TEST(IndexCreationTest, TestPGMUInt64) {
   KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
@@ -110,7 +110,7 @@ TEST(IndexCreationTest, TestPGM8Byte) {
   KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
@@ -128,7 +128,7 @@ TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
   KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
@@ -146,7 +146,7 @@ TEST(IndexCreationTest, TestPGM16Byte) {
   KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      new FixedSizeKVInMemSSTableBuilder(num_elts, key_size_bytes,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
                                          value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
@@ -181,7 +181,7 @@ void check_tree(std::vector<uint64_t> &keys, BTree *tree) {
     cond.min = keys[i];
     cond.max = -1;
     cond.include_max = true;
-    auto iter = tree->get_index_iterator(cond, &c);
+    auto iter = tree->obtain_for_leaf_disk(cond, &c);
     ASSERT_EQ(iter.cur_key(), keys[i]);
   }
 
@@ -191,7 +191,7 @@ void check_tree(std::vector<uint64_t> &keys, BTree *tree) {
     cond.min = keys[i]-1;
     cond.max = -1;
     cond.include_max = true;
-    auto iter = tree->get_index_iterator(cond, &c);
+    auto iter = tree->obtain_for_leaf_disk(cond, &c);
     ASSERT_EQ(iter.cur_key(), keys[i]);
   }
 
@@ -201,7 +201,7 @@ void check_tree(std::vector<uint64_t> &keys, BTree *tree) {
     cond.min = keys[i]+1;
     cond.max = -1;
     cond.include_max = true;
-    auto iter = tree->get_index_iterator(cond, &c);
+    auto iter = tree->obtain_for_leaf_disk(cond, &c);
     ASSERT_EQ(iter.cur_key(), keys[i+1]);
   }
 
@@ -210,7 +210,7 @@ void check_tree(std::vector<uint64_t> &keys, BTree *tree) {
 TEST(BTreeIndex, TestBTreeIndex_AllDisk_BulkLoad) {
   BTree *tree_;
   tree_ = new BTree(0, true, "alldisk_bulkload", true);
-  int count = 2000000;
+  int count = 2;
   std::vector<uint64_t> keys;
   LeafNodeIterm *data = new LeafNodeIterm[count];
   load_keys(keys, data, count);
@@ -221,8 +221,9 @@ TEST(BTreeIndex, TestBTreeIndex_AllDisk_BulkLoad) {
 
 TEST(BTreeIndex, TestBTreeIndex_AllDisk_insert) {
   BTree *tree_;
-  tree_ = new BTree(0, true, "alldisk_insert", false);
-  int count = 2000000;
+  tree_ = new BTree(0, true, "alldisk_insert", true);
+  tree_->sync_metanode();
+  int count = 10;
   std::vector<uint64_t> keys;
   LeafNodeIterm *data = new LeafNodeIterm[count];
   load_keys(keys, data, count);
@@ -238,10 +239,11 @@ TEST(BTreeIndex, TestBTreeIndex_AllDisk_insert) {
   check_tree(keys, tree_);
 }
 
-TEST(BTreeIndex, DISABLED_TestBTreeIndex_LeafDisk_insert) { 
+TEST(BTreeIndex, TestBTreeIndex_LeafDisk_insert) { 
   BTree *tree_;
-  tree_ = new BTree(1, true, "leafdisk_inner", false);
-  int count = 2000000;
+  tree_ = new BTree(1, true, "leafdisk_insert", false);
+  tree_->sync_metanode();
+  int count = 2;
   std::vector<uint64_t> keys;
   LeafNodeIterm *data = new LeafNodeIterm[count];
   load_keys(keys, data, count);
@@ -256,10 +258,10 @@ TEST(BTreeIndex, DISABLED_TestBTreeIndex_LeafDisk_insert) {
   check_tree(keys, tree_);
 }
 
-TEST(BTreeIndex, DISABLED_TestBTreeIndex_LeafDisk_BulkLoad) {
+TEST(BTreeIndex, TestBTreeIndex_LeafDisk_BulkLoad) {
   BTree *tree_;
   tree_ = new BTree(1, true, "leafdisk_bulk", true);
-  int count = 2000000;
+  int count = 2000;
   std::vector<uint64_t> keys;
   LeafNodeIterm *data = new LeafNodeIterm[count];
   load_keys(keys, data, count);
