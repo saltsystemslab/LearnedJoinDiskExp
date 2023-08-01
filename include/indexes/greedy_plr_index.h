@@ -254,9 +254,9 @@ PLRModel *PLRBuilder::finishTraining() {
 
 template <class T> class GreedyPLRIndex : public Index<T> {
 public:
-  GreedyPLRIndex(greedy_plr::PLRModel *index, KeyToPointConverter<T> *converter)
+  GreedyPLRIndex(greedy_plr::PLRModel *index, KeyToPointConverter<T> *converter, uint64_t start_idx=0, uint64_t end_idx=-1)
       : greedy_plr_index_(index), converter_(converter),
-        num_keys_(index->numKeys_), cur_segment_index_(0) {}
+        num_keys_(index->numKeys_), cur_segment_index_(0), start_idx_(start_idx), end_idx_(end_idx) {}
 
   uint64_t getApproxPosition(const T &t) override {
     POINT_FLOAT_TYPE target_key = converter_->toPoint(t);
@@ -270,25 +270,14 @@ public:
       else
         left = mid;
     }
-    uint64_t result =
-        std::ceil((target_key)*segments[left].k + segments[left].b);
-#if 0
-    if (left+1 < segments.size()) {
-      result = std::min<uint64_t>(result, std::ceil(segments[left+1].b));
-    }
-#endif
-    if (result < 0) {
-      result = 0;
-    }
-    if (result >= num_keys_) {
-      result = num_keys_ - 1;
-    }
-    return result;
+    uint64_t result = std::ceil((target_key)*segments[left].k + segments[left].b);
+    result = std::clamp(result, start_idx_, end_idx_);
+    return std::ceil(result-start_idx_);
   }
   uint64_t getApproxLowerBoundPosition(const KVSlice &t) override {
-    uint64_t position = getApproxPosition(t);
+    uint64_t position = getApproxPosition(t); // Already normalized to (start, end]
     if (position >= greedy_plr_index_->gamma_) {
-      position = position - greedy_plr_index_->gamma_;
+      position = std::ceil(position - greedy_plr_index_->gamma_);
     } else {
       position = 0;
     }
@@ -297,7 +286,7 @@ public:
   Bounds getPositionBounds(const T &t) override {
     uint64_t approx_pos = getApproxPosition(t);
     if (approx_pos > greedy_plr_index_->gamma_) {
-      approx_pos = approx_pos - 0;
+      approx_pos = std::ceil(approx_pos - greedy_plr_index_->gamma_);
     } else {
       approx_pos = 0;
     }
@@ -340,12 +329,15 @@ public:
   Bounds getPositionBoundsMonotoneAccess(const T &t) override {
     uint64_t approx_pos = getApproxPosition(t);
     if (approx_pos > greedy_plr_index_->gamma_) {
-      approx_pos = approx_pos - 0;
+      approx_pos = std::ceil(approx_pos - greedy_plr_index_->gamma_);
     } else {
       approx_pos = 0;
     }
-    return Bounds{approx_pos, approx_pos + greedy_plr_index_->gamma_,
-                  approx_pos};
+    return Bounds{
+      approx_pos, 
+      std::ceil(approx_pos + greedy_plr_index_->gamma_),
+      approx_pos
+    };
   }
 
   void resetMonotoneAccess() override {
@@ -357,8 +349,12 @@ public:
     return greedy_plr_index_->lineSegments_.size() *
            sizeof(greedy_plr::Segment);
   }
+  Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) override {
+    return new GreedyPLRIndex(greedy_plr_index_, start_idx_, end_idx_);
+  }
 
 private:
+  uint64_t start_idx_, end_idx_;
   uint64_t num_keys_;
   greedy_plr::PLRModel *greedy_plr_index_;
   KeyToPointConverter<T> *converter_;
