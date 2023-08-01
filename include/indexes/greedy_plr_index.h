@@ -350,7 +350,7 @@ public:
            sizeof(greedy_plr::Segment);
   }
   Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) override {
-    return new GreedyPLRIndex(greedy_plr_index_, start_idx_, end_idx_);
+    return new GreedyPLRIndex(greedy_plr_index_, converter_, start, end);
   }
 
 private:
