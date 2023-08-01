@@ -59,17 +59,24 @@ TEST(StandardMerge, ParallelStandardMerge_RbTree_Disk) {
     Comparator<KVSlice> *comparator = new KVUint64Cmp();
     IndexBuilder<KVSlice> * inner_index_builder 
         = new RbTreeIndexBuilder(comparator, 8);
+    IndexBuilder<KVSlice> * outer_index_builder 
+        = new RbTreeIndexBuilder(comparator, 8);
     Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
-    PSSTableBuilder<KVSlice> *pResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p_result", 8, 0, 200);
+    Index<KVSlice> *outer_index = build_index(outer, outer_index_builder);
+    PSSTableBuilder<KVSlice> *p1ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0, 200);
+    PSSTableBuilder<KVSlice> *p2ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p2_result", 8, 0, 200);
     SSTableBuilder<KVSlice> *resultBuilder = new FixedSizeKVDiskSSTableBuilder("s_result", 8, 0);
     json log;
 
-    SSTable<KVSlice> *resultParallel = parallelStandardMerge(outer, inner, inner_index, comparator, 4, pResultBuilder, &log);
+    SSTable<KVSlice> *resultParallelSM = parallelStandardMerge(outer, inner, inner_index, comparator, 4, p1ResultBuilder, &log);
+    SSTable<KVSlice> *resultParallelLM = parallelLearnedMerge(outer, inner, outer_index, inner_index, comparator, 2, p2ResultBuilder, &log);
     SSTable<KVSlice> *resultStandard = standardMerge(outer, inner, comparator, resultBuilder, &log);
 
-    std::string standardMd5 = md5_checksum(resultParallel);
-    std::string parallelMd5 = md5_checksum(resultStandard);
-    ASSERT_EQ(standardMd5, parallelMd5);
+    std::string standardMd5 = md5_checksum(resultStandard);
+    std::string parallelSMMd5 = md5_checksum(resultParallelSM);
+    std::string parallelLMMd5 = md5_checksum(resultParallelLM);
+    ASSERT_EQ(standardMd5, parallelSMMd5);
+    ASSERT_EQ(standardMd5, parallelLMMd5);
 }
 
 TEST(StandardMerge, ParallelStandardMerge_RbTree) {

@@ -63,7 +63,7 @@ public:
   }
   void seekToFirst() override { cur_idx_ = start_idx_; }
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
-  uint64_t current_pos() override { return cur_idx_; }
+  uint64_t current_pos() override { return cur_idx_ - start_idx_; }
   uint64_t num_elts() override { return num_keys_; }
 
 private:
