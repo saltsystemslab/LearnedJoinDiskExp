@@ -5,6 +5,7 @@
 #include "comparator.h"
 #include "key_value_slice.h"
 #include <map>
+#include <algorithm>
 
 namespace li_merge {
 
@@ -25,8 +26,8 @@ private:
 
 class BTreeIndex : public Index<KVSlice> {
 public:
-  BTreeIndex(BTree *tree, int key_size_bytes)
-      : tree_(tree), key_size_bytes_(key_size_bytes){
+  BTreeIndex(BTree *tree, int key_size_bytes, uint64_t start_idx=0, uint64_t end_idx=-1)
+      : tree_(tree), key_size_bytes_(key_size_bytes), start_idx_(start_idx), end_idx_(end_idx) {
         tree_->sync_metanode();
       };
   uint64_t getApproxPosition(const KVSlice &t) override { 
@@ -38,7 +39,9 @@ public:
     cond.max = -1;
     cond.include_max = true;
     auto iter = tree_->get_index_iterator(cond, &c);
-    return iter.cur_value();
+    uint64_t pos = iter.cur_value();
+    pos = std::clamp(pos, start_idx_, end_idx_);
+    return pos - start_idx_;
   }
   uint64_t getApproxLowerBoundPosition(const KVSlice &t) override { 
     uint64_t *key = (uint64_t *)(t.data());
@@ -49,7 +52,9 @@ public:
     cond.max = -1;
     cond.include_max = true;
     auto iter = tree_->get_index_iterator(cond, &c);
-    return iter.cur_value();
+    uint64_t pos = iter.cur_value();
+    pos = std::clamp(pos, start_idx_, end_idx_);
+    return pos - start_idx_;
   }
   Bounds getPositionBounds(const KVSlice &t) override { abort(); }
   uint64_t
@@ -62,7 +67,9 @@ public:
     cond.max = -1;
     cond.include_max = true;
     auto iter = tree_->get_index_iterator(cond, &c);
-      return iter.cur_value();
+    uint64_t pos = iter.cur_value();
+    pos = std::clamp(pos, start_idx_, end_idx_);
+    return pos - start_idx_;
   };
   uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) { 
     uint64_t *key = (uint64_t *)(t.data());
@@ -73,7 +80,9 @@ public:
     cond.max = -1;
     cond.include_max = true;
     auto iter = tree_->get_index_iterator(cond, &c);
-    return iter.cur_value();
+    uint64_t pos = iter.cur_value();
+    pos = std::clamp(pos, start_idx_, end_idx_);
+    return pos - start_idx_;
   };
   Bounds getPositionBoundsMonotoneAccess(const KVSlice &t) { abort(); };
   void resetMonotoneAccess() override{};
@@ -81,8 +90,13 @@ public:
   uint64_t size_in_bytes() override { 
     return tree_->get_file_size();
   }
+  Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
+    return new BTreeIndex(tree_, key_size_bytes_, start, end);
+  }
 
 private:
+  uint64_t start_idx_;
+  uint64_t end_idx_;
   int key_size_bytes_;
   BTree *tree_;
 };

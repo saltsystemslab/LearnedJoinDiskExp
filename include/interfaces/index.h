@@ -23,6 +23,7 @@ public:
   virtual Bounds getPositionBoundsMonotoneAccess(const T &t) = 0;
   virtual void resetMonotoneAccess() = 0;
   virtual uint64_t size_in_bytes() = 0;
+  virtual Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) = 0;
 };
 
 template <class T> class IndexBuilder {

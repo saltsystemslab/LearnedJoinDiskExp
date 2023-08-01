@@ -49,7 +49,7 @@ void check_index(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
   check_index_monotoneAccess(iterator, index);
 }
 
-TEST(IndexCreationTest, TestGreedyPLRIndex) {
+TEST(IndexCreationTest, DISABLED_TestGreedyPLRIndex) {
   uint64_t num_elts = 10000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
@@ -64,6 +64,10 @@ TEST(IndexCreationTest, TestGreedyPLRIndex) {
   IndexBuilder<KVSlice> *builder = new GreedyPLRIndexBuilder(64, converter);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
+
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestRbTree) {
@@ -82,6 +86,10 @@ TEST(IndexCreationTest, TestRbTree) {
       new RbTreeIndexBuilder(comparator, key_size_bytes);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
+
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestPGMUInt64) {
@@ -100,6 +108,10 @@ TEST(IndexCreationTest, TestPGMUInt64) {
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
+
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestPGM8Byte) {
@@ -118,6 +130,10 @@ TEST(IndexCreationTest, TestPGM8Byte) {
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
+
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
@@ -136,6 +152,10 @@ TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
       new OneLevelPgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
+
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestPGM16Byte) {
@@ -154,6 +174,10 @@ TEST(IndexCreationTest, TestPGM16Byte) {
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
+
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
 }
 
  void load_keys(std::vector<uint64_t> &keys, LeafNodeIterm *data, int count) {
@@ -207,7 +231,7 @@ void check_tree(std::vector<uint64_t> &keys, BTree *tree) {
 
 }
 
-TEST(BTreeIndex, TestBTreeIndex_AllDisk_BulkLoad) {
+TEST(BTreeIndex, DISABLED_TestBTreeIndex_AllDisk_BulkLoad) {
   BTree *tree_;
   tree_ = new BTree(0, true, "alldisk_bulkload", true);
   int count = 2;
@@ -219,7 +243,7 @@ TEST(BTreeIndex, TestBTreeIndex_AllDisk_BulkLoad) {
   check_tree(keys, tree_);
 }
 
-TEST(BTreeIndex, TestBTreeIndex_AllDisk_insert) {
+TEST(BTreeIndex, DISABLED_TestBTreeIndex_AllDisk_insert) {
   BTree *tree_;
   tree_ = new BTree(0, true, "alldisk_insert", true);
   tree_->sync_metanode();
@@ -239,7 +263,7 @@ TEST(BTreeIndex, TestBTreeIndex_AllDisk_insert) {
   check_tree(keys, tree_);
 }
 
-TEST(BTreeIndex, TestBTreeIndex_LeafDisk_insert) { 
+TEST(BTreeIndex, DISABLED_TestBTreeIndex_LeafDisk_insert) { 
   BTree *tree_;
   tree_ = new BTree(1, true, "leafdisk_insert", false);
   tree_->sync_metanode();

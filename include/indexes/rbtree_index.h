@@ -2,6 +2,7 @@
 #define LEARNEDINDEXMERGE_RBTREE_INDEX_H
 
 #include <map>
+#include <algorithm>
 
 namespace li_merge {
 
@@ -24,24 +25,34 @@ typedef std::pair<std::string, uint64_t> RbTreeEntry;
 
 class RbTreeIndex : public Index<KVSlice> {
 public:
-  RbTreeIndex(RbTree *tree, int key_size_bytes)
-      : tree_(tree), key_size_bytes_(key_size_bytes){};
+  RbTreeIndex(RbTree *tree, int key_size_bytes, uint64_t start_idx=0, uint64_t end_idx=-1)
+      : tree_(tree), key_size_bytes_(key_size_bytes), start_idx_(start_idx), end_idx_(end_idx){};
   uint64_t getApproxPosition(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
-    return lo->second;
+    uint64_t pos = std::clamp(lo->second, start_idx_, end_idx_);
+    return pos - start_idx_;
   }
   uint64_t getApproxLowerBoundPosition(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
+    uint64_t pos;
     if (lo == tree_->end()) {
-      return tree_->size();
+      pos = tree_->size();
+    } else {
+      pos = lo->second;
     }
-    return lo->second;
+    pos = std::clamp(pos, start_idx_, end_idx_);
+    return pos-start_idx_;
   }
   Bounds getPositionBounds(const KVSlice &t) override {
     auto lo = tree_->lower_bound(std::string(t.data(), t.key_size_bytes()));
     auto hi = tree_->upper_bound(std::string(t.data(), t.key_size_bytes()));
-    auto pos = lo->second;
-    return Bounds{lo->second, lo->second, hi->second};
+    auto lo_pos = std::clamp(lo->second, start_idx_, end_idx_);
+    auto hi_pos = std::clamp(hi->second, start_idx_, end_idx_);
+    return Bounds{
+      lo_pos - start_idx_,
+      lo_pos - start_idx_,
+      hi_pos - start_idx_
+    };
   }
   uint64_t
   getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
@@ -58,8 +69,13 @@ public:
   uint64_t size_in_bytes() override {
     return tree_->size() * (24 + key_size_bytes_);
   }
+  Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
+    return new RbTreeIndex(tree_, key_size_bytes_, start, end);
+  }
 
 private:
+  uint64_t start_idx_;
+  uint64_t end_idx_;
   int key_size_bytes_;
   RbTree *tree_;
 };
