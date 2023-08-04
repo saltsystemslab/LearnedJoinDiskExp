@@ -121,7 +121,7 @@ TEST(PInMemSTable, PTestCreation_MultiThread) {
       sort_buffer(data, num_elts, key_size_bytes, value_size_bytes, comparator);
   std::vector<std::thread> threads;
   for (int i=0; i<4; i++) {
-    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(num_elts/4 * i);
+    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(num_elts/4 * i, num_elts/4 * (i+1));
     uint64_t start = num_elts/4 * i;
     uint64_t end = start + num_elts/4;
     threads.push_back(std::thread(add_to_table, p_builder, data_ptrs, key_size_bytes, value_size_bytes, start, end));

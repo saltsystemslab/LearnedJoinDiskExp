@@ -179,16 +179,17 @@ private:
 class PFixedSizeKVDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
 public:
   PFixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
-                                 int value_size_bytes, uint64_t num_keys)
+                                 int value_size_bytes)
       : file_path_(file_path), key_size_bytes_(key_size_bytes),
-        value_size_bytes_(value_size_bytes), num_keys_(num_keys) {
+        value_size_bytes_(value_size_bytes), num_keys_(0) {
     remove(file_path.c_str());
     int fd_flags = O_WRONLY | O_CREAT;
     fd_ = open(file_path.c_str(), fd_flags, 0644);
   }
-  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t offset_index) override {
+  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index, uint64_t end_index) override {
+    num_keys_ += (end_index - start_index);
     return new FixedSizeKVDiskSSTableBuilder(
-        file_path_, key_size_bytes_, value_size_bytes_, offset_index, false);
+        file_path_, key_size_bytes_, value_size_bytes_, start_index, false);
   }
   SSTable<KVSlice> *build() override {
     char header[HEADER_SIZE];

@@ -51,6 +51,7 @@ def run(command, force_dry_run=False, prefix=''):
         force_dry_run = True
     if FLAGS.regen_report:
         force_dry_run = True
+    command = ['numactl', '-N', '1', '-m', '1'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
     if force_dry_run:
@@ -104,7 +105,7 @@ def main(argv):
         results['input_creation'].append(run([runner_bin, input_json_path], FLAGS.skip_input, "Generating input: %s/%s" % (idx ,len(benchmark["inputs"]["list"]))))
         idx += 1
 
-    total_repeats = benchmark['repeat']
+    total_repeats = benchmark["repeat"] if "repeat" in benchmark else 1
     if FLAGS.repeat != 0:
         total_repeats = FLAGS.repeat
 

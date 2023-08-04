@@ -5,9 +5,9 @@
 #include "index.h"
 #include "iterator.h"
 #include "sstable.h"
-#include <thread>
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include <thread>
 
 using json = nlohmann::json;
 
@@ -38,7 +38,7 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
 template <class T>
 SSTable<T> *
 mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Index<T> *outer_index, Index<T> *inner_index,
+                          Index<T> *inner_index, uint64_t threshold,
                           Comparator<T> *comparator,
                           SSTableBuilder<T> *resultBuilder, json *merge_log);
 
@@ -90,47 +90,49 @@ parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
       outer_end++;
       spill--;
     }
-    uint64_t inner_end =
-        inner_index->getApproxLowerBoundPosition(outer_iter->peek(outer_end-1));
+    uint64_t inner_end = inner_index->getApproxLowerBoundPosition(
+        outer_iter->peek(outer_end - 1));
     while (inner_end < inner_iter->num_elts() &&
            comparator->compare(inner_iter->peek(inner_end),
-                               outer_iter->peek(outer_end-1)) <= 0) {
+                               outer_iter->peek(outer_end - 1)) <= 0) {
       inner_end++;
     }
     while (inner_end > 0 &&
            comparator->compare(inner_iter->peek(inner_end - 1),
-                               outer_iter->peek(outer_end-1)) > 0) {
+                               outer_iter->peek(outer_end - 1)) > 0) {
       inner_end--;
     }
-    if (i == num_threads-1) {
+    if (i == num_threads - 1) {
       inner_end = inner_iter->num_elts();
     }
     Comparator<T> *thread_comparator = comparator;
-    #if TRACK_STATS
-      thread_comparator = new CountingComparator(comparator);
-    #endif
-    threads.push_back(std::thread(
-      standardMerge<T>,
-      outer_table->getSSTableForSubRange(outer_start, outer_end),
-      inner_table->getSSTableForSubRange(inner_start, inner_end),
-      thread_comparator,
-      resultBuilder->getBuilderForRange(inner_start + outer_start),
-      &merge_logs[i]
-    ));
+#if TRACK_STATS
+    thread_comparator = new CountingComparator(comparator);
+#endif
+    threads.push_back(
+        std::thread(standardMerge<T>,
+                    outer_table->getSSTableForSubRange(outer_start, outer_end),
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    thread_comparator,
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end),
+                    &merge_logs[i]));
     outer_start = outer_end;
     inner_start = inner_end;
   }
 
-  for (int i=0; i < num_threads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     threads[i].join();
   }
 
   resultBuilder->build();
 #if TRACK_STATS
-  (*merge_log)["comparison_count"] = 0;
-  for (int i=0; i < num_threads; i++) {
-    (*merge_log)["comparison_count"] += merge_log["comparison_count"];
+  uint64_t total_comp_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t comp_count = merge_logs[i]["comparison_count"];
+    total_comp_count += comp_count;
   }
+  (*merge_log)["comparison_count"] = total_comp_count;
 #endif
   return resultBuilder->build();
 }
@@ -138,10 +140,9 @@ parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
 template <class T>
 SSTable<T> *
 parallelLearnedMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                      Index<T> *outer_index, Index<T> *inner_index, 
-                      Comparator<T> *comparator, int num_threads, 
-                      PSSTableBuilder<T> *resultBuilder,
-                      json *merge_log) {
+                     Index<T> *outer_index, Index<T> *inner_index,
+                     Comparator<T> *comparator, int num_threads,
+                     PSSTableBuilder<T> *resultBuilder, json *merge_log) {
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
   inner_iter->seekToFirst();
@@ -163,53 +164,128 @@ parallelLearnedMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
       outer_end++;
       spill--;
     }
-    uint64_t inner_end =
-        inner_index->getApproxLowerBoundPosition(outer_iter->peek(outer_end-1));
+    uint64_t inner_end = inner_index->getApproxLowerBoundPosition(
+        outer_iter->peek(outer_end - 1));
     while (inner_end < inner_iter->num_elts() &&
            comparator->compare(inner_iter->peek(inner_end),
-                               outer_iter->peek(outer_end-1)) <= 0) {
+                               outer_iter->peek(outer_end - 1)) <= 0) {
       inner_end++;
     }
     while (inner_end > 0 &&
            comparator->compare(inner_iter->peek(inner_end - 1),
-                               outer_iter->peek(outer_end-1)) > 0) {
+                               outer_iter->peek(outer_end - 1)) > 0) {
       inner_end--;
     }
-    if (i == num_threads-1) {
+    if (i == num_threads - 1) {
       inner_end = inner_iter->num_elts();
     }
     Comparator<T> *thread_comparator = comparator;
-    #if TRACK_STATS
-      thread_comparator = new CountingComparator(comparator);
-    #endif
-    threads.push_back(std::thread(
-      mergeWithIndexes<T>,
-      outer_table->getSSTableForSubRange(outer_start, outer_end),
-      inner_table->getSSTableForSubRange(inner_start, inner_end),
-      outer_index->getIndexForSubrange(outer_start, outer_end),
-      inner_index->getIndexForSubrange(inner_start, inner_end),
-      thread_comparator,
-      resultBuilder->getBuilderForRange(inner_start + outer_start),
-      &merge_logs[i]
-    ));
+#if TRACK_STATS
+    thread_comparator = new CountingComparator(comparator);
+#endif
+    threads.push_back(
+        std::thread(mergeWithIndexes<T>,
+                    outer_table->getSSTableForSubRange(outer_start, outer_end),
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    outer_index->getIndexForSubrange(outer_start, outer_end),
+                    inner_index->getIndexForSubrange(inner_start, inner_end),
+                    thread_comparator,
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end),
+                    &merge_logs[i]));
     outer_start = outer_end;
     inner_start = inner_end;
   }
 
-  for (int i=0; i < num_threads; i++) {
-     threads[i].join();
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
   }
 
   resultBuilder->build();
 #if TRACK_STATS
-  (*merge_log)["comparison_count"] = 0;
-  for (int i=0; i < num_threads; i++) {
-    (*merge_log)["comparison_count"] += merge_log["comparison_count"];
+  uint64_t total_comp_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t comp_count = merge_logs[i]["comparison_count"];
+    total_comp_count += comp_count;
   }
+  (*merge_log)["comparison_count"] = total_comp_count;
 #endif
   return resultBuilder->build();
 }
 
+template <class T>
+SSTable<T> *parallelLearnedMergeWithThreshold(
+    SSTable<T> *outer_table, SSTable<T> *inner_table, Index<T> *inner_index,
+    uint64_t threshold, Comparator<T> *comparator, int num_threads,
+    PSSTableBuilder<T> *resultBuilder, json *merge_log) {
+  Iterator<T> *inner_iter = inner_table->iterator();
+  Iterator<T> *outer_iter = outer_table->iterator();
+  inner_iter->seekToFirst();
+  outer_iter->seekToFirst();
+
+  uint64_t num_items = outer_iter->num_elts();
+  uint64_t block_size = num_items / num_threads;
+  uint64_t spill = num_items % num_threads;
+
+  std::vector<std::thread> threads;
+  std::vector<json> merge_logs(num_threads);
+  uint64_t outer_start = 0;
+  uint64_t outer_end = 0;
+  uint64_t inner_start = 0;
+  uint64_t inner_end = 0;
+  for (int i = 0; i < num_threads; i++) {
+    outer_end = outer_start + block_size;
+    if (spill) {
+      outer_end++;
+      spill--;
+    }
+    uint64_t inner_end = inner_index->getApproxLowerBoundPosition(
+        outer_iter->peek(outer_end - 1));
+    while (inner_end < inner_iter->num_elts() &&
+           comparator->compare(inner_iter->peek(inner_end),
+                               outer_iter->peek(outer_end - 1)) <= 0) {
+      inner_end++;
+    }
+    while (inner_end > 0 &&
+           comparator->compare(inner_iter->peek(inner_end - 1),
+                               outer_iter->peek(outer_end - 1)) > 0) {
+      inner_end--;
+    }
+    if (i == num_threads - 1) {
+      inner_end = inner_iter->num_elts();
+    }
+    Comparator<T> *thread_comparator = comparator;
+#if TRACK_STATS
+    thread_comparator = new CountingComparator(comparator);
+#endif
+        threads.push_back(std::thread(mergeWithIndexesThreshold<T>,
+                    outer_table->getSSTableForSubRange(outer_start, outer_end),
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    inner_index->getIndexForSubrange(inner_start, inner_end),
+                    threshold,
+                    thread_comparator,
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end),
+                    &merge_logs[i]));
+    outer_start = outer_end;
+    inner_start = inner_end;
+  }
+
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+  }
+
+  resultBuilder->build();
+#if TRACK_STATS
+  uint64_t total_comp_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t comp_count = merge_logs[i]["comparison_count"];
+    total_comp_count += comp_count;
+  }
+  (*merge_log)["comparison_count"] = total_comp_count;
+#endif
+  return resultBuilder->build();
+}
 
 template <class T>
 SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,

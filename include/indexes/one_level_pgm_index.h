@@ -43,7 +43,7 @@ public:
     return pos - start_idx_;
   };
   uint64_t getApproxLowerBoundPosition(const T &t) override {
-    uint64_t position = getApproxLowerBoundPosition(t);
+    uint64_t position = getApproxPosition(t);
     if (position >= Epsilon) {
       position = position - Epsilon;
     } else {

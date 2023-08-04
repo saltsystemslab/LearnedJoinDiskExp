@@ -63,8 +63,8 @@ TEST(StandardMerge, ParallelStandardMerge_RbTree_Disk) {
         = new RbTreeIndexBuilder(comparator, 8);
     Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
     Index<KVSlice> *outer_index = build_index(outer, outer_index_builder);
-    PSSTableBuilder<KVSlice> *p1ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0, 200);
-    PSSTableBuilder<KVSlice> *p2ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p2_result", 8, 0, 200);
+    PSSTableBuilder<KVSlice> *p1ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0);
+    PSSTableBuilder<KVSlice> *p2ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p2_result", 8, 0);
     SSTableBuilder<KVSlice> *resultBuilder = new FixedSizeKVDiskSSTableBuilder("s_result", 8, 0);
     json log;
 

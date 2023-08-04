@@ -32,6 +32,7 @@ json run_inlj(json test_spec);
 json create_input_sstable(json test_spec);
 std::string md5_checksum(SSTable<KVSlice >*sstable);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
+PSSTableBuilder<KVSlice> *get_parallel_result_builder(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
 IndexBuilder<KVSlice> *get_index_builder(std::string table_path, json test_spec);
 KeyToPointConverter<KVSlice> *get_converter(json test_spec);
@@ -154,13 +155,14 @@ json run_standard_merge(json test_spec) {
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder = get_index_builder(test_spec["outer_table"], test_spec);
-  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+  Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  PSSTableBuilder<KVSlice> *result_table_builder = get_parallel_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
+  int num_threads = test_spec["num_threads"];
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = standardMerge<KVSlice>(outer_table, inner_table, comparator,
+  auto resultTable = parallelStandardMerge<KVSlice>(outer_table, inner_table, inner_index, comparator, num_threads,
                          result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -261,12 +263,13 @@ json run_learned_merge(json test_spec) {
   Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+  int num_threads = test_spec["num_threads"];
+  PSSTableBuilder<KVSlice> *result_table_builder = get_parallel_result_builder(test_spec);
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = mergeWithIndexes(inner_table, outer_table, inner_index, outer_index,
-                   comparator, result_table_builder, &merge_log);
+  auto resultTable = parallelLearnedMerge(inner_table, outer_table, inner_index, outer_index,
+                   comparator, num_threads, result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -301,13 +304,14 @@ json run_learned_merge_threshold(json test_spec) {
   IndexBuilder<KVSlice> *inner_index_builder = get_index_builder(test_spec["inner_table"], test_spec);
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   uint64_t threshold = test_spec["threshold"];
+  int num_threads = test_spec["num_threads"];
+  PSSTableBuilder<KVSlice> *result_table_builder = get_parallel_result_builder(test_spec);
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = mergeWithIndexesThreshold(outer_table, inner_table, inner_index, threshold,
-                            comparator, result_table_builder, &merge_log);
+  auto resultTable = parallelLearnedMergeWithThreshold(outer_table, inner_table, inner_index, threshold,
+                            comparator, num_threads, result_table_builder, &merge_log);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -448,6 +452,20 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
                                              value_size_bytes);
   } else {
     return new FixedSizeKVInMemSSTableBuilder(
+        0, key_size_bytes, value_size_bytes, get_comparator(test_spec));
+  }
+}
+
+PSSTableBuilder<KVSlice> *get_parallel_result_builder(json test_spec) {
+  bool write_result_to_disk = test_spec["write_result_to_disk"];
+  int key_size_bytes = test_spec["key_size"];
+  int value_size_bytes = test_spec["value_size"];
+  if (write_result_to_disk) {
+    std::string result_file = test_spec["result_path"];
+    return new PFixedSizeKVDiskSSTableBuilder(result_file, key_size_bytes,
+                                             value_size_bytes);
+  } else {
+    return new PFixedSizeKVInMemSSTableBuilder(
         0, key_size_bytes, value_size_bytes, get_comparator(test_spec));
   }
 }
