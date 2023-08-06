@@ -8,7 +8,10 @@
 #include "sstable.h"
 #include <assert.h>
 #include <fcntl.h>
+#include <fstream>
+#include <map>
 #include <string>
+#include <thread>
 #include <unistd.h>
 
 #define HEADER_SIZE 16
@@ -71,8 +74,8 @@ private:
   uint64_t cur_idx_; // cur_idx_ always (start_idx_, end_idx_]
   uint64_t start_idx_;
   uint64_t end_idx_;
-  uint64_t num_keys_; // total number of keys in this iterator.
-  int key_size_bytes_; // loaded from header
+  uint64_t num_keys_;    // total number of keys in this iterator.
+  int key_size_bytes_;   // loaded from header
   int value_size_bytes_; // loaded from header
   int kv_size_bytes_;
   FixedKSizeKVFileCache *cur_kv_cache_;
@@ -112,7 +115,8 @@ public:
     delete iter;
     return in_mem_table;
   }
-  SSTable<KVSlice> *getSSTableForSubRange(uint64_t start, uint64_t end) override {
+  SSTable<KVSlice> *getSSTableForSubRange(uint64_t start,
+                                          uint64_t end) override {
     return new FixedSizeKVDiskSSTable(file_path_, start, end);
   }
 
@@ -139,7 +143,7 @@ public:
         buffer_size_(PAGE_SIZE),
         file_start_offset_(HEADER_SIZE + start_offset_idx * (key_size_bytes +
                                                              value_size_bytes)),
-        file_cur_offset_(0), num_keys_(0) {
+        file_cur_offset_(0), num_keys_(0), built_(false) {
     int fd_flags = O_WRONLY;
     if (is_new_file) {
       remove(file_path.c_str());
@@ -154,9 +158,12 @@ public:
   ~FixedSizeKVDiskSSTableBuilder() { delete[] buffer_; }
   void add(const KVSlice &kv) override;
   SSTable<KVSlice> *build() override {
-    flushBufferToDisk();
-    writeHeader();
-    close(fd_);
+    if (!built_) {
+      flushBufferToDisk();
+      writeHeader();
+      close(fd_);
+      built_ = true;
+    }
     return new FixedSizeKVDiskSSTable(file_path_);
   }
 
@@ -172,48 +179,135 @@ private:
   uint64_t file_start_offset_;
   uint64_t file_cur_offset_;
   uint64_t num_keys_;
+  bool built_;
   void flushBufferToDisk();
   void writeHeader();
 };
+
+void *addKeysToBuilder(Iterator<KVSlice> *iterator,
+                                          SSTableBuilder<KVSlice> *builder) {
+  iterator->seekToFirst();
+  while (iterator->valid()) {
+    builder->add(iterator->key());
+    iterator->next();
+  }
+  builder->build();
+}
+
+/* 
+Will write out individual SSTables in the same file for each range. 
+Use this if you know exactly how many elements you need for each range.
+*/
 
 class PFixedSizeKVDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
 public:
   PFixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
                                  int value_size_bytes)
       : file_path_(file_path), key_size_bytes_(key_size_bytes),
-        value_size_bytes_(value_size_bytes), num_keys_(0) {
+        value_size_bytes_(value_size_bytes), num_keys_(0), built_(false) {
     remove(file_path.c_str());
     int fd_flags = O_WRONLY | O_CREAT;
-    fd_ = open(file_path.c_str(), fd_flags, 0644);
+    int fd_ = open(file_path_.c_str(), fd_flags, 0644);
+    if (fd_ < 0) {
+      perror("open");
+      abort();
+    }
+    close(fd_);
   }
-  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index, uint64_t end_index) override {
+  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index,
+                                              uint64_t end_index) override {
     num_keys_ += (end_index - start_index);
     return new FixedSizeKVDiskSSTableBuilder(
         file_path_, key_size_bytes_, value_size_bytes_, start_index, false);
   }
   SSTable<KVSlice> *build() override {
-    char header[HEADER_SIZE];
-    assert(sizeof(key_size_bytes_) == 4);
-    assert(sizeof(num_keys_) == 8);
-    memcpy(header, (char *)(&num_keys_), sizeof(num_keys_));
-    memcpy(header + 8, (char *)(&key_size_bytes_), sizeof(key_size_bytes_));
-    memcpy(header + 12, (char *)(&value_size_bytes_),
-           sizeof(value_size_bytes_));
-    uint64_t bytes_written = 0;
-    while (bytes_written < HEADER_SIZE) {
-      bytes_written +=
-          pwrite(fd_, header + bytes_written, HEADER_SIZE - bytes_written, 0);
+    if (!built_) {
+      int fd_flags = O_WRONLY;
+      int fd_ = open(file_path_.c_str(), fd_flags, 0644);
+      if (fd_ < 0) {
+        perror("open");
+        abort();
+      }
+      char header[HEADER_SIZE];
+      assert(sizeof(key_size_bytes_) == 4);
+      assert(sizeof(num_keys_) == 8);
+      memcpy(header, (char *)(&num_keys_), sizeof(num_keys_));
+      memcpy(header + 8, (char *)(&key_size_bytes_), sizeof(key_size_bytes_));
+      memcpy(header + 12, (char *)(&value_size_bytes_),
+             sizeof(value_size_bytes_));
+      uint64_t bytes_written = 0;
+      while (bytes_written < HEADER_SIZE) {
+        int ret =
+            pwrite(fd_, header + bytes_written, HEADER_SIZE - bytes_written, 0);
+        if (ret < 0) {
+          perror("pwrite");
+          abort();
+        }
+        bytes_written += ret;
+      }
+      close(fd_);
+      built_ = true;
     }
-    close(fd_);
     return new FixedSizeKVDiskSSTable(file_path_);
   }
 
 private:
-  int fd_;
   std::string file_path_;
   int key_size_bytes_;
   int value_size_bytes_;
   uint64_t num_keys_;
+  bool built_;
+};
+
+/* Will write out individual SSTables in new files for each range and then merge them together. */
+class PSplitFixedSizeKVDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
+public:
+  PSplitFixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
+                                      int value_size_bytes)
+      : file_path_(file_path), key_size_bytes_(key_size_bytes),
+        value_size_bytes_(value_size_bytes) {}
+  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index,
+                                              uint64_t end_index) override {
+    // Create a new file for each range and then merge them later.
+    std::string subRangeFilePath =
+        file_path_ + "_" + std::to_string(start_index);
+    subRangeBuilders[start_index] = new FixedSizeKVDiskSSTableBuilder(
+        subRangeFilePath, key_size_bytes_, value_size_bytes_, 0, true);
+    return subRangeBuilders[start_index];
+  }
+
+  SSTable<KVSlice> *build() override {
+    uint64_t num_keys_ = 0;
+    std::vector<std::thread> threads;
+    PSSTableBuilder<KVSlice> *pBuilder = new PFixedSizeKVDiskSSTableBuilder(
+        file_path_, key_size_bytes_, value_size_bytes_);
+    for (auto subRange : subRangeBuilders) {
+      SSTable<KVSlice> *subRangeSrcSSTable = subRange.second->build();
+      Iterator<KVSlice> *subRangeSrcIter = subRangeSrcSSTable->iterator();
+      SSTableBuilder<KVSlice> *subRangeDstSSTableBuilder =
+          pBuilder->getBuilderForRange(num_keys_,
+                                       num_keys_ + subRangeSrcIter->num_elts());
+      threads.push_back(std::thread(addKeysToBuilder, subRangeSrcIter,
+                                    subRangeDstSSTableBuilder));
+      num_keys_ += subRangeSrcIter->num_elts();
+    }
+    for (int i = 0; i < threads.size(); i++) {
+      threads[i].join();
+    }
+    // Clean up the subRange files.
+    for (auto subRange : subRangeBuilders) {
+      std::string subRangeFilePath =
+          file_path_ + "_" + std::to_string(subRange.first);
+      remove(subRangeFilePath.c_str());
+    }
+    return pBuilder->build();
+  }
+
+private:
+  std::string file_path_;
+  int key_size_bytes_;
+  int value_size_bytes_;
+  std::map<uint64_t, SSTableBuilder<KVSlice> *> subRangeBuilders;
 };
 // ========= IMPLEMENTATTION ===============
 

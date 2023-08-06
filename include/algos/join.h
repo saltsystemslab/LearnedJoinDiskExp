@@ -4,19 +4,23 @@
 #include "comparator.h"
 #include "index.h"
 #include "iterator.h"
+#include "partition.h"
 #include "sstable.h"
+#include "key_value_slice.h"
+#include <thread>
 #include <unordered_set>
 
 namespace li_merge {
+
 template <class T>
-SSTable<T> *hash_join(std::unordered_set<std::string> &outer_index,
+SSTable<T> *hash_join(std::unordered_set<std::string> *outer_index,
                       SSTable<T> *inner, SSTableBuilder<T> *result) {
   auto inner_iterator = inner->iterator();
   inner_iterator->seekToFirst();
   while (inner_iterator->valid()) {
     KVSlice kv = inner_iterator->key();
     std::string const key(kv.data(), kv.key_size_bytes());
-    if (outer_index.find(key) != outer_index.end()) {
+    if (outer_index->find(key) != outer_index->end()) {
       result->add(inner_iterator->key());
     }
     inner_iterator->next();
@@ -92,6 +96,85 @@ SSTable<T> *presorted_merge_join(SSTable<T> *outer, SSTable<T> *inner,
   }
   return result_builder->build();
 }
+
+template <class T>
+SSTable<T> *parallel_hash_join(int num_threads, SSTable<T> *outer_table,
+                               std::unordered_set<std::string> *outer_index,
+                               SSTable<T> *inner_table, Index<T> *inner_index,
+                               Comparator<T> *comparator,
+                               PSSTableBuilder<T> *resultBuilder) {
+  auto partition = partition_sstables(num_threads, outer_table, inner_table,
+                                      inner_index, comparator);
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t outer_start = partition[i].outer.first;
+    uint64_t outer_end = partition[i].outer.second;
+    uint64_t inner_start = partition[i].inner.first;
+    uint64_t inner_end = partition[i].inner.second;
+    threads.push_back(
+        std::thread(hash_join<T>, outer_index,
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end)));
+  }
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+  }
+  return resultBuilder->build();
+}
+
+template <class T>
+SSTable<T> *parallel_indexed_nested_loop_join(
+    int num_threads, SSTable<T> *outer_table, SSTable<T> *inner_table,
+    Index<T> *inner_index, Comparator<T> *comparator,
+    PSSTableBuilder<T> *resultBuilder) {
+  auto partition = partition_sstables(num_threads, outer_table, inner_table,
+                                      inner_index, comparator);
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t outer_start = partition[i].outer.first;
+    uint64_t outer_end = partition[i].outer.second;
+    uint64_t inner_start = partition[i].inner.first;
+    uint64_t inner_end = partition[i].inner.second;
+    threads.push_back(
+        std::thread(indexed_nested_loop_join<T>, outer_table,
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    inner_index, comparator,
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end)));
+  }
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+  }
+  return resultBuilder->build();
+}
+
+template <class T>
+SSTable<T> *parallel_presort_join(
+    int num_threads, SSTable<T> *outer_table, SSTable<T> *inner_table,
+    Index<T> *inner_index, Comparator<T> *comparator,
+    PSSTableBuilder<T> *resultBuilder) {
+  auto partition = partition_sstables(num_threads, outer_table, inner_table,
+                                      inner_index, comparator);
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t outer_start = partition[i].outer.first;
+    uint64_t outer_end = partition[i].outer.second;
+    uint64_t inner_start = partition[i].inner.first;
+    uint64_t inner_end = partition[i].inner.second;
+    threads.push_back(
+        std::thread(presorted_merge_join<T>, outer_table,
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    comparator,
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end)));
+  }
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+  }
+  return resultBuilder->build();
+}
+
 
 } // namespace li_merge
 
