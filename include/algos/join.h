@@ -136,10 +136,10 @@ SSTable<T> *parallel_indexed_nested_loop_join(
     uint64_t outer_end = partition[i].outer.second;
     uint64_t inner_start = partition[i].inner.first;
     uint64_t inner_end = partition[i].inner.second;
-    threads.push_back(
-        std::thread(indexed_nested_loop_join<T>, outer_table,
+    threads.push_back(std::thread(
+        indexed_nested_loop_join<T>, outer_table,
                     inner_table->getSSTableForSubRange(inner_start, inner_end),
-                    inner_index, comparator,
+                    inner_index->getIndexForSubrange(inner_start, inner_end), comparator,
                     resultBuilder->getBuilderForRange(inner_start + outer_start,
                                                       inner_end + outer_end)));
   }
