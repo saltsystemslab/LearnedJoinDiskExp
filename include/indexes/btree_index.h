@@ -59,6 +59,7 @@ public:
   Bounds getPositionBounds(const KVSlice &t) override { abort(); }
   uint64_t
   getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
+    // TODO: Use iterator to scan instead of always querying from root.
     uint64_t *key = (uint64_t *)(t.data());
     int c;
     BTree::Condition cond;

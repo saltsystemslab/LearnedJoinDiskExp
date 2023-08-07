@@ -10,6 +10,7 @@
 #include "merge.h"
 #include "one_level_pgm_index.h"
 #include "pgm_index.h"
+#include "betree_index.h"
 #include "rbtree_index.h"
 #include "sstable.h"
 #include "synthetic.h"
@@ -455,6 +456,8 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
                                   test_spec["key_size"]);
   } else if (index_type == "btree") {
     return new BTreeIndexBuilder(table_path + "_btree", test_spec["key_size"]);
+  } else if (index_type == "betree") {
+    return new BeTreeIndexBuilder(table_path + "_betree", test_spec["cache_size"], test_spec["node_size"], test_spec["flush_size"]);
   } else if (index_type == "plr") {
     double error_bound = test_spec["index"]["error_bound"];
     return new GreedyPLRIndexBuilder<KVSlice>(error_bound,

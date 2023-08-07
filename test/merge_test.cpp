@@ -6,6 +6,7 @@
 #include "disk_sstable.h"
 #include "rbtree_index.h"
 #include "btree_index.h"
+#include "betree_index.h"
 #include "synthetic.h"
 #include "runner.h"
 #include <nlohmann/json.hpp>
@@ -79,6 +80,66 @@ TEST(StandardMerge, ParallelStandardMerge_RbTree_Disk) {
     ASSERT_EQ(standardMd5, parallelSMMd5);
     ASSERT_EQ(standardMd5, parallelLMMd5);
 }
+
+TEST(StandardMerge, Merge_BeTree_Disk) {
+    SSTableBuilder<KVSlice> *inner_builder = new FixedSizeKVDiskSSTableBuilder("inner", 8, 0);
+    SSTableBuilder<KVSlice> *outer_builder = new FixedSizeKVDiskSSTableBuilder("outer", 8, 0);
+
+    auto inner = generate_uniform_random_distribution(105, 8, 0, new KVUint64Cmp(), inner_builder);
+    auto outer = generate_uniform_random_distribution(95, 8, 0, new KVUint64Cmp(), outer_builder);
+
+    Comparator<KVSlice> *comparator = new KVUint64Cmp();
+    system("mkdir -p backing_dir_1");
+    system("mkdir -p backing_dir_2");
+    IndexBuilder<KVSlice> * inner_index_builder 
+        = new BeTreeIndexBuilder("backing_dir_1", 1024, 64, 16);
+    IndexBuilder<KVSlice> * outer_index_builder 
+        = new BeTreeIndexBuilder("backing_dir_2", 1024, 64, 16);
+    Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
+    Index<KVSlice> *outer_index = build_index(outer, outer_index_builder);
+    SSTableBuilder<KVSlice> *learnedResultBuilder_1 = new FixedSizeKVDiskSSTableBuilder("result_1", 8, 0);
+    SSTableBuilder<KVSlice> *learnedResultBuilder_2 = new FixedSizeKVDiskSSTableBuilder("result_2", 8, 0);
+    SSTableBuilder<KVSlice> *standardResultBuilder = new FixedSizeKVDiskSSTableBuilder("result_s", 8, 0);
+    json log;
+
+    SSTable<KVSlice> *resultStandard = standardMerge(outer, inner, comparator, standardResultBuilder, &log);
+    SSTable<KVSlice> *resultLearned1 = mergeWithIndexes(outer, inner, outer_index, inner_index, comparator, learnedResultBuilder_1, &log);
+    SSTable<KVSlice> *resultLearned2 = mergeWithIndexesThreshold(outer, inner, inner_index, 5, comparator, learnedResultBuilder_2, &log);
+
+    std::string standardMd5 = md5_checksum(resultStandard);
+    std::string learnedMd5 = md5_checksum(resultLearned1);
+    std::string learnedThresholdMd5 = md5_checksum(resultLearned2);
+    ASSERT_EQ(standardMd5, standardMd5);
+}
+
+TEST(StandardMerge, DISABLED_ParallelMerge_BeTree_Disk) {
+    SSTableBuilder<KVSlice> *inner_builder = new FixedSizeKVDiskSSTableBuilder("inner", 8, 0);
+    SSTableBuilder<KVSlice> *outer_builder = new FixedSizeKVDiskSSTableBuilder("outer", 8, 0);
+
+    auto inner = generate_uniform_random_distribution(105, 8, 0, new KVUint64Cmp(), inner_builder);
+    auto outer = generate_uniform_random_distribution(95, 8, 0, new KVUint64Cmp(), outer_builder);
+
+    Comparator<KVSlice> *comparator = new KVUint64Cmp();
+    system("mkdir -p backing_dir_1");
+    system("mkdir -p backing_dir_2");
+    IndexBuilder<KVSlice> * inner_index_builder 
+        = new BeTreeIndexBuilder("backing_dir_1", 1024, 64, 16);
+    IndexBuilder<KVSlice> * outer_index_builder 
+        = new BeTreeIndexBuilder("backing_dir_2", 1024, 64, 16);
+    Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
+    Index<KVSlice> *outer_index = build_index(outer, outer_index_builder);
+    SSTableBuilder<KVSlice> *standardResultBuilder = new FixedSizeKVDiskSSTableBuilder("s_result", 8, 0);
+    PSSTableBuilder<KVSlice> *pResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p_result", 8, 0);
+    json log;
+
+    SSTable<KVSlice> *resultStandard = standardMerge(outer, inner, comparator, standardResultBuilder, &log);
+    SSTable<KVSlice> *resultParallelLM = parallelLearnedMerge(outer, inner, outer_index, inner_index, comparator, 4, pResultBuilder, &log);
+
+    std::string standardMd5 = md5_checksum(resultStandard);
+    std::string learnedMd5 = md5_checksum(resultParallelLM);
+    ASSERT_EQ(standardMd5, standardMd5);
+}
+
 
 TEST(StandardMerge, ParallelStandardMerge_RbTree) {
     uint64_t inner_data[10] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};

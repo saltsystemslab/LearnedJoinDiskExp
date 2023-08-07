@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "b_tree.h"
 #include "greedy_plr_index.h"
 #include "in_mem_sstable.h"
 #include "index.h"
@@ -9,6 +8,8 @@
 #include "pgm_index.h"
 #include "rbtree_index.h"
 #include "synthetic.h"
+#include "betree_index.h"
+#include "btree_index.h"
 #include <openssl/rand.h>
 #include <random>
 
@@ -178,6 +179,54 @@ TEST(IndexCreationTest, TestPGM16Byte) {
   Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
   Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
   check_index(subRangeIterator, subRangeIndex);
+}
+
+TEST(IndexCreationTest, TestBeTree) {
+  uint64_t num_elts = 1000000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVUint64Cmp();
+  KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
+  SSTable<KVSlice> *table = generate_uniform_random_distribution(
+      num_elts, key_size_bytes, value_size_bytes, comparator,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
+                                         value_size_bytes, comparator));
+
+  Iterator<KVSlice> *iterator = table->iterator();
+  IndexBuilder<KVSlice> *builder =
+      new BeTreeIndexBuilder("backing_dir", 1024, 64, 16);
+  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  check_index(iterator, index);
+
+  /*
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
+  */
+}
+
+TEST(IndexCreationTest, TestBTree) {
+  uint64_t num_elts = 100000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVUint64Cmp();
+  KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
+  SSTable<KVSlice> *table = generate_uniform_random_distribution(
+      num_elts, key_size_bytes, value_size_bytes, comparator,
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
+                                         value_size_bytes, comparator));
+
+  Iterator<KVSlice> *iterator = table->iterator();
+  IndexBuilder<KVSlice> *builder =
+      new BTreeIndexBuilder("btree", 8);
+  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  check_index(iterator, index);
+
+  /*
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
+  */
 }
 
  void load_keys(std::vector<uint64_t> &keys, LeafNodeIterm *data, int count) {
