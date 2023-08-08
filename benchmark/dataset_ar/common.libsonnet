@@ -12,7 +12,8 @@ local key_type = "str";
          "key_type": key_type,
          "load_sstable_in_mem": false,
          "value_size": value_size,
-         "write_result_to_disk": true
+         "write_result_to_disk": true,
+         "num_threads": 1,
       },
     },
     "inputs": {

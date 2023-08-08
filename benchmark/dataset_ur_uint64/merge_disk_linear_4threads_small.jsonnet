@@ -1,7 +1,7 @@
 local merge_algos = import '../common/merge_algos.libsonnet';
 local input_util = import '../common/input_util.libsonnet'; 
 local common = import './common.libsonnet';
-local inputs = input_util.create_merge_input(common["num_keys"], 100, 20);
+local inputs = input_util.create_merge_input(10000, 100, 20);
 {
    "algos": {
       "common": common["algos"]["common"] + {num_threads: 4},

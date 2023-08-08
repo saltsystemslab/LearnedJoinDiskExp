@@ -2,7 +2,7 @@ local key_size = 8;
 local value_size = 8;
 local key_type = "uint64";
 {
-   "num_keys": 10000000,
+   "num_keys": 100000000,
    "key_size": key_size,
    "key_type": key_type,
    "value_size": value_size,
