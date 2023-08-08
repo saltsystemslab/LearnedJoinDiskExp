@@ -182,7 +182,7 @@ TEST(IndexCreationTest, TestPGM16Byte) {
 }
 
 TEST(IndexCreationTest, TestBeTree) {
-  uint64_t num_elts = 1000000;
+  uint64_t num_elts = 100000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVUint64Cmp();
@@ -198,11 +198,9 @@ TEST(IndexCreationTest, TestBeTree) {
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
 
-  /*
-  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(30000, 40000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(30000, 40000);
   check_index(subRangeIterator, subRangeIndex);
-  */
 }
 
 TEST(IndexCreationTest, TestBTree) {
@@ -222,11 +220,9 @@ TEST(IndexCreationTest, TestBTree) {
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
   check_index(iterator, index);
 
-  /*
-  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(30000, 40000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(30000, 40000);
   check_index(subRangeIterator, subRangeIndex);
-  */
 }
 
  void load_keys(std::vector<uint64_t> &keys, LeafNodeIterm *data, int count) {
@@ -340,6 +336,21 @@ TEST(BTreeIndex, TestBTreeIndex_LeafDisk_BulkLoad) {
   load_keys(keys, data, count);
   tree_->bulk_load(data, count);
   check_tree(keys, tree_);
+}
+
+TEST(BTreeIndex, TestBTreeIndex_LeafDisk_BulkLoad_Copy) {
+  BTree *tree_, *tree_copy;
+  tree_ = new BTree(1, true, "leafdisk_bulk_copy", true);
+  int count = 2000;
+  std::vector<uint64_t> keys;
+  LeafNodeIterm *data = new LeafNodeIterm[count];
+  load_keys(keys, data, count);
+  tree_->bulk_load(data, count);
+  check_tree(keys, tree_);
+  tree_->sync_metanode();
+
+  tree_copy = new BTree(tree_, 1, false, "leafdisk_bulk_copy");
+  check_tree(keys, tree_copy);
 }
 
 } // namespace li_merge

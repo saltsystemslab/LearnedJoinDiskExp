@@ -26,9 +26,8 @@ private:
 
 class BTreeIndex : public Index<KVSlice> {
 public:
-  BTreeIndex(BTree *tree, int key_size_bytes, uint64_t start_idx=0, uint64_t end_idx=-1)
-      : tree_(tree), key_size_bytes_(key_size_bytes), start_idx_(start_idx), end_idx_(end_idx) {
-        tree_->sync_metanode();
+  BTreeIndex(BTree *tree, std::string btree_file, int key_size_bytes, uint64_t start_idx=0, uint64_t end_idx=-1)
+      : tree_(tree), key_size_bytes_(key_size_bytes), start_idx_(start_idx), end_idx_(end_idx), btree_file_(btree_file) {
       };
   uint64_t getApproxPosition(const KVSlice &t) override { 
     uint64_t *key = (uint64_t *)(t.data());
@@ -38,61 +37,31 @@ public:
     cond.min = (*key)-1;
     cond.max = -1;
     cond.include_max = true;
-    auto iter = tree_->get_index_iterator(cond, &c);
+    auto iter = tree_->obtain_for_leaf_disk(cond, &c);
     uint64_t pos = iter.cur_value();
     pos = std::clamp(pos, start_idx_, end_idx_);
     return pos - start_idx_;
   }
   uint64_t getApproxLowerBoundPosition(const KVSlice &t) override { 
-    uint64_t *key = (uint64_t *)(t.data());
-    int c;
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = (*key)-1;
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree_->get_index_iterator(cond, &c);
-    uint64_t pos = iter.cur_value();
-    pos = std::clamp(pos, start_idx_, end_idx_);
-    return pos - start_idx_;
+    return getApproxPosition(t);
   }
   Bounds getPositionBounds(const KVSlice &t) override { abort(); }
   uint64_t
   getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
-    // TODO: Use iterator to scan instead of always querying from root.
-    uint64_t *key = (uint64_t *)(t.data());
-    int c;
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = (*key)-1;
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree_->get_index_iterator(cond, &c);
-    uint64_t pos = iter.cur_value();
-    pos = std::clamp(pos, start_idx_, end_idx_);
-    return pos - start_idx_;
+    return getApproxLowerBoundPosition(t);
   };
   uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) { 
-    uint64_t *key = (uint64_t *)(t.data());
-    int c;
-    BTree::Condition cond;
-    cond.include_min = true;
-    cond.min = (*key);
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree_->get_index_iterator(cond, &c);
-    uint64_t pos = iter.cur_value();
-    pos = std::clamp(pos, start_idx_, end_idx_);
-    return pos - start_idx_;
+    return getApproxPosition(t);
   };
   Bounds getPositionBoundsMonotoneAccess(const KVSlice &t) { abort(); };
   void resetMonotoneAccess() override{};
 
   uint64_t size_in_bytes() override { 
-    return tree_->get_file_size();
+    return tree_->get_inner_size();
   }
   Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
-    return new BTreeIndex(tree_, key_size_bytes_, start, end);
+    return new BTreeIndex(
+      new BTree(tree_, 1, false, btree_file_.c_str()), btree_file_, key_size_bytes_, start, end);
   }
 
 private:
@@ -100,16 +69,17 @@ private:
   uint64_t end_idx_;
   int key_size_bytes_;
   BTree *tree_;
+  std::string btree_file_;
 };
 
 class BTreeIndexBuilder : public IndexBuilder<KVSlice> {
 public:
   BTreeIndexBuilder(std::string btree_file, int key_size_bytes)
-      : num_elts_(0), key_size_bytes_(key_size_bytes) {
+      : num_elts_(0), key_size_bytes_(key_size_bytes), btree_file_(btree_file) {
     char file_path[btree_file.size() + 1];
     memcpy(file_path, btree_file.c_str(), btree_file.size());
     file_path[btree_file.size()] = '\0';
-    tree_ = new BTree(0, true, file_path, true);
+    tree_ = new BTree(1 /* LEAF_DISK_MODE */, true, file_path, true);
   }
   void add(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
@@ -124,8 +94,9 @@ public:
       data[i].value = i;
     }
     tree_->bulk_load(data, num_elts_+1);
+    tree_->sync_metanode();
     delete data;
-    return new BTreeIndex(tree_, key_size_bytes_);
+    return new BTreeIndex(tree_, btree_file_, key_size_bytes_);
   }
 
 private:
@@ -133,6 +104,7 @@ private:
   uint64_t num_elts_;
   std::vector<uint64_t> elts_;
   BTree *tree_;
+  std::string btree_file_;
 };
 
 } // namespace li_merge

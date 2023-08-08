@@ -51,7 +51,7 @@ TEST(StandardMerge, StandardMerge) {
 
 }
 
-TEST(StandardMerge, ParallelStandardMerge_RbTree_Disk) {
+TEST(StandardMerge, ParalleMerge_RbTree_Disk) {
     SSTableBuilder<KVSlice> *inner_builder = new FixedSizeKVDiskSSTableBuilder("inner", 8, 0);
     SSTableBuilder<KVSlice> *outer_builder = new FixedSizeKVDiskSSTableBuilder("outer", 8, 0);
 
@@ -80,6 +80,37 @@ TEST(StandardMerge, ParallelStandardMerge_RbTree_Disk) {
     ASSERT_EQ(standardMd5, parallelSMMd5);
     ASSERT_EQ(standardMd5, parallelLMMd5);
 }
+
+TEST(StandardMerge, ParalleMerge_bTree_Disk) {
+    SSTableBuilder<KVSlice> *inner_builder = new FixedSizeKVDiskSSTableBuilder("inner", 8, 0);
+    SSTableBuilder<KVSlice> *outer_builder = new FixedSizeKVDiskSSTableBuilder("outer", 8, 0);
+
+    auto inner = generate_uniform_random_distribution(105, 8, 0, new KVUint64Cmp(), inner_builder);
+    auto outer = generate_uniform_random_distribution(95, 8, 0, new KVUint64Cmp(), outer_builder);
+
+    Comparator<KVSlice> *comparator = new KVUint64Cmp();
+    IndexBuilder<KVSlice> * inner_index_builder 
+        = new BTreeIndexBuilder("btree_inner", 8);
+    IndexBuilder<KVSlice> * outer_index_builder 
+        = new BTreeIndexBuilder("btree_outer", 8);
+    Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
+    Index<KVSlice> *outer_index = build_index(outer, outer_index_builder);
+    PSSTableBuilder<KVSlice> *p1ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0);
+    PSSTableBuilder<KVSlice> *p2ResultBuilder = new PFixedSizeKVDiskSSTableBuilder("p2_result", 8, 0);
+    SSTableBuilder<KVSlice> *resultBuilder = new FixedSizeKVDiskSSTableBuilder("s_result", 8, 0);
+    json log;
+
+    SSTable<KVSlice> *resultParallelSM = parallelStandardMerge(outer, inner, inner_index, comparator, 4, p1ResultBuilder, &log);
+    SSTable<KVSlice> *resultParallelLM = parallelLearnedMerge(outer, inner, outer_index, inner_index, comparator, 2, p2ResultBuilder, &log);
+    SSTable<KVSlice> *resultStandard = standardMerge(outer, inner, comparator, resultBuilder, &log);
+
+    std::string standardMd5 = md5_checksum(resultStandard);
+    std::string parallelSMMd5 = md5_checksum(resultParallelSM);
+    std::string parallelLMMd5 = md5_checksum(resultParallelLM);
+    ASSERT_EQ(standardMd5, parallelSMMd5);
+    ASSERT_EQ(standardMd5, parallelLMMd5);
+}
+
 
 TEST(StandardMerge, Merge_BeTree_Disk) {
     SSTableBuilder<KVSlice> *inner_builder = new FixedSizeKVDiskSSTableBuilder("inner", 8, 0);
