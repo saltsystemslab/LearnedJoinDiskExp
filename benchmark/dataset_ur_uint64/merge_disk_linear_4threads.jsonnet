@@ -4,7 +4,7 @@ local common = import './common.libsonnet';
 local inputs = input_util.create_merge_input(common["num_keys"], 100, 20);
 {
    "algos": {
-      "common": common["algos"]["common"],
+      "common": common["algos"]["common"] + {num_threads: 4},
       "list": merge_algos.get_merge_algos(common["key_type"], common["key_size"], common["value_size"]),
    },
     "inputs": {
@@ -16,14 +16,8 @@ local inputs = input_util.create_merge_input(common["num_keys"], 100, 20);
          "result",
          "duration_sec"
       ],
-      [
-         "result",
-         "merge_log",
-         "comparison_count"
-      ]
    ],
    "report_format": "csv",
    "tests": inputs["tests"],
-   "track_stats": true,
-   "repeat": 1,
+   "repeat": 5,
 }

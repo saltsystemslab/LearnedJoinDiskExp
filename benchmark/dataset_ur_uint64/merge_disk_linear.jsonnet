@@ -19,5 +19,5 @@ local inputs = input_util.create_merge_input(common["num_keys"], 100, 20);
    ],
    "report_format": "csv",
    "tests": inputs["tests"],
-   "repeat": 1,
+   "repeat": 5,
 }

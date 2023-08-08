@@ -2,7 +2,7 @@ local key_size = 16;
 local value_size = 16;
 local key_type = "str";
 {
-   "num_keys": 10000,
+   "num_keys": 100000000,
    "key_size": key_size,
    "key_type": key_type,
    "value_size": value_size,
