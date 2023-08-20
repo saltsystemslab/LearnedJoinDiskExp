@@ -266,5 +266,40 @@ TEST(Join, JoinAlgos) {
     check_output(result2, expected, 5);
 }
 
+TEST(Join, JoinAlgosDuplicate) {
+    uint64_t inner_data[12] = {10, 20, 20, 20, 25, 30, 50, 60, 70, 80, 90, 100};
+    uint64_t outer_data[6] = {20, 20, 35, 50, 60, 100};
+    uint64_t expected[5] = {20, 20, 50, 60, 100};
+
+    SSTable<KVSlice> *inner = create_input_inmem(inner_data, 12);
+    SSTable<KVSlice> *outer = create_input_inmem(outer_data, 6);
+    Comparator<KVSlice> *comparator = new KVUint64Cmp();
+    IndexBuilder<KVSlice> * inner_index_builder 
+        = new RbTreeIndexBuilder(comparator, 8);
+    Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
+    PSSTableBuilder<KVSlice> *p1ResultBuilder = new PSplitFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0);
+    PSSTableBuilder<KVSlice> *p2ResultBuilder = new PSplitFixedSizeKVDiskSSTableBuilder("p2_result", 8, 0);
+    PSSTableBuilder<KVSlice> *p3ResultBuilder = new PSplitFixedSizeKVDiskSSTableBuilder("p3_result", 8, 0);
+
+    std::unordered_map<std::string, uint64_t> outer_index;
+    Iterator<KVSlice> *outer_iter = outer->iterator();
+    while (outer_iter->valid()) {
+        KVSlice kv = outer_iter->key();
+        std::string key(kv.data(), kv.key_size_bytes());
+        if (outer_index.find(key) == outer_index.end()) {
+            outer_index[key] = 0;
+        }
+        outer_index[key]++;
+        outer_iter->next();
+    }
+
+    SSTable<KVSlice> *result1 = parallel_presort_join(2, outer, inner, inner_index, comparator, p1ResultBuilder);
+    SSTable<KVSlice> *result2 = parallel_indexed_nested_loop_join(2, outer, inner, inner_index, comparator, p2ResultBuilder);
+    SSTable<KVSlice> *result3 = parallel_hash_join(2, outer, &outer_index, inner, inner_index, comparator, p3ResultBuilder);
+    check_output(result1, expected, 5);
+    check_output(result2, expected, 5);
+    check_output(result3, expected, 5);
+}
+
 
 };

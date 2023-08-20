@@ -26,5 +26,5 @@ local inputs = input_util.create_join_input(common["num_keys"], 1000, 100, 20);
       ]
     ],
     "tests": inputs["tests"],
-    "repeat": 1,
+    "repeat": 5,
 }

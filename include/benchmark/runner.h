@@ -242,11 +242,15 @@ json run_hash_join(json test_spec) {
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   int num_threads = test_spec["num_threads"];
 
-  std::unordered_set<std::string> outer_index;
+  std::unordered_map<std::string, uint64_t> outer_index;
   Iterator<KVSlice> *outer_iter = outer_table->iterator();
   while (outer_iter->valid()) {
     KVSlice kv = outer_iter->key();
-    outer_index.insert(std::string(kv.data(), kv.key_size_bytes()));
+    std::string key(kv.data(), kv.key_size_bytes());
+    if (outer_index.find(key) == outer_index.end()) {
+      outer_index[key] = 0;
+    }
+    outer_index[key]++;
     outer_iter->next();
   }
 

@@ -13,16 +13,20 @@
 namespace li_merge {
 
 template <class T>
-SSTable<T> *hash_join(std::unordered_set<std::string> *outer_index,
+SSTable<T> *hash_join(std::unordered_map<std::string, uint64_t> *outer_index,
                       SSTable<T> *inner, SSTableBuilder<T> *result) {
   auto inner_iterator = inner->iterator();
   inner_iterator->seekToFirst();
+  std::string prev;
   while (inner_iterator->valid()) {
     KVSlice kv = inner_iterator->key();
     std::string const key(kv.data(), kv.key_size_bytes());
-    if (outer_index->find(key) != outer_index->end()) {
-      result->add(inner_iterator->key());
+    if (outer_index->find(key) != outer_index->end() && prev != key) {
+      int repeats = outer_index->at(key);
+      for (int i=0; i<repeats; i++)
+        result->add(inner_iterator->key());
     }
+    prev = key;
     inner_iterator->next();
   }
   return result->build();
@@ -90,7 +94,6 @@ SSTable<T> *presorted_merge_join(SSTable<T> *outer, SSTable<T> *inner,
     if (comparator->compare(outer_iterator->key(), inner_iterator->key()) ==
         0) {
       result_builder->add(inner_iterator->key());
-      inner_iterator->next();
     }
     outer_iterator->next();
   }
@@ -99,7 +102,7 @@ SSTable<T> *presorted_merge_join(SSTable<T> *outer, SSTable<T> *inner,
 
 template <class T>
 SSTable<T> *parallel_hash_join(int num_threads, SSTable<T> *outer_table,
-                               std::unordered_set<std::string> *outer_index,
+                               std::unordered_map<std::string, uint64_t> *outer_index,
                                SSTable<T> *inner_table, Index<T> *inner_index,
                                Comparator<T> *comparator,
                                PSSTableBuilder<T> *resultBuilder) {

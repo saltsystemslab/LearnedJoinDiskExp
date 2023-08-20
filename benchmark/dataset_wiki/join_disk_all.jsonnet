@@ -4,7 +4,7 @@ local common = import './common.libsonnet';
 local inputs = input_util.create_all_join_input_sosd(common["num_keys"], 1000, 100, 20);
 {
    "algos": {
-      "common": common["algos"]["common"],
+      "common": common["algos"]["common"] + {"num_threads" : 1},
       "list": join_algos.get_join_algos(common["key_type"], common["key_size"], common["value_size"]),
    },
     "inputs": {
@@ -26,5 +26,5 @@ local inputs = input_util.create_all_join_input_sosd(common["num_keys"], 1000, 1
       ]
     ],
     "tests": inputs["tests"],
-    "repeat": 1,
+    "repeat": 4,
 }
