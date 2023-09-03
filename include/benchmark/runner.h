@@ -440,7 +440,22 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
     return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
   }
   std::string index_type = test_spec["index"]["type"];
-  if (index_type == "onelevel_pgm16") {
+  if (index_type == "onelevel_pgm8") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 8>(0,
+                                                    get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm64") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
+                                                    get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm128") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 128>(0,
+                                                     get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm256") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 256>(0,
+                                                     get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm1024") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 1024>(0,
+                                                     get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm16") {
     return new OneLevelPgmIndexBuilder<KVSlice, 16>(0,
                                                     get_converter(test_spec));
   } else if (index_type == "onelevel_pgm64") {

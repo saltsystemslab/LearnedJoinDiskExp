@@ -8,6 +8,7 @@ from absl import app
 from absl import flags
 import filecmp
 from matplotlib import pyplot as plt
+import tikzplotlib
 
 FLAGS = flags.FLAGS
 
@@ -26,6 +27,17 @@ def build_runner(force_track_stats=False):
     track_stats='-DTRACK_STATS=ON' if (FLAGS.track_stats or force_track_stats) else '-DTRACK_STATS=OFF'
     subprocess.run(['cmake', '-B', 'bench', track_stats, '-S', '.'])
     subprocess.run(['cmake', '--build', 'bench', '-j'])
+
+#https://github.com/nschloe/tikzplotlib/issues/557#issuecomment-1401501721
+def tikzplotlib_fix_ncols(obj):
+    """
+    workaround for matplotlib 3.6 renamed legend's _ncol to _ncols, which breaks tikzplotlib
+    """
+    if hasattr(obj, "_ncols"):
+        obj._ncol = obj._ncols
+    for child in obj.get_children():
+        tikzplotlib_fix_ncols(child)
+
 
 def extract_table(results, metric_fields):
     results_table = []
@@ -175,19 +187,46 @@ def main(argv):
                 print(result_dir + "DIFF: OK")
 
     report_lines = []
+    # Bunch of hardcoding for generating graphs
+    fig, axs = plt.subplots(1, 3, figsize=(30, 8))
+    fig.tight_layout(pad=4.0)
     for metric_fields in benchmark["metrics"]:
         report_lines.append("### " + metric_fields[-1] + "\n\n")
         results_table = extract_table(results, metric_fields)
         df = pd.DataFrame.from_records(results_table)
         grouped = df.groupby([0, 1]).agg(metric=(2, 'median')).reset_index()
         pivot = grouped.pivot(index=0, columns=1, values='metric')
-        for c in pivot.columns:
-            plt.plot(pivot.index, pivot[c], label=c)
-        plt.legend()
-        plt.savefig(os.path.join(report_dir, metric_fields[-1] + ".png"))
-        plt.close()
+        pivot.columns = pivot.columns.str.replace("_","-")
+        if metric_fields[-1] == "duration_sec":
+            for c in pivot.columns:
+                axs[0].plot(pivot.index, pivot[c], label=c, marker='.')
+            axs[0].set_xlabel("fraction")
+            axs[0].set_ylabel("duration(s)")
+            axs[0].legend()
+            columns = pivot.columns
+            rel_columns = []
+            if ('sort-join' not in columns):
+                continue
+            for c in columns:
+                pivot[c + '-relative'] = (100.0 * (pivot['sort-join'] - pivot[c]) / pivot['sort-join'])
+                rel_columns.append(c + '-relative')
+                axs[1].plot(pivot.index, pivot[c+'-relative'], label=c, marker='.')
+                axs[1].set_ylim([-100, 100])
+            print(pivot[rel_columns])
+            axs[1].set_xlabel("fraction")
+            axs[1].set_ylabel("rel % to sort-join")
+            axs[1].legend()
+        elif metric_fields[-1] == "inner_index_size":
+            axs[2].bar(pivot.columns, pivot.iloc[0], log=True)
+            axs[2].set_xlabel("Index")
+            axs[2].set_ylabel("In Memory Size(B)")
         report_lines.append(grouped.pivot(index=0, columns=1, values='metric').to_markdown() + "\n\n")
-        report_lines.append("![%s.png](%s.png)\n\n" % (metric_fields[-1], metric_fields[-1]))
+    tikzplotlib_fix_ncols(plt.gcf())
+    tikzplotlib.save(os.path.join(report_dir, "plot.tex"))
+    plt.savefig(os.path.join(report_dir,  "plots.png"))
+    plt.close()
+    report_lines.append(grouped.pivot(index=0, columns=1, values='metric').to_markdown() + "\n\n")
+    #report_lines.append("![%s.png](%s.png)\n\n" % (metric_fields[-1], metric_fields[-1]))
     
     report = os.path.join(report_dir, 'report.md')
     print(report)
