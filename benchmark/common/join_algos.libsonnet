@@ -38,7 +38,6 @@
             },
             "name": "RbTree"
          },
-      ] + if key_type=="uint64" && key_size==8 then [
          {
             "algo": "inlj",
             "index": {
@@ -46,5 +45,5 @@
             },
             "name": "Btree"
          }
-      ] else []
+      ]
 }

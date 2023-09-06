@@ -19,13 +19,17 @@ flags.DEFINE_bool("skip_input", False, "")
 flags.DEFINE_bool("dry_run", False, "")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("track_stats", False, "")
+flags.DEFINE_bool("string_keys", False, "")
+flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_integer("repeat", 0, "")
 flags.DEFINE_bool("check_results", True, "")
 
 runner_bin = './bench/benchmark_runner'
 def build_runner(force_track_stats=False):
     track_stats='-DTRACK_STATS=ON' if (FLAGS.track_stats or force_track_stats) else '-DTRACK_STATS=OFF'
-    subprocess.run(['cmake', '-B', 'bench', track_stats, '-S', '.'])
+    string_keys = '-DSTRING_KEYS=ON' if (FLAGS.string_keys) else '-DSTRING_KEYS=OFF'
+    debug = '-DCMAKE_BUILD_TYPE=debug' if (FLAGS.debug_build) else '-DCMAKE_BUILD_TYPE=release'
+    subprocess.run(['cmake', '-B', 'bench', track_stats, string_keys, debug, '-S', '.'])
     subprocess.run(['cmake', '--build', 'bench', '-j'])
 
 #https://github.com/nschloe/tikzplotlib/issues/557#issuecomment-1401501721

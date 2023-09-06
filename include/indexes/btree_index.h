@@ -30,13 +30,22 @@ public:
       : tree_(tree), key_size_bytes_(key_size_bytes), start_idx_(start_idx), end_idx_(end_idx), btree_file_(btree_file) {
       };
   uint64_t getApproxPosition(const KVSlice &t) override { 
+    #ifdef STRING_KEYS
+    std::string key(t.data(), key_size_bytes_);
+    BTree::Condition cond;
+    cond.min = key;
+    cond.max = key;
+    cond.include_min = true;
+    cond.include_max = true;
+    #else
     uint64_t *key = (uint64_t *)(t.data());
-    int c;
     BTree::Condition cond;
     cond.include_min = false;
     cond.min = (*key)-1;
     cond.max = -1;
     cond.include_max = true;
+    #endif
+    int c;
     auto iter = tree_->obtain_for_leaf_disk(cond, &c);
     uint64_t pos = iter.cur_value();
     pos = std::clamp(pos, start_idx_, end_idx_);
@@ -82,12 +91,20 @@ public:
     tree_ = new BTree(1 /* LEAF_DISK_MODE */, true, file_path, true);
   }
   void add(const KVSlice &t) override {
+    #ifdef STRING_KEYS
+    elts_.push_back(std::string(t.data(), key_size_bytes_));
+    #else
     uint64_t *key = (uint64_t *)(t.data());
     elts_.push_back(*key);
+    #endif
     num_elts_++;
   }
   Index<KVSlice> *build() override {
+    #ifdef STRING_KEYS
+    // TODO: Insert Max Key.
+    #else
     elts_.push_back(-1);
+    #endif
     LeafNodeIterm *data = new LeafNodeIterm[num_elts_ + 1];
     for (uint64_t i=0; i<num_elts_ + 1; i++) {
       data[i].key = elts_[i];
@@ -95,14 +112,17 @@ public:
     }
     tree_->bulk_load(data, num_elts_+1);
     tree_->sync_metanode();
-    delete data;
     return new BTreeIndex(tree_, btree_file_, key_size_bytes_);
   }
 
 private:
   int key_size_bytes_;
   uint64_t num_elts_;
+  #ifdef STRING_KEYS
+  std::vector<std::string> elts_;
+  #else
   std::vector<uint64_t> elts_;
+  #endif
   BTree *tree_;
   std::string btree_file_;
 };

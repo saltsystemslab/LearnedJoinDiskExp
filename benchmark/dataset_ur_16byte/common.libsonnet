@@ -2,7 +2,7 @@ local key_size = 16;
 local value_size = 16;
 local key_type = "str";
 {
-   "num_keys": 100000000,
+   "num_keys": 50000000,
    "key_size": key_size,
    "key_type": key_type,
    "value_size": value_size,
@@ -12,7 +12,8 @@ local key_type = "str";
          "key_type": key_type,
          "load_sstable_in_mem": false,
          "value_size": value_size,
-         "write_result_to_disk": true
+         "write_result_to_disk": true,
+         "num_threads": 1
       },
     },
     "inputs": {
