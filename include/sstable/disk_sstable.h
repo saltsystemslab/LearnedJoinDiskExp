@@ -33,6 +33,9 @@ public:
     char *page_data = file_page_cache_->get_page(page_idx);
     return KVSlice(page_data + page_offset, key_size_bytes_, value_size_bytes_);
   }
+  uint64_t get_num_disk_fetches() {
+    return file_page_cache_->get_num_disk_fetches();
+  }
 
 private:
   int kv_size_bytes_;
@@ -68,6 +71,10 @@ public:
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
   uint64_t current_pos() override { return cur_idx_ - start_idx_; }
   uint64_t num_elts() override { return num_keys_; }
+  uint64_t get_disk_fetches() override { 
+    return cur_kv_cache_->get_num_disk_fetches() 
+      + peek_kv_cache_->get_num_disk_fetches(); 
+  }
 
 private:
   int fd_;
@@ -102,7 +109,7 @@ public:
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =
-        new FixedSizeKVInMemSSTableBuilder(0, key_size_bytes_,
+        FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_keys_, key_size_bytes_,
                                            value_size_bytes_, nullptr);
     Iterator<KVSlice> *iter = this->iterator();
     iter->seekToFirst();
@@ -184,7 +191,7 @@ private:
   void writeHeader();
 };
 
-void *addKeysToBuilder(Iterator<KVSlice> *iterator,
+void addKeysToBuilder(Iterator<KVSlice> *iterator,
                                           SSTableBuilder<KVSlice> *builder) {
   iterator->seekToFirst();
   while (iterator->valid()) {
@@ -277,6 +284,8 @@ public:
   }
 
   SSTable<KVSlice> *build() override {
+    // TODO: Skip building if only subRange was used.
+    // Just rename the file in that case.
     uint64_t num_keys_ = 0;
     std::vector<std::thread> threads;
     PSSTableBuilder<KVSlice> *pBuilder = new PFixedSizeKVDiskSSTableBuilder(

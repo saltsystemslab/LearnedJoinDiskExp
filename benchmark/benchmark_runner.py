@@ -192,7 +192,7 @@ def main(argv):
 
     report_lines = []
     # Bunch of hardcoding for generating graphs
-    fig, axs = plt.subplots(1, 3, figsize=(30, 8))
+    fig, axs = plt.subplots(2, 3, figsize=(30, 16))
     fig.tight_layout(pad=4.0)
     for metric_fields in benchmark["metrics"]:
         report_lines.append("### " + metric_fields[-1] + "\n\n")
@@ -203,10 +203,11 @@ def main(argv):
         pivot.columns = pivot.columns.str.replace("_","-")
         if metric_fields[-1] == "duration_sec":
             for c in pivot.columns:
-                axs[0].plot(pivot.index, pivot[c], label=c, marker='.')
-            axs[0].set_xlabel("fraction")
-            axs[0].set_ylabel("duration(s)")
-            axs[0].legend()
+                axs[0][0].plot(pivot.index, pivot[c], label=c, marker='.')
+            axs[0][0].set_xlabel("fraction")
+            axs[0][0].set_ylabel("duration(s)")
+            axs[0][0].legend()
+            axs[0][0].set_title("Absolute Latency")
             columns = pivot.columns
             rel_columns = []
             if ('sort-join' not in columns):
@@ -214,23 +215,38 @@ def main(argv):
             for c in columns:
                 pivot[c + '-relative'] = (100.0 * (pivot['sort-join'] - pivot[c]) / pivot['sort-join'])
                 rel_columns.append(c + '-relative')
-                axs[1].plot(pivot.index, pivot[c+'-relative'], label=c, marker='.')
-                axs[1].set_ylim([-100, 100])
+                axs[0][1].plot(pivot.index, pivot[c+'-relative'], label=c, marker='.')
+                axs[0][1].set_ylim([-100, 100])
             print(pivot[rel_columns])
-            axs[1].set_xlabel("fraction")
-            axs[1].set_ylabel("rel % to sort-join")
-            axs[1].legend()
+            axs[0][1].set_xlabel("fraction")
+            axs[0][1].set_ylabel("rel % to sort-join")
+            axs[0][1].legend()
+            axs[0][1].set_title("Inner Index Size")
         elif metric_fields[-1] == "inner_index_size":
-            axs[2].bar(pivot.columns, pivot.iloc[0], log=True)
-            axs[2].set_xlabel("Index")
-            axs[2].set_ylabel("In Memory Size(B)")
+            axs[0][2].bar(pivot.columns, pivot.iloc[0], log=True)
+            axs[0][2].set_xlabel("Index")
+            axs[0][2].set_ylabel("In Memory Size(B)")
+            axs[0][2].set_title("Inner Index Size")
+        elif metric_fields[-1] == "inner_disk_fetch":
+            for c in pivot.columns:
+                axs[1][0].plot(pivot.index, pivot[c], label=c, marker='.')
+            axs[1][0].set_xlabel("Fraction")
+            axs[1][0].set_ylabel("4K block fetches")
+            axs[1][0].legend()
+            axs[1][0].set_title("4K block fetches (Inner Table)")
+        elif metric_fields[-1] == "outer_disk_fetch":
+            for c in pivot.columns:
+                axs[1][1].plot(pivot.index, pivot[c], label=c, marker='.')
+            axs[1][1].set_xlabel("Fraction")
+            axs[1][1].set_ylabel("4K block fetches")
+            axs[1][1].legend()
+            axs[1][1].set_title("4K block fetches (Outer Table)")
         report_lines.append(grouped.pivot(index=0, columns=1, values='metric').to_markdown() + "\n\n")
     tikzplotlib_fix_ncols(plt.gcf())
     tikzplotlib.save(os.path.join(report_dir, "plot.tex"))
     plt.savefig(os.path.join(report_dir,  "plots.png"))
     plt.close()
-    report_lines.append(grouped.pivot(index=0, columns=1, values='metric').to_markdown() + "\n\n")
-    #report_lines.append("![%s.png](%s.png)\n\n" % (metric_fields[-1], metric_fields[-1]))
+    report_lines.append("![plot.png](plot.png)\n\n") # % (metric_fields[-1], metric_fields[-1]))
     
     report = os.path.join(report_dir, 'report.md')
     print(report)

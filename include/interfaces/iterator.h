@@ -13,6 +13,8 @@ public:
   virtual T key() = 0;
   virtual uint64_t current_pos() = 0;
   virtual uint64_t num_elts() = 0;
+  // STATS.
+  virtual uint64_t get_disk_fetches() { return 0; };
 };
 } // namespace li_merge
 

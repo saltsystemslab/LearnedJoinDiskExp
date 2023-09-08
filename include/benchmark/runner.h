@@ -18,7 +18,6 @@
 #include <unordered_set>
 #include "one_level_pgm_index.h"
 #include "pgm_index.h"
-#include "btree_index.h"
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -79,11 +78,11 @@ json create_input_sstable(json test_spec) {
         result_table_builder);
     if (test_spec.contains("common_keys_file")) {
       SSTable<KVSlice> *common_keys =
-          load_sstable(test_spec["common_keys_file"], true);
+          load_sstable(test_spec["common_keys_file"], false);
       // TODO(chesetti): This doesn't have to be inmem.
       SSTableBuilder<KVSlice> *in_mem_result =
           FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-              num_keys, key_size_bytes, value_size_bytes,
+              num_keys + common_keys->iterator()->num_elts(), key_size_bytes, value_size_bytes,
               get_comparator(test_spec));
       json merge_log;
       SSTable<KVSlice> *merged_key_list = standardMerge(
@@ -210,7 +209,7 @@ json run_sort_join(json test_spec) {
   auto merge_start = std::chrono::high_resolution_clock::now();
   SSTable<KVSlice> *resultTable = parallel_presort_join<KVSlice>(
       num_threads, outer_table, inner_table, inner_index,
-      comparator, result_table_builder);
+      comparator, result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -257,7 +256,7 @@ json run_hash_join(json test_spec) {
   auto merge_start = std::chrono::high_resolution_clock::now();
   auto resultTable = parallel_hash_join<KVSlice>(
       num_threads, outer_table, &outer_index, inner_table,
-      inner_index, comparator, result_table_builder);
+      inner_index, comparator, result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -382,12 +381,39 @@ json run_inlj(json test_spec) {
   PSSTableBuilder<KVSlice> *result_table_builder =
       get_parallel_result_builder_for_join(test_spec);
   int num_threads = test_spec["num_threads"];
+  InnerInMemBTree *btree; // = new InnerInMemBTree(data, outer_iterator->num_elts());
+
+  if (test_spec["index"]["type"] == "btree") {
+    auto inner_iterator = inner_table->iterator();
+    LeafNodeIterm *data = new LeafNodeIterm[inner_iterator->num_elts()];
+    uint64_t pos = 0;
+    while (inner_iterator->valid()) {
+#ifdef STRING_KEYS
+      data[pos].key = std::string(inner_iterator->key().data(), (uint64_t)test_spec["key_size"]);
+#else
+      data[pos].key = *(uint64_t *)(inner_iterator->key().data());
+#endif
+      inner_iterator->next();
+      pos++;
+    }
+    std::string btree_file_name(test_spec["inner_table"]);
+    btree_file_name += "_inmem_btree";
+    btree = new InnerInMemBTree(true, btree_file_name.c_str());
+    btree->bulk_load(data, pos);
+  }
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = parallel_indexed_nested_loop_join<KVSlice>(
+  SSTable<KVSlice> *resultTable; 
+  if (test_spec["index"]["type"] == "btree") {
+    indexed_nested_loop_join_with_btree<KVSlice>(
+      outer_table, btree, result_table_builder->getBuilderForRange(0, 0), &result);
+    resultTable = result_table_builder->build();
+  } else {
+    resultTable = parallel_indexed_nested_loop_join<KVSlice>(
       num_threads, outer_table, inner_table, inner_index,
-      comparator, result_table_builder);
+      comparator, result_table_builder, &result);
+  }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -464,6 +490,8 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
   } else if (index_type == "onelevel_pgm256") {
     return new OneLevelPgmIndexBuilder<KVSlice, 256>(0,
                                                      get_converter(test_spec));
+  } else if (index_type == "pgm8") {
+    return new PgmIndexBuilder<KVSlice, 8>(0, get_converter(test_spec));
   } else if (index_type == "pgm16") {
     return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
   } else if (index_type == "pgm64") {
@@ -473,8 +501,6 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);
-  } else if (index_type == "btree") {
-    return new BTreeIndexBuilder(table_path + "_btree", test_spec["key_size"]);
   } else if (index_type == "betree") {
     return new BeTreeIndexBuilder(table_path + "_betree", 
       test_spec["index"]["cache_size"], 
