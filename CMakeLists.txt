@@ -22,7 +22,7 @@ include_directories(
   include/interfaces
   include/indexes
   include/sstable
-  include/betree/
+  include/datastructures/betree/
   third_party/pgm/include
   third_party/LearnedIndexDiskExp/code/b+_tree
   third_party/LearnedIndexDiskExp/code/b+_tree/stx-btree-0.9/include
