@@ -8,7 +8,7 @@
 #include "pgm_index.h"
 #include "rbtree_index.h"
 #include "synthetic.h"
-#include "btree_index.h"
+#include "inner_inmem_b_tree.h"
 #include <openssl/rand.h>
 #include <random>
 
@@ -158,29 +158,6 @@ TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
   check_index(subRangeIterator, subRangeIndex);
 }
 
-#ifdef STRING_KEYS
-TEST(IndexCreationTest, TestBplusTree16Byte) {
-  uint64_t num_elts = 10000;
-  int key_size_bytes = 16;
-  int value_size_bytes = 8;
-  Comparator<KVSlice> *comparator = new KVSliceMemcmp();
-  KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
-  SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
-      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
-                                         value_size_bytes, comparator));
-  Iterator<KVSlice> *iterator = table->iterator();
-  IndexBuilder<KVSlice> *builder =
-      new BTreeIndexBuilder("btree", 16);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-  check_index(iterator, index);
-
-  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000, 4000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000, 4000);
-  check_index(subRangeIterator, subRangeIndex);
-}
-#endif
-
 TEST(IndexCreationTest, TestPGM16Byte) {
   uint64_t num_elts = 10000000;
   int key_size_bytes = 16;
@@ -203,28 +180,6 @@ TEST(IndexCreationTest, TestPGM16Byte) {
   check_index(subRangeIterator, subRangeIndex);
 }
 
-TEST(IndexCreationTest, TestBTree) {
-  uint64_t num_elts = 100000;
-  int key_size_bytes = 8;
-  int value_size_bytes = 8;
-  Comparator<KVSlice> *comparator = new KVUint64Cmp();
-  KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
-  SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
-      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
-                                         value_size_bytes, comparator));
-
-  Iterator<KVSlice> *iterator = table->iterator();
-  IndexBuilder<KVSlice> *builder =
-      new BTreeIndexBuilder("btree", 8);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-  check_index(iterator, index);
-
-  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(30000, 40000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(30000, 40000);
-  check_index(subRangeIterator, subRangeIndex);
-}
-
  void load_keys(std::vector<uint64_t> &keys, LeafNodeIterm *data, int count) {
   for (uint64_t i = 0; i < count; i++) {
     uint64_t k; 
@@ -238,123 +193,6 @@ TEST(IndexCreationTest, TestBTree) {
   }
 }
 
-#ifndef STRING_KEYS
-
-void check_tree(std::vector<uint64_t> &keys, BTree *tree) {
-  int c;
-  for (uint64_t i = 0; i < keys.size(); i++) {
-    ASSERT_EQ(tree->lookup(keys[i], &c), true);
-    ASSERT_EQ(tree->lookup(keys[i]+1, &c), false);
-  }
-  for (uint64_t i = 0; i < keys.size()-1; i++) {
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = keys[i];
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree->obtain_for_leaf_disk(cond, &c);
-    ASSERT_EQ(iter.cur_key(), keys[i]);
-  }
-
-  for (uint64_t i = 0; i < keys.size()-1; i++) {
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = keys[i]-1;
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree->obtain_for_leaf_disk(cond, &c);
-    ASSERT_EQ(iter.cur_key(), keys[i]);
-  }
-
-  for (uint64_t i = 0; i < keys.size()-1; i++) {
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = keys[i]+1;
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree->obtain_for_leaf_disk(cond, &c);
-    ASSERT_EQ(iter.cur_key(), keys[i+1]);
-  }
-
-}
-
-TEST(BTreeIndex, DISABLED_TestBTreeIndex_AllDisk_BulkLoad) {
-  BTree *tree_;
-  tree_ = new BTree(0, true, "alldisk_bulkload", true);
-  int count = 2;
-  std::vector<uint64_t> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  load_keys(keys, data, count);
-  tree_->bulk_load(data, count);
-  tree_->sync_metanode();
-  check_tree(keys, tree_);
-}
-
-TEST(BTreeIndex, DISABLED_TestBTreeIndex_AllDisk_insert) {
-  BTree *tree_;
-  tree_ = new BTree(0, true, "alldisk_insert", true);
-  tree_->sync_metanode();
-  int count = 10;
-  std::vector<uint64_t> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  load_keys(keys, data, count);
-  long long sel;
-  long long sml;
-  long long inl;
-  int update_c = 0;
-  int smo_c = 0;
-  for (int i=0; i<count; i++) {
-	    tree_->insert_key_entry(data[i].key, data[i].value, &sel, &sml, &inl, &smo_c, &update_c);
-  }
-  tree_->sync_metanode();
-  check_tree(keys, tree_);
-}
-
-TEST(BTreeIndex, DISABLED_TestBTreeIndex_LeafDisk_insert) { 
-  BTree *tree_;
-  tree_ = new BTree(1, true, "leafdisk_insert", false);
-  tree_->sync_metanode();
-  int count = 2;
-  std::vector<uint64_t> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  load_keys(keys, data, count);
-  long long sel;
-  long long sml;
-  long long inl;
-  int update_c = 0;
-  int smo_c = 0;
-  for (int i=0; i<count; i++) {
-	    tree_->insert_key_entry(data[i].key, data[i].value, &sel, &sml, &inl, &smo_c, &update_c);
-  }
-  check_tree(keys, tree_);
-}
-
-TEST(BTreeIndex, TestBTreeIndex_LeafDisk_BulkLoad) {
-  BTree *tree_;
-  tree_ = new BTree(1, true, "leafdisk_bulk", true);
-  int count = 2000;
-  std::vector<uint64_t> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  load_keys(keys, data, count);
-  tree_->bulk_load(data, count);
-  check_tree(keys, tree_);
-}
-
-TEST(BTreeIndex, TestBTreeIndex_LeafDisk_BulkLoad_Copy) {
-  BTree *tree_, *tree_copy;
-  tree_ = new BTree(1, true, "leafdisk_bulk_copy", true);
-  int count = 2000;
-  std::vector<uint64_t> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  load_keys(keys, data, count);
-  tree_->bulk_load(data, count);
-  check_tree(keys, tree_);
-  tree_->sync_metanode();
-
-  tree_copy = new BTree(tree_, 1, false, "leafdisk_bulk_copy");
-  check_tree(keys, tree_copy);
-}
-#else 
 
 void pad_int_string_with_zeros(std::string &s, int len) {
   while (s.size() < len) {
@@ -363,51 +201,52 @@ void pad_int_string_with_zeros(std::string &s, int len) {
 
 }
 
-void check_tree(std::vector<std::string> &keys, BTree *tree) {
-  int c;
-  for (uint64_t i = 0; i < keys.size(); i++) {
-    ASSERT_EQ(tree->lookup(keys[i], &c), true);
-    std::string key = std::to_string(2*i + 1);
-    pad_int_string_with_zeros(key, 4);
-    ASSERT_EQ(tree->lookup(key, &c), false);
-  }
-  for (uint64_t i = 0; i < keys.size()-1; i++) {
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = keys[i];
-    cond.max = -1;
-    cond.include_max = true;
-    auto iter = tree->obtain_for_leaf_disk(cond, &c);
-    ASSERT_EQ(iter.cur_key(), keys[i]);
-    ASSERT_EQ(iter.cur_value(), i);
-  }
-}
+#ifdef STRING_KEYS
 
-
-
-TEST(BTreeIndex, TestBTreeIndex_LeafDisk_BulkLoad_Copy) {
-  BTree *tree_, *tree_copy;
-  tree_ = new BTree(1, true, "leafdisk_bulk_copy", true);
-  int count = 20;
+TEST(InMemBTreeIndex, TestBulkLoadAndLookupString) {
+  InnerInMemBTree *tree_;
+  tree_ = new InnerInMemBTree(true, "leafdisk_bulk_copy");
+  int count = 2000;
   std::vector<std::string> keys;
   LeafNodeIterm *data = new LeafNodeIterm[count];
   for (uint64_t i=0; i<count; i++) {
     std::string key = std::to_string(2*i);
-    pad_int_string_with_zeros(key, 4);
+    pad_int_string_with_zeros(key, 16);
     keys.push_back(key);
     data[i].key = key;
     data[i].value = i;
   }
   tree_->bulk_load(data, count);
-  check_tree(keys, tree_);
-  tree_->sync_metanode();
 
-  tree_copy = new BTree(tree_, 1, false, "leafdisk_bulk_copy");
- check_tree(keys, tree_copy);
+  for (uint64_t i=0; i<count; i++) {
+    std::string key = std::to_string(2*i);
+    pad_int_string_with_zeros(key, 16);
+    ASSERT_EQ(tree_->keyExists(key), true);
 
+    key = std::to_string(2*i + 1);
+    pad_int_string_with_zeros(key, 16);
+    ASSERT_EQ(tree_->keyExists(key), false);
+  }
+}
+#else
+void check_inmem_tree(std::vector<uint64_t> &keys, InnerInMemBTree *tree) {
+  int c;
+  for (uint64_t i = 1; i < keys.size(); i++) {
+    ASSERT_EQ(tree->keyExists(keys[i]), true);
+    ASSERT_EQ(tree->keyExists(keys[i]+1), false);
+  }
 }
 
-
+TEST(InMemBTreeIndex, TestBulkLoadAndLookup) {
+  InnerInMemBTree *tree_;
+  tree_ = new InnerInMemBTree(true, "leafdisk_bulk_copy");
+  int count = 2000;
+  std::vector<uint64_t> keys;
+  LeafNodeIterm *data = new LeafNodeIterm[count];
+  load_keys(keys, data, count);
+  tree_->bulk_load(data, count);
+  check_inmem_tree(keys, tree_);
+}
 #endif
 
 } // namespace li_merge

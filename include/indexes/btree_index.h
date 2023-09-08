@@ -1,6 +1,8 @@
 #ifndef LEARNEDINDEXMERGE_BTREE_INDEX_H
 #define LEARNEDINDEXMERGE_BTREE_INDEX_H
 
+// TODO: UNUSED, DELETE.
+
 #include "b_tree.h"
 #include "comparator.h"
 #include "key_value_slice.h"
