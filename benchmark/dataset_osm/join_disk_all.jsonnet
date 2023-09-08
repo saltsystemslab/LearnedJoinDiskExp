@@ -23,7 +23,15 @@ local inputs = input_util.create_all_join_input_sosd(common["num_keys"], 1000, 1
       [
          "result",
          "outer_index_size"
-      ]
+      ],
+      [
+         "result",
+         "inner_disk_fetch"
+      ],
+      [
+         "result",
+         "outer_disk_fetch"
+      ],
     ],
     "tests": inputs["tests"],
     "repeat": 1,

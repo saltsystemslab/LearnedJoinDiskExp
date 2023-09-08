@@ -12,9 +12,16 @@
          {
             "algo": "inlj",
             "index": {
-               "type": "onelevel_pgm64"
+               "type": "onelevel_pgm8"
             },
-            "name": "ONELEVEL_PGM_64"
+            "name": "ONELEVEL_PGM_8"
+         },
+         {
+            "algo": "inlj",
+            "index": {
+               "type": "pgm8"
+            },
+            "name": "PGM_8"
          },
          {
             "algo": "inlj",
@@ -30,6 +37,14 @@
                "type": "plr"
             },
             "name": "PLR_64"
+         },
+         {
+            "algo": "inlj",
+            "index": {
+               "error_bound": 8,
+               "type": "plr"
+            },
+            "name": "PLR_8"
          },
          {
             "algo": "inlj",

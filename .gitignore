@@ -14,3 +14,6 @@ benchmark/large/ur64_join_disk_low.json
 benchmark/large/ur64_merge_disk.json
 benchmark/*/*.json
 reports/*
+*.swp
+perf.data
+perf.data.old

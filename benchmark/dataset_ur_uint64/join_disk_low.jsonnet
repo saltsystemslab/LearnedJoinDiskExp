@@ -23,6 +23,14 @@ local inputs = input_util.create_join_input(common["num_keys"], 1000, 100, 20);
       [
          "result",
          "outer_index_size"
+      ],
+      [
+         "result",
+         "inner_disk_fetch"
+      ],
+      [
+         "result",
+         "outer_disk_fetch"
       ]
     ],
     "tests": inputs["tests"],

@@ -23,8 +23,8 @@ include_directories(
   include/indexes
   include/sstable
   include/datastructures/betree/
+  include/datastructures/btree/
   third_party/pgm/include
-  third_party/LearnedIndexDiskExp/code/b+_tree
   third_party/LearnedIndexDiskExp/code/b+_tree/stx-btree-0.9/include
 )
 
