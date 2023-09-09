@@ -31,6 +31,7 @@ json run_learned_merge_threshold(json test_spec);
 json run_sort_join(json test_spec);
 json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
+json run_inlj_with_btree(json test_spec);
 json create_input_sstable(json test_spec);
 std::string md5_checksum(SSTable<KVSlice> *sstable);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
@@ -57,6 +58,8 @@ json run_test(json test_spec) {
     return run_hash_join(test_spec);
   } else if (test_spec["algo"] == "inlj") {
     return run_inlj(test_spec);
+  } else if (test_spec["algo"] == "inlj_btree") {
+    return run_inlj_with_btree(test_spec);
   }
   fprintf(stderr, "Unknown algorithm in testspec!");
   abort();
@@ -365,6 +368,59 @@ json run_learned_merge_threshold(json test_spec) {
   return result;
 }
 
+json run_inlj_with_btree(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  PSSTableBuilder<KVSlice> *result_table_builder =
+      get_parallel_result_builder_for_join(test_spec);
+  int num_threads = test_spec["num_threads"];
+  InnerInMemBTree *btree;
+
+  auto inner_iterator = inner_table->iterator();
+  LeafNodeIterm *data = new LeafNodeIterm[inner_iterator->num_elts()];
+  uint64_t pos = 0;
+  while (inner_iterator->valid()) {
+#ifdef STRING_KEYS
+      data[pos].key = std::string(inner_iterator->key().data(), (uint64_t)test_spec["key_size"]);
+#else
+      data[pos].key = *(uint64_t *)(inner_iterator->key().data());
+#endif
+      inner_iterator->next();
+      pos++;
+  }
+  std::string btree_file_name(test_spec["inner_table"]);
+  btree_file_name += "_inmem_btree";
+  btree = new InnerInMemBTree(true, btree_file_name.c_str());
+  btree->bulk_load(data, pos);
+
+  json merge_log;
+  auto merge_start = std::chrono::high_resolution_clock::now();
+  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join_with_btree(num_threads, 
+      outer_table, inner_table, btree, result_table_builder, &result);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  float duration_sec = duration_ns / 1e9;
+
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  result["merge_log"] = merge_log;
+  result["inner_index_size"] = btree->get_inner_size();
+  result["checksum"] = md5_checksum(resultTable);
+
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+  delete btree;
+
+  return result;
+}
+
+
 json run_inlj(json test_spec) {
   json result;
   SSTable<KVSlice> *inner_table =
@@ -381,39 +437,12 @@ json run_inlj(json test_spec) {
   PSSTableBuilder<KVSlice> *result_table_builder =
       get_parallel_result_builder_for_join(test_spec);
   int num_threads = test_spec["num_threads"];
-  InnerInMemBTree *btree; // = new InnerInMemBTree(data, outer_iterator->num_elts());
-
-  if (test_spec["index"]["type"] == "btree") {
-    auto inner_iterator = inner_table->iterator();
-    LeafNodeIterm *data = new LeafNodeIterm[inner_iterator->num_elts()];
-    uint64_t pos = 0;
-    while (inner_iterator->valid()) {
-#ifdef STRING_KEYS
-      data[pos].key = std::string(inner_iterator->key().data(), (uint64_t)test_spec["key_size"]);
-#else
-      data[pos].key = *(uint64_t *)(inner_iterator->key().data());
-#endif
-      inner_iterator->next();
-      pos++;
-    }
-    std::string btree_file_name(test_spec["inner_table"]);
-    btree_file_name += "_inmem_btree";
-    btree = new InnerInMemBTree(true, btree_file_name.c_str());
-    btree->bulk_load(data, pos);
-  }
 
   json merge_log;
   auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable; 
-  if (test_spec["index"]["type"] == "btree") {
-    indexed_nested_loop_join_with_btree<KVSlice>(
-      outer_table, btree, result_table_builder->getBuilderForRange(0, 0), &result);
-    resultTable = result_table_builder->build();
-  } else {
-    resultTable = parallel_indexed_nested_loop_join<KVSlice>(
+  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join<KVSlice>(
       num_threads, outer_table, inner_table, inner_index,
       comparator, result_table_builder, &result);
-  }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)

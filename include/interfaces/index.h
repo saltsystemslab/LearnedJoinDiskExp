@@ -26,6 +26,14 @@ public:
   virtual Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) = 0;
 };
 
+/* Exact Index with Bulk Load. Mainly a wrapper around B+ Tree. */
+template <class T> class BTreeIndex {
+public:
+  virtual bool exists(const T &t);
+  virtual void bulkLoad();
+  virtual BTreeIndex<T> *getIndexForRange(uint64_t s, uint64_t e);
+};
+
 template <class T> class IndexBuilder {
 public:
   virtual void add(const T &t) = 0;

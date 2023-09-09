@@ -39,7 +39,6 @@ class InnerInMemBTree {
   LeaftNodeHeader *c_lnh;
   LeafNodeIterm *c_lnis;
   char *blockBuffer;
-  const char *main_file_;
   uint64_t disk_reads;
 
 private:
@@ -50,7 +49,6 @@ private:
 
 public:
   InnerInMemBTree(bool first, const char *main_file) {
-    main_file_ = main_file;
     disk_reads = 0;
     inner_btree = new stx_btree();
     sm = new StorageManager(main_file, true /*first item, create metanode*/,
@@ -61,11 +59,10 @@ public:
     load_metanode();
   }
 
-  InnerInMemBTree(InnerInMemBTree *src) {
+  InnerInMemBTree(InnerInMemBTree *src, const char *main_file) {
     disk_reads = 0;
-    main_file_ = src->main_file_;
     inner_btree = src->inner_btree;
-    sm = new StorageManager(src->main_file_, false /*first item, create metanode*/,
+    sm = new StorageManager(main_file, false /*first item, create metanode*/,
                             false /*bulk load*/);
     blockBuffer = (char *)malloc(BlockSize);
     blockInBuffer = -1;

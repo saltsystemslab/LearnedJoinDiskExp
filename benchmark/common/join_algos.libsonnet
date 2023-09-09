@@ -10,6 +10,10 @@
             "name": "hash_join"
          },
          {
+            "algo": "inlj_btree",
+            "name": "BTree"
+         },
+         {
             "algo": "inlj",
             "index": {
                "type": "onelevel_pgm8"
@@ -53,12 +57,5 @@
             },
             "name": "RbTree"
          },
-         {
-            "algo": "inlj",
-            "index": {
-               "type": "btree"
-            },
-            "name": "Btree"
-         }
       ]
 }
