@@ -31,6 +31,7 @@ json run_learned_merge_threshold(json test_spec);
 json run_sort_join(json test_spec);
 json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
+json run_index_study(json test_spec);
 json run_inlj_with_btree(json test_spec);
 json create_input_sstable(json test_spec);
 std::string md5_checksum(SSTable<KVSlice> *sstable);
@@ -58,6 +59,8 @@ json run_test(json test_spec) {
     return run_hash_join(test_spec);
   } else if (test_spec["algo"] == "inlj") {
     return run_inlj(test_spec);
+  } else if (test_spec["algo"] == "index_study") {
+    return run_index_study(test_spec);
   } else if (test_spec["algo"] == "inlj_btree") {
     return run_inlj_with_btree(test_spec);
   }
@@ -151,7 +154,6 @@ json create_input_sstable(json test_spec) {
   float duration_sec = duration_ns / 1e9;
   result["input_created"] = true;
   result["duration_sec"] = duration_sec;
-
   delete comparator;
   return result;
 }
@@ -289,8 +291,17 @@ json run_learned_merge(json test_spec) {
       get_index_builder(test_spec["inner_table"], test_spec);
   IndexBuilder<KVSlice> *outer_index_builder =
       get_index_builder(test_spec["outer_table"], test_spec);
+
   Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
+  auto index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  auto index_build_end = std::chrono::high_resolution_clock::now();
+  auto index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         index_build_start - index_build_end)
+                         .count();
+  float index_build_duration_sec = index_build_duration / 1e9;
+  result["inner_index_build_duration_sec"] = index_build_duration_sec;
+
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   int num_threads = test_spec["num_threads"];
   PSSTableBuilder<KVSlice> *result_table_builder =
@@ -387,6 +398,7 @@ json run_inlj_with_btree(json test_spec) {
       data[pos].key = std::string(inner_iterator->key().data(), (uint64_t)test_spec["key_size"]);
 #else
       data[pos].key = *(uint64_t *)(inner_iterator->key().data());
+      data[pos].value = *(uint64_t *)(inner_iterator->key().data());
 #endif
       inner_iterator->next();
       pos++;
@@ -420,6 +432,51 @@ json run_inlj_with_btree(json test_spec) {
   return result;
 }
 
+json run_index_study(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  IndexBuilder<KVSlice> *inner_index_builder =
+      get_index_builder(test_spec["inner_table"], test_spec);
+  IndexBuilder<KVSlice> *outer_index_builder =
+      get_index_builder(test_spec["outer_table"], test_spec);
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+
+  auto merge_start = std::chrono::high_resolution_clock::now();
+  Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  float duration_sec = duration_ns / 1e9;
+  result["outer_index_build_duration"] = duration_sec;
+  result["duration_sec"] = duration_sec;
+
+  merge_start = std::chrono::high_resolution_clock::now();
+  Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  merge_end = std::chrono::high_resolution_clock::now();
+  duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  duration_sec = duration_ns / 1e9;
+  result["inner_index_build_duration"] = duration_sec;
+
+  result["inner_index_size"] = inner_index->size_in_bytes();
+  result["outer_index_size"] = outer_index->size_in_bytes();
+  result["checksum"] = "NA";
+
+  delete inner_table;
+  delete outer_table;
+  delete inner_index_builder;
+  delete outer_index_builder;
+  delete inner_index;
+  delete outer_index;
+  delete comparator;
+
+  return result;
+}
 
 json run_inlj(json test_spec) {
   json result;

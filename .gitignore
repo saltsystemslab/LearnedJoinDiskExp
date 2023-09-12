@@ -17,3 +17,4 @@ reports/*
 *.swp
 perf.data
 perf.data.old
+csv/*

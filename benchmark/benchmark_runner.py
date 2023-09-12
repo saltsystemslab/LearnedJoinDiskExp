@@ -13,6 +13,7 @@ import tikzplotlib
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("run_dir", "test_runs", "JSON Test Spec")
+flags.DEFINE_string("csv_dir", "csv", "CSV")
 flags.DEFINE_string("report_dir", "reports", "JSON Test Spec")
 flags.DEFINE_string("spec", "", "JSON Test Spec")
 flags.DEFINE_bool("skip_input", False, "")
@@ -96,9 +97,11 @@ def main(argv):
         build_runner(("track_stats" in benchmark) and benchmark["track_stats"])
 
     # Create benchmark directories
+    csv_dir = os.path.join(FLAGS.csv_dir, os.path.splitext(FLAGS.spec)[0])
     bench_dir = os.path.join(FLAGS.run_dir, os.path.splitext(FLAGS.spec)[0])
     report_dir = os.path.join(FLAGS.report_dir, os.path.splitext(FLAGS.spec)[0])
     input_dir = os.path.join(bench_dir, 'input')
+    os.makedirs(csv_dir, exist_ok=True)
     os.makedirs(bench_dir, exist_ok=True)
     os.makedirs(report_dir, exist_ok=True)
     os.makedirs(input_dir, exist_ok=True)
@@ -218,6 +221,7 @@ def main(argv):
                 axs[0][1].plot(pivot.index, pivot[c+'-relative'], label=c, marker='.')
                 axs[0][1].set_ylim([-100, 100])
             print(pivot[rel_columns])
+            pivot[rel_columns].to_csv(os.path.join(csv_dir, metric_fields[-1] + "-rel.csv"))
             axs[0][1].set_xlabel("fraction")
             axs[0][1].set_ylabel("rel % to sort-join")
             axs[0][1].legend()
@@ -227,13 +231,25 @@ def main(argv):
             axs[0][2].set_xlabel("Index")
             axs[0][2].set_ylabel("In Memory Size(B)")
             axs[0][2].set_title("Inner Index Size")
+        elif metric_fields[-1] == "outer_index_build_duration":
+            for c in pivot.columns:
+                axs[0][0].plot(pivot.index, pivot[c], label=c, marker='.')
+            axs[0][0].set_xlabel("fraction")
+            axs[0][0].set_ylabel("Outer Index Build Duration")
+            axs[0][0].legend()
+        elif metric_fields[-1] == "inner_index_build_duration":
+            for c in pivot.columns:
+                axs[0][1].plot(pivot.index, pivot[c], label=c, marker='.')
+            axs[0][1].set_xlabel("fraction")
+            axs[0][1].set_ylabel("Inner Index Build Duration")
+            axs[0][1].legend()
         elif metric_fields[-1] == "inner_disk_fetch":
             for c in pivot.columns:
                 axs[1][0].plot(pivot.index, pivot[c], label=c, marker='.')
-            axs[1][0].set_xlabel("Fraction")
-            axs[1][0].set_ylabel("4K block fetches")
+            axs[1][0].set_xlabel("fraction")
+            axs[1][0].set_ylabel("4k block fetches")
             axs[1][0].legend()
-            axs[1][0].set_title("4K block fetches (Inner Table)")
+            axs[1][0].set_title("4k block fetches (inner table)")
         elif metric_fields[-1] == "outer_disk_fetch":
             for c in pivot.columns:
                 axs[1][1].plot(pivot.index, pivot[c], label=c, marker='.')
@@ -242,6 +258,7 @@ def main(argv):
             axs[1][1].legend()
             axs[1][1].set_title("4K block fetches (Outer Table)")
         report_lines.append(grouped.pivot(index=0, columns=1, values='metric').to_markdown() + "\n\n")
+        grouped.pivot(index=0, columns=1, values='metric').to_csv(os.path.join(csv_dir, metric_fields[-1] + ".csv"))
     tikzplotlib_fix_ncols(plt.gcf())
     tikzplotlib.save(os.path.join(report_dir, "plot.tex"))
     plt.savefig(os.path.join(report_dir,  "plots.png"))
