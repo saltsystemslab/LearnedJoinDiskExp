@@ -37,18 +37,9 @@
          {
             "algo": "inlj",
             "index": {
-               "error_bound": 64,
-               "type": "plr"
+               "type": "pgm128"
             },
-            "name": "PLR_64"
-         },
-         {
-            "algo": "inlj",
-            "index": {
-               "error_bound": 8,
-               "type": "plr"
-            },
-            "name": "PLR_8"
+            "name": "PGM_128"
          },
          {
             "algo": "inlj",

@@ -1,7 +1,7 @@
 local join_algos = import '../common/join_algos.libsonnet';
 local input_util = import '../common/input_util.libsonnet'; 
 local common = import './common.libsonnet';
-local inputs = input_util.create_low_join_input_sosd(common["num_keys"], 1000, 100, 20);
+local inputs = input_util.create_low_join_input_sosd(common["num_keys"], 1000, 100, 5);
 {
    "algos": {
       "common": common["algos"]["common"] + {"num_threads" : 1},

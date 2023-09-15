@@ -582,6 +582,8 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
     return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
   } else if (index_type == "pgm64") {
     return new PgmIndexBuilder<KVSlice, 64>(0, get_converter(test_spec));
+  } else if (index_type == "pgm128") {
+    return new PgmIndexBuilder<KVSlice, 128>(0, get_converter(test_spec));
   } else if (index_type == "pgm256") {
     return new PgmIndexBuilder<KVSlice, 256>(0, get_converter(test_spec));
   } else if (index_type == "rbtree") {
