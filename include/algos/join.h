@@ -107,6 +107,39 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer, SSTable<T> *inner,
 }
 
 template <class T>
+SSTable<T> *indexed_nested_loop_join_with_pgm(SSTable<T> *outer, SSTable<T> *inner,
+                                     Index<T> *inner_index,
+                                     Comparator<T> *comparator,
+                                     SSTableBuilder<T> *result,
+                                     json *join_stats) {
+  auto outer_iterator = outer->iterator();
+  auto inner_iterator = inner->iterator();
+  outer_iterator->seekToFirst();
+  inner_iterator->seekToFirst();
+  uint64_t inner_num_elts = inner_iterator->num_elts();
+  while (outer_iterator->valid()) {
+    uint64_t approx_pos = inner_index->getApproxPosition(outer_iterator->key());
+    approx_pos = std::min(approx_pos, inner_num_elts - 1);
+    // WARNING: A LOT OF HARDCODED ASSUMPTIONS BELOW
+    // TODO(chesetti): Generalize these.
+    // Rename to load_window, and check.
+    // Right now we assume peek loads the correct pages in cache, and then check them.
+    // We also assume that the pages loaded are inside the error bound.
+    // For 8 + 8 byte keys, and a page size of 4096, a page has 256 keys.
+    // So we can handle a max error of 128. We also can't handle 16 byte keys yet.
+    inner_iterator->peek(approx_pos);
+    if (inner_iterator->check_cache(outer_iterator->key())) {
+      result->add(outer_iterator->key());
+    }
+    outer_iterator->next();
+  }
+  (*join_stats)["inner_disk_fetch"] = inner_iterator->get_disk_fetches();
+  (*join_stats)["outer_disk_fetch"] = outer_iterator->get_disk_fetches();
+  return result->build();
+}
+
+
+template <class T>
 SSTable<T> *presorted_merge_join(SSTable<T> *outer, SSTable<T> *inner,
                                  Comparator<T> *comparator,
                                  SSTableBuilder<T> *result_builder, 
@@ -189,6 +222,42 @@ SSTable<T> *parallel_indexed_nested_loop_join(
     uint64_t inner_end = partition[i].inner.second;
     threads.push_back(std::thread(
         indexed_nested_loop_join<T>, 
+                    outer_table->getSSTableForSubRange(outer_start, outer_end),
+                    inner_table->getSSTableForSubRange(inner_start, inner_end),
+                    inner_index->getIndexForSubrange(inner_start, inner_end), comparator,
+                    resultBuilder->getBuilderForRange(inner_start + outer_start,
+                                                      inner_end + outer_end), &join_stats_per_partition[i]));
+  }
+  uint64_t inner_disk_fetch_count = 0;
+  uint64_t outer_disk_fetch_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+    inner_disk_fetch_count += (uint64_t)join_stats_per_partition[i]["inner_disk_fetch"];
+    outer_disk_fetch_count += (uint64_t)join_stats_per_partition[i]["outer_disk_fetch"];
+  }
+  (*join_stats)["inner_disk_fetch"] = inner_disk_fetch_count;
+  (*join_stats)["outer_disk_fetch"] = outer_disk_fetch_count;
+  return resultBuilder->build();
+}
+
+template <class T>
+SSTable<T> *parallel_indexed_nested_loop_join_with_pgm(
+    int num_threads, SSTable<T> *outer_table, SSTable<T> *inner_table,
+    Index<T> *inner_index, Comparator<T> *comparator,
+    PSSTableBuilder<T> *resultBuilder, json *join_stats) {
+  auto partition = partition_sstables(num_threads, outer_table, inner_table,
+                                      inner_index, comparator);
+  (*join_stats)["inner_disk_fetch"] = 0; 
+  (*join_stats)["outer_disk_fetch"] = 0;
+  std::vector<std::thread> threads;
+  std::vector<json> join_stats_per_partition(num_threads);
+  for (int i = 0; i < num_threads; i++) {
+    uint64_t outer_start = partition[i].outer.first;
+    uint64_t outer_end = partition[i].outer.second;
+    uint64_t inner_start = partition[i].inner.first;
+    uint64_t inner_end = partition[i].inner.second;
+    threads.push_back(std::thread(
+        indexed_nested_loop_join_with_pgm<T>, 
                     outer_table->getSSTableForSubRange(outer_start, outer_end),
                     inner_table->getSSTableForSubRange(inner_start, inner_end),
                     inner_index->getIndexForSubrange(inner_start, inner_end), comparator,

@@ -22,6 +22,16 @@ SSTable<KVSlice> *create_input_inmem(uint64_t *arr, int num_elems) {
     return builder->build();
 }
 
+SSTable<KVSlice> *create_input_disk(std::string tableName, uint64_t *arr, int num_elems) {
+    Comparator<KVSlice> *comparator = new KVUint64Cmp();
+    SSTableBuilder<KVSlice> *builder = 
+        new FixedSizeKVDiskSSTableBuilder(tableName, 10, 8, 0, true);
+    for (int i=0; i<num_elems; i++) {
+        builder->add(KVSlice((char *)&arr[i], 8, 0));
+    }
+    return builder->build();
+}
+
 void check_output(SSTable<KVSlice> *result, uint64_t *expected, int num_elems) {
     auto iter = result->iterator();
     for (int i=0; i<num_elems; i++) {
@@ -106,6 +116,27 @@ TEST(Join, JoinAlgos) {
 
     SSTable<KVSlice> *inner = create_input_inmem(inner_data, 10);
     SSTable<KVSlice> *outer = create_input_inmem(outer_data, 5);
+    Comparator<KVSlice> *comparator = new KVUint64Cmp();
+    IndexBuilder<KVSlice> * inner_index_builder 
+        = new RbTreeIndexBuilder(comparator, 8);
+    Index<KVSlice> *inner_index = build_index(inner, inner_index_builder);
+    PSSTableBuilder<KVSlice> *p1ResultBuilder = new PSplitFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0);
+    PSSTableBuilder<KVSlice> *p2ResultBuilder = new PSplitFixedSizeKVDiskSSTableBuilder("p1_result", 8, 0);
+    json log;
+
+    SSTable<KVSlice> *result1 = parallel_presort_join(2, outer, inner, inner_index, comparator, p1ResultBuilder, &log);
+    SSTable<KVSlice> *result2 = parallel_indexed_nested_loop_join(2, outer, inner, inner_index, comparator, p2ResultBuilder, &log);
+    check_output(result1, expected, 5);
+    check_output(result2, expected, 5);
+}
+
+TEST(Join, JoinAlgosDisk) {
+    uint64_t inner_data[10] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+    uint64_t outer_data[5] = {20, 40, 60, 80, 100};
+    uint64_t expected[5] = {20, 40, 60, 80, 100};
+
+    SSTable<KVSlice> *inner = create_input_disk("Table1", inner_data, 10);
+    SSTable<KVSlice> *outer = create_input_disk("Table2", outer_data, 5);
     Comparator<KVSlice> *comparator = new KVUint64Cmp();
     IndexBuilder<KVSlice> * inner_index_builder 
         = new RbTreeIndexBuilder(comparator, 8);

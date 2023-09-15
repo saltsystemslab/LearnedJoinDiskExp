@@ -15,6 +15,7 @@ public:
   virtual uint64_t num_elts() = 0;
   // STATS.
   virtual uint64_t get_disk_fetches() { return 0; };
+  virtual bool check_cache(T key) { return false; };
 };
 } // namespace li_merge
 

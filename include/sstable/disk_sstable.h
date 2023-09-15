@@ -13,6 +13,10 @@
 #include <string>
 #include <thread>
 #include <unistd.h>
+#include <bit>
+#include <stdint.h>
+#include <bit>
+#include <functional>
 
 #define HEADER_SIZE 16
 
@@ -24,17 +28,62 @@ class FixedKSizeKVFileCache {
 public:
   FixedKSizeKVFileCache(int fd, int key_size_bytes, int value_size_bytes,
                         uint64_t file_start_offset)
-      : file_page_cache_(new FileSinglePageCache(fd, file_start_offset)),
+      : file_page_cache_(new FileThreePageCache(fd, file_start_offset)),
         key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),
         kv_size_bytes_(key_size_bytes + value_size_bytes) {}
   KVSlice get_kv(uint64_t kv_idx) {
     uint64_t page_idx = (kv_idx * kv_size_bytes_) / PAGE_SIZE;
     uint64_t page_offset = (kv_idx * kv_size_bytes_) % PAGE_SIZE;
     char *page_data = file_page_cache_->get_page(page_idx);
-    return KVSlice(page_data + page_offset, key_size_bytes_, value_size_bytes_);
+    return KVSlice(page_data + page_offset + PAGE_SIZE, key_size_bytes_, value_size_bytes_);
   }
   uint64_t get_num_disk_fetches() {
     return file_page_cache_->get_num_disk_fetches();
+  }
+
+/* Adapting Branchless Binary search from https://github.com/skarupke/branchless_binary_search */
+  inline size_t bit_floor(size_t i)
+{
+    constexpr int num_bits = sizeof(i) * 8;
+    return size_t(1) << (num_bits - std::countl_zero(i) - 1);
+}
+inline size_t bit_ceil(size_t i)
+{
+    constexpr int num_bits = sizeof(i) * 8;
+    return size_t(1) << (num_bits - std::countl_zero(i - 1));
+}
+
+
+  char* lower_bound(char *buf, uint64_t len_in_bytes, const char *key) {
+    uint64_t key_value = *(uint64_t *)(key);
+    uint64_t start = 0;
+    uint64_t end = (len_in_bytes)/(key_size_bytes_ + value_size_bytes_);
+    uint64_t len = end - start;
+    uint64_t step = bit_floor(len);
+    uint64_t cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    if (step != len && (cur < key_value)) {
+      len -= step + 1;
+      if (len == 0) {
+        return buf + (key_size_bytes_ + value_size_bytes_) * end;
+      }
+      step = bit_ceil(len);
+      start = end - step;
+    }
+    for (step /=2; step!=0; step /=2) {
+      cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+      if (cur < key_value)
+        start += step;
+    }
+    cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    start = start + (cur < key_value);
+    return buf + (key_size_bytes_ + value_size_bytes_) * (start);
+  }
+
+  bool check_for_key_in_cache(const char *key) {
+    uint64_t len;
+    char *cache_buffer = file_page_cache_->get_cur_page(&len);
+    char *lower = lower_bound(cache_buffer, len, key);
+    return (lower != cache_buffer + len) ? (memcmp(key, lower, 8) == 0) : false;
   }
 
 private:
@@ -74,6 +123,9 @@ public:
   uint64_t get_disk_fetches() override { 
     return cur_kv_cache_->get_num_disk_fetches() 
       + peek_kv_cache_->get_num_disk_fetches(); 
+  }
+  bool check_cache(KVSlice kv) override {
+    return peek_kv_cache_->check_for_key_in_cache(kv.data());
   }
 
 private:
