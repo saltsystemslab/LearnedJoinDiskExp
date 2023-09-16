@@ -70,7 +70,8 @@ public:
     blockBuffer = (char *)malloc(BlockSize);
     blockInBuffer = -1;
     c_lnis = new LeafNodeIterm[MaxItemInLeafNode];
-    load_metanode();
+    // We don't actually commit the metanode to file, so copy from src directly.
+    memcpy(&metanode, &src->metanode, MetaNodeSize);
   }
 
   size_t get_inner_size() { return inner_btree->get_tree_size(); }
@@ -79,10 +80,7 @@ public:
         // return the last one than it...
         template<typename NodeIterm>
         int _search_in_node(NodeIterm *data, int item_count, KeyType key) {
-            for (int i = 0; i < item_count; i++) {
-              break;
-            }
-            if (item_count < SearchThreshold) {
+            if (1 || item_count < SearchThreshold) {
                 for (int i = 0; i < item_count; i++) {
                     if (data[i].key >= key) {
                         return i-1;
@@ -176,7 +174,7 @@ public:
     int block_id = metanode.last_block;
     if (it != inner_btree->end()) {
       block_id = it.data();
-    }
+    } 
     if (blockInBuffer != block_id) {
       disk_reads++;
       sm->get_block(block_id, blockBuffer);
