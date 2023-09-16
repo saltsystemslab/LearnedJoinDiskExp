@@ -6,6 +6,10 @@
             "name": "sort_join"
          },
          {
+            "algo": "sort_join_exp",
+            "name": "sort_join_exp"
+         },
+         {
             "algo": "hash_join",
             "name": "hash_join"
          },
@@ -14,28 +18,28 @@
             "name": "BTree"
          },
          {
-            "algo": "inlj",
+            "algo": "inlj_pgm",
             "index": {
                "type": "onelevel_pgm8"
             },
             "name": "ONELEVEL_PGM_8"
          },
          {
-            "algo": "inlj",
+            "algo": "inlj_pgm",
             "index": {
                "type": "pgm8"
             },
             "name": "PGM_8"
          },
          {
-            "algo": "inlj",
+            "algo": "inlj_pgm",
             "index": {
                "type": "pgm64"
             },
             "name": "PGM_64"
          },
          {
-            "algo": "inlj",
+            "algo": "inlj_pgm",
             "index": {
                "type": "pgm128"
             },

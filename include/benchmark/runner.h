@@ -29,6 +29,7 @@ json run_standard_merge(json test_spec);
 json run_learned_merge(json test_spec);
 json run_learned_merge_threshold(json test_spec);
 json run_sort_join(json test_spec);
+json run_sort_join_exp(json test_spec);
 json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
 json run_index_study(json test_spec);
@@ -56,6 +57,8 @@ json run_test(json test_spec) {
     return create_input_sstable(test_spec);
   } else if (test_spec["algo"] == "sort_join") {
     return run_sort_join(test_spec);
+  } else if (test_spec["algo"] == "sort_join_exp") {
+    return run_sort_join_exp(test_spec);
   } else if (test_spec["algo"] == "hash_join") {
     return run_hash_join(test_spec);
   } else if (test_spec["algo"] == "inlj") {
@@ -216,6 +219,43 @@ json run_sort_join(json test_spec) {
 
   auto merge_start = std::chrono::high_resolution_clock::now();
   SSTable<KVSlice> *resultTable = parallel_presort_join<KVSlice>(
+      num_threads, outer_table, inner_table, inner_index,
+      comparator, result_table_builder, &result);
+  auto merge_end = std::chrono::high_resolution_clock::now();
+  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         merge_end - merge_start)
+                         .count();
+  float duration_sec = duration_ns / 1e9;
+
+  result["duration_ns"] = duration_ns;
+  result["duration_sec"] = duration_sec;
+  result["checksum"] = md5_checksum(resultTable);
+  delete inner_table;
+  delete outer_table;
+  delete result_table_builder;
+  delete comparator;
+
+  return result;
+}
+
+json run_sort_join_exp(json test_spec) {
+  json result;
+  SSTable<KVSlice> *inner_table =
+      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
+  SSTable<KVSlice> *outer_table =
+      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
+  IndexBuilder<KVSlice> *inner_index_builder =
+      get_index_builder(test_spec["inner_table"], test_spec);
+  Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  IndexBuilder<KVSlice> *outer_index_builder =
+      get_index_builder(test_spec["outer_table"], test_spec);
+  PSSTableBuilder<KVSlice> *result_table_builder =
+      get_parallel_result_builder_for_join(test_spec);
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+  int num_threads = test_spec["num_threads"];
+
+  auto merge_start = std::chrono::high_resolution_clock::now();
+  SSTable<KVSlice> *resultTable = parallel_presort_join_exp<KVSlice>(
       num_threads, outer_table, inner_table, inner_index,
       comparator, result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
