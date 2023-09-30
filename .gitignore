@@ -19,3 +19,4 @@ perf.data
 perf.data.old
 csv/*
 cmake_build/*
+sponge/*

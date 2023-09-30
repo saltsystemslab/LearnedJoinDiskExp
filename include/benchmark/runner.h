@@ -110,7 +110,7 @@ json create_input_sstable(json test_spec) {
       }
       result_table_builder->build();
     }
-  } else if (test_spec["method"] == "select_common_keys") {
+  } else if (test_spec["method"] == "select_common_indexes") {
     std::string source = test_spec["source"];
     uint64_t num_keys_to_select = test_spec["num_keys"];
     int fd = open(source.c_str(), O_RDONLY);
@@ -123,8 +123,8 @@ json create_input_sstable(json test_spec) {
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
     std::set<uint64_t> common_keys;
-    if (test_spec.contains("common_keys_file")) {
-      load_common_key_indexes(test_spec["common_keys_file"], &common_keys);
+    if (test_spec.contains("common_indexes")) {
+      load_common_key_indexes(test_spec["common_indexes"], &common_keys);
     }
     if (test_spec.contains("use_all") && test_spec["use_all"] == true) {
       num_keys = num_keys_in_dataset;
@@ -134,6 +134,7 @@ json create_input_sstable(json test_spec) {
                            get_result_builder(test_spec));
     close(fd);
   } else if (test_spec["method"] == "from_ar") {
+    abort();
     // TODO(chesetti): Follow the same header format as sosd.
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
