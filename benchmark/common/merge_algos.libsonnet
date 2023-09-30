@@ -29,14 +29,5 @@
             "name": "RbTree",
             "threshold": 5
          },
-      ] + if key_type=="uint64" && key_size==8 then [
-         {
-            "algo": "learned_merge_threshold",
-            "index": {
-               "type": "btree"
-            },
-            "name": "bTree",
-            "threshold": 5
-         }
-      ] else []
+      ]
 }

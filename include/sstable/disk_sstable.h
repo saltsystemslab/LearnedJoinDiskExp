@@ -55,11 +55,31 @@ inline size_t bit_ceil(size_t i)
 
 
   char* lower_bound(char *buf, uint64_t len_in_bytes, const char *key) {
-    uint64_t key_value = *(uint64_t *)(key);
     uint64_t start = 0;
     uint64_t end = (len_in_bytes)/(key_size_bytes_ + value_size_bytes_);
     uint64_t len = end - start;
     uint64_t step = bit_floor(len);
+#ifdef STRING_KEYS
+    char *cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    if (step != len && memcmp(cur, key, key_size_bytes_) < 0) {
+      len -= step + 1;
+      if (len == 0) {
+        return buf + (key_size_bytes_ + value_size_bytes_) * end;
+      }
+      step = bit_ceil(len);
+      start = end - step;
+    }
+    for (step /=2; step!=0; step /=2) {
+      cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+      if (memcmp(cur, key, key_size_bytes_) < 0) {
+        start += step;
+      }
+    }
+    cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    start = start + (memcmp(cur, key, key_size_bytes_) < 0);
+    return buf + (key_size_bytes_ + value_size_bytes_) * (start);
+#else
+    uint64_t key_value = *(uint64_t *)(key);
     uint64_t cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
     if (step != len && (cur < key_value)) {
       len -= step + 1;
@@ -77,15 +97,14 @@ inline size_t bit_ceil(size_t i)
     cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
     start = start + (cur < key_value);
     return buf + (key_size_bytes_ + value_size_bytes_) * (start);
+#endif
   }
-
   bool check_for_key_in_cache(const char *key) {
     uint64_t len;
     char *cache_buffer = file_page_cache_->get_cur_page(&len);
     char *lower = lower_bound(cache_buffer, len, key);
-    return (lower != cache_buffer + len) ? (memcmp(key, lower, 8) == 0) : false;
+    return (lower != cache_buffer + len) ? (memcmp(key, lower, key_size_bytes_) == 0) : false;
   }
-
 private:
   int kv_size_bytes_;
   int key_size_bytes_;

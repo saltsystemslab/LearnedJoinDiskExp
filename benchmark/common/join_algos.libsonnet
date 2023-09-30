@@ -10,10 +10,6 @@
             "name": "sort_join_exp"
          },
          {
-            "algo": "hash_join",
-            "name": "hash_join"
-         },
-         {
             "algo": "inlj_btree",
             "name": "BTree"
          },

@@ -201,7 +201,7 @@ def main(argv):
         report_lines.append("### " + metric_fields[-1] + "\n\n")
         results_table = extract_table(results, metric_fields)
         df = pd.DataFrame.from_records(results_table)
-        grouped = df.groupby([0, 1]).agg(metric=(2, 'median')).reset_index()
+        grouped = df.groupby([0, 1]).agg(metric=(2, 'mean')).reset_index()
         pivot = grouped.pivot(index=0, columns=1, values='metric')
         pivot.columns = pivot.columns.str.replace("_","-")
         if metric_fields[-1] == "duration_sec":
@@ -228,12 +228,21 @@ def main(argv):
             axs[0][1].set_title("Inner Index Size")
         elif metric_fields[-1] == "inner_index_size":
             axs[0][2].bar(pivot.columns, pivot.iloc[0], log=True)
-            t = pivot[['BTree', 'PGM-8', 'PGM-64', 'PGM-128']].transpose()
+            # t = pivot[['BTree', 'PGM-8', 'PGM-64', 'PGM-128']].transpose()
+            t = pivot[['PGM-8', 'PGM-64', 'PGM-128', 'PGM-256', 'PGM-1024']].transpose()
             t['Size'] = t[t.columns[0]]
             t['Size'].to_csv(os.path.join(csv_dir, "inner_index_transposed.csv"))
             axs[0][2].set_xlabel("Index")
             axs[0][2].set_ylabel("In Memory Size(B)")
             axs[0][2].set_title("Inner Index Size")
+        elif metric_fields[-1] == "inner_index_build_duration_sec":
+            axs[1][2].bar(pivot.columns, pivot.iloc[0], log=True)
+            t = pivot[['PGM-8', 'PGM-64', 'PGM-128', 'PGM-256', 'PGM-1024']].transpose()
+            t['Size'] = t[t.columns[0]]
+            t['Size'].to_csv(os.path.join(csv_dir, "inner_index_build_time_transposed.csv"))
+            axs[1][2].set_xlabel("Index")
+            axs[1][2].set_ylabel("Duration[sec]")
+            axs[1][2].set_title("Index construction time")
         elif metric_fields[-1] == "outer_index_build_duration":
             for c in pivot.columns:
                 axs[0][0].plot(pivot.index, pivot[c], label=c, marker='.')

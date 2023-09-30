@@ -578,8 +578,25 @@ json run_inlj_with_pgm(json test_spec) {
       get_index_builder(test_spec["inner_table"], test_spec);
   IndexBuilder<KVSlice> *outer_index_builder =
       get_index_builder(test_spec["outer_table"], test_spec);
+
+  auto outer_index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *outer_index = build_index(outer_table, outer_index_builder);
+  auto outer_index_build_end = std::chrono::high_resolution_clock::now();
+  auto outer_index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         outer_index_build_end - outer_index_build_start)
+                         .count();
+  float outer_index_build_duration_sec = outer_index_build_duration / 1e9;
+  result["outer_index_build_duration_sec"] = outer_index_build_duration_sec;
+
+  auto inner_index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *inner_index = build_index(inner_table, inner_index_builder);
+  auto inner_index_build_end = std::chrono::high_resolution_clock::now();
+  auto inner_index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         inner_index_build_end - inner_index_build_start)
+                         .count();
+  float inner_index_build_duration_sec = inner_index_build_duration / 1e9;
+  result["inner_index_build_duration_sec"] = inner_index_build_duration_sec;
+
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   PSSTableBuilder<KVSlice> *result_table_builder =
       get_parallel_result_builder_for_join(test_spec);
@@ -677,6 +694,8 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
     return new PgmIndexBuilder<KVSlice, 128>(0, get_converter(test_spec));
   } else if (index_type == "pgm256") {
     return new PgmIndexBuilder<KVSlice, 256>(0, get_converter(test_spec));
+  } else if (index_type == "pgm1024") {
+    return new PgmIndexBuilder<KVSlice, 1024>(0, get_converter(test_spec));
   } else if (index_type == "rbtree") {
     return new RbTreeIndexBuilder(get_comparator(test_spec),
                                   test_spec["key_size"]);

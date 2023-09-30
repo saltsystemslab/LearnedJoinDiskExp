@@ -31,7 +31,15 @@ local inputs = input_util.create_join_input(common["num_keys"], 1000, 100, 10);
       [
          "result",
          "outer_disk_fetch"
-      ]
+      ],
+      [
+         "result",
+         "inner_index_build_duration_sec"
+      ],
+      [
+         "result",
+         "outer_index_build_duration_sec"
+      ],
     ],
     "tests": inputs["tests"],
     "repeat": 1,
