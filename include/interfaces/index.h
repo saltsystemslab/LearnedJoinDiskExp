@@ -35,7 +35,7 @@ public:
 };
 
 template <class T> class IndexBuilder {
-public:
+  public:
   virtual void add(const T &t) = 0;
   virtual Index<T> *build() = 0;
 };

@@ -1,12 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "greedy_plr_index.h"
 #include "in_mem_sstable.h"
 #include "index.h"
 #include "key_to_point.h"
 #include "one_level_pgm_index.h"
 #include "pgm_index.h"
-#include "rbtree_index.h"
 #include "synthetic.h"
 #include "inner_inmem_b_tree.h"
 #include <openssl/rand.h>
@@ -47,49 +45,6 @@ void check_index_monotoneAccess(Iterator<KVSlice> *iterator,
 void check_index(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
   // check_randomAccess(iterator, index);
   check_index_monotoneAccess(iterator, index);
-}
-
-TEST(IndexCreationTest, DISABLED_TestGreedyPLRIndex) {
-  uint64_t num_elts = 10000000;
-  int key_size_bytes = 8;
-  int value_size_bytes = 8;
-  Comparator<KVSlice> *comparator = new KVUint64Cmp();
-  KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
-  SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
-      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
-                                         value_size_bytes, comparator));
-
-  Iterator<KVSlice> *iterator = table->iterator();
-  IndexBuilder<KVSlice> *builder = new GreedyPLRIndexBuilder(64, converter);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-  check_index(iterator, index);
-
-  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
-  check_index(subRangeIterator, subRangeIndex);
-}
-
-TEST(IndexCreationTest, TestRbTree) {
-  uint64_t num_elts = 10000000;
-  int key_size_bytes = 8;
-  int value_size_bytes = 8;
-  Comparator<KVSlice> *comparator = new KVUint64Cmp();
-  KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
-  SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
-      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
-                                         value_size_bytes, comparator));
-
-  Iterator<KVSlice> *iterator = table->iterator();
-  IndexBuilder<KVSlice> *builder =
-      new RbTreeIndexBuilder(comparator, key_size_bytes);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-  check_index(iterator, index);
-
-  Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
-  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestPGMUInt64) {

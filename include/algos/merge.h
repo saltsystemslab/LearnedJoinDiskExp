@@ -233,6 +233,50 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   return resultBuilder->build();
 }
 
+#if 0
+template <class T>
+SSTable<T> *LM_1W(SSTable<T> *outer_table, SSTable<T> *inner_table,
+                  Index<T> *outer_index, Index<T> *inner_index,
+                  Comparator<T> *comparator,
+                  SSTableBuilder<T> *resultBuilder) {
+  Iterator<T> *inner_iter = inner_table->iterator();
+  Iterator<T> *outer_iter = outer_table->iterator();
+  while (outer_iter->valid()) {
+    Bounds window = inner_index->get_window(outer_iter->key());
+    // [current_pos ..... lower_bound .... upper_bound]
+    // Do a sequential read from current_pos to lower_bound.
+    char *buffer, int len;
+    while(inner_iter->current_pos() < lower_bound) {
+      inner_iter->bulkLoad(lower_bound, &buffer, len);
+      inner_iter->advance(len);
+      resultBuilder->bulkAdd(buffer, len);
+    }
+    // Now deal with [lower_bound...upper_bound] either by comparing..
+    while (compare(outer_iter->key(), inner_iter->key()) < 0) {
+      resultBulder->add(inner_iter->key());
+      inner_iter->next();
+    }
+    // Or loading the entire window.
+    while (inner_iter->current_pos() < upper_bound) {
+      inner_iter->bulkNext(upper_bound, &buffer, len);
+      // Check the last element.
+      if (buffer[last_elem] < outer_iter()) {
+        resultBuilder->bulkAdd(buffer, len);
+        inner_iter->advance(len);
+      } else {
+        // Otherwise binary search inside buffer.
+        lb = get_lower_bound(buffer, len, outer_iter);
+        resultBuilder->bulkAdd(buffer, lb);
+        inner_iter->advance(lb);
+      }
+    }
+    resultBuilder->add(outer_iter->key());
+    outer_iter->next();
+  }
+  resultBuilder->bulkAdd(inner_iterator, inner_iterator->num_elements()); // To End
+}
+#endif
+
 template <class T>
 SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              Index<T> *outer_index, Index<T> *inner_index,
