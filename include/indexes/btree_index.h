@@ -1,127 +1,103 @@
 #ifndef LEARNEDINDEXMERGE_BTREE_INDEX_H
 #define LEARNEDINDEXMERGE_BTREE_INDEX_H
 
-// TODO: UNUSED, DELETE.
 
-#include "b_tree.h"
+#include "index.h"
 #include "comparator.h"
 #include "key_value_slice.h"
+#include "stx/btree_multimap.h"
 #include <map>
 #include <algorithm>
+#include <vector>
+
+struct traits_inner : stx::btree_default_map_traits<uint64_t, uint64_t> {
+    static const bool selfverify = false;
+    static const bool debug = false;
+
+    static const int leafslots = 4096 / (sizeof(uint64_t) + sizeof(uint64_t));
+    static const int innerslots = 4096 / (sizeof(uint64_t) + sizeof(uint64_t));
+};
+typedef stx::btree_multimap<uint64_t, uint32_t, std::less<uint64_t>, traits_inner> stx_btree;
 
 namespace li_merge {
 
-class BTreeComparator {
+class BTreeWIndex : public Index<KVSlice> {
 public:
-  BTreeComparator(Comparator<KVSlice> *comparator, int key_size_bytes)
-      : comparator_(comparator), key_size_bytes_(key_size_bytes) {}
-  bool operator()(const std::string &a, const std::string &b) const {
-    KVSlice kv1(a.data(), key_size_bytes_, 0);
-    KVSlice kv2(b.data(), key_size_bytes_, 0);
-    return comparator_->compare(kv1, kv2) < 0;
-  }
-
-private:
-  Comparator<KVSlice> *comparator_;
-  int key_size_bytes_;
-};
-
-class BTreeIndex : public Index<KVSlice> {
-public:
-  BTreeIndex(BTree *tree, std::string btree_file, int key_size_bytes, uint64_t start_idx=0, uint64_t end_idx=-1)
-      : tree_(tree), key_size_bytes_(key_size_bytes), start_idx_(start_idx), end_idx_(end_idx), btree_file_(btree_file) {
-      };
-  uint64_t getApproxPosition(const KVSlice &t) override { 
-    #ifdef STRING_KEYS
-    std::string key(t.data(), key_size_bytes_);
-    BTree::Condition cond;
-    cond.min = key;
-    cond.max = key;
-    cond.include_min = true;
-    cond.include_max = true;
-    #else
-    uint64_t *key = (uint64_t *)(t.data());
-    BTree::Condition cond;
-    cond.include_min = false;
-    cond.min = (*key)-1;
-    cond.max = -1;
-    cond.include_max = true;
-    #endif
-    int c;
-    auto iter = tree_->obtain_for_leaf_disk(cond, &c);
-    uint64_t pos = iter.cur_value();
-    pos = std::clamp(pos, start_idx_, end_idx_);
-    return pos - start_idx_;
-  }
+  BTreeWIndex(
+    stx_btree *tree, 
+    int block_size, 
+    int num_blocks,
+    uint64_t start_idx=0,
+    uint64_t end_idx=-1)
+      : tree_(tree), 
+      block_size_(block_size), 
+      num_blocks_(num_blocks),
+      start_idx_(start_idx), end_idx_(end_idx)  
+      {};
   Bounds getPositionBounds(const KVSlice &t) override { 
-    uint64_t pos = getApproxPosition(t);
-    return Bounds {
-      pos,
-      pos,
-      pos
-    };
+    uint64_t *key = (uint64_t *)(t.data());
+    stx_btree::iterator it = tree_->find_for_disk(*key);
+    int block_id;
+    if (it != tree_->end()) {
+      block_id = it.data();
+    } else {
+      block_id = num_blocks_ - 1;
+    }
+    uint64_t pos = block_id * block_size_;
+    return Bounds {pos, pos + block_size_, pos};
    }
 
   uint64_t size_in_bytes() override { 
-    return tree_->get_inner_size();
+    return tree_->get_tree_size();
   }
   Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
-    return new BTreeIndex(
-      new BTree(tree_, 1, false, btree_file_.c_str()), btree_file_, key_size_bytes_, start, end);
+    return new BTreeWIndex(tree_, block_size_, start, end);
   }
 
 private:
   uint64_t start_idx_;
   uint64_t end_idx_;
-  int key_size_bytes_;
-  BTree *tree_;
+  uint64_t block_size_;
+  uint64_t num_blocks_;
+  uint64_t num_keys_in_block_;
+  stx_btree *tree_;
   std::string btree_file_;
 };
 
+
 class BTreeIndexBuilder : public IndexBuilder<KVSlice> {
 public:
-  BTreeIndexBuilder(std::string btree_file, int key_size_bytes)
-      : num_elts_(0), key_size_bytes_(key_size_bytes), btree_file_(btree_file) {
-    char file_path[btree_file.size() + 1];
-    memcpy(file_path, btree_file.c_str(), btree_file.size());
-    file_path[btree_file.size()] = '\0';
-    tree_ = new BTree(1 /* LEAF_DISK_MODE */, true, file_path, true);
+  BTreeIndexBuilder()
+      : num_elts_(0), block_id(0) {
+    tree_ = new stx_btree();
   }
   void add(const KVSlice &t) override {
     #ifdef STRING_KEYS
     elts_.push_back(std::string(t.data(), key_size_bytes_));
     #else
     uint64_t *key = (uint64_t *)(t.data());
-    elts_.push_back(*key);
+    if (num_elts_ > 0 && num_elts_ % num_items_block == 0) {
+      elts_.push_back(std::pair<uint64_t, uint32_t>(*key, block_id++));
+    }
     #endif
     num_elts_++;
   }
   Index<KVSlice> *build() override {
-    #ifdef STRING_KEYS
-    // TODO: Insert Max Key.
-    #else
-    elts_.push_back(-1);
-    #endif
-    LeafNodeIterm *data = new LeafNodeIterm[num_elts_ + 1];
-    for (uint64_t i=0; i<num_elts_ + 1; i++) {
-      data[i].key = elts_[i];
-      data[i].value = i;
-    }
-    tree_->bulk_load(data, num_elts_+1);
-    tree_->sync_metanode();
-    return new BTreeIndex(tree_, btree_file_, key_size_bytes_);
+    tree_->bulk_load(elts_.begin(), elts_.end());
+    return new BTreeWIndex(tree_, num_items_block, block_id);
   }
 
 private:
-  int key_size_bytes_;
   uint64_t num_elts_;
+  uint64_t block_id;
   #ifdef STRING_KEYS
   std::vector<std::string> elts_;
   #else
-  std::vector<uint64_t> elts_;
+  std::vector<std::pair<uint64_t, uint32_t>> elts_;
   #endif
-  BTree *tree_;
+  stx_btree *tree_;
   std::string btree_file_;
+  int num_items_block = 4096 / (sizeof(uint64_t) + sizeof(uint64_t));
 };
 
 } // namespace li_merge

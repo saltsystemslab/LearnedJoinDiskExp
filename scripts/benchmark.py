@@ -68,6 +68,7 @@ def run(command, force_dry_run=False, prefix=''):
     command = ['numactl', '-N', '1', '-m', '1'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
+    print(' '.join(command))
     process= subprocess.run(command, capture_output=True, text=True)
     if process.returncode == 0:
         result_json = json.loads(process.stdout)
@@ -122,8 +123,6 @@ def main(argv):
         with open(run_config['spec_path'], "w") as outfile:
             outfile.write(json_dict)
         result_json = run([runner_bin, run_config['spec_path']], prefix="Running %s" % run_config['spec_path'])
-        if not FLAGS.regen_report:
-            remove_result(result_json['spec']['result_path'])
         results.append(result_json)
         
     if FLAGS.regen_report:
@@ -156,7 +155,7 @@ def main(argv):
 
     df = pd.json_normalize(results)
     print(df.columns)
-    print(df.groupby(['spec.common_key', 'spec.algo_name']).agg({
+    (df.groupby(['spec.common_key', 'spec.algo_name']).agg({
         'result.duration_ns': 'median', 
         'result.inner_index_build_duration_sec': 'median',
         'result.inner_index_size': 'median',

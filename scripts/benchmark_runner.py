@@ -228,8 +228,8 @@ def main(argv):
             axs[0][1].set_title("Inner Index Size")
         elif metric_fields[-1] == "inner_index_size":
             axs[0][2].bar(pivot.columns, pivot.iloc[0], log=True)
-            # t = pivot[['BTree', 'PGM-8', 'PGM-64', 'PGM-128']].transpose()
-            t = pivot[['PGM-8', 'PGM-64', 'PGM-128', 'PGM-256', 'PGM-1024']].transpose()
+            t = pivot[['BTree', 'PGM-8', 'PGM-64', 'PGM-128']].transpose()
+            # t = pivot[['PGM-8', 'PGM-64', 'PGM-128', 'PGM-256', 'PGM-1024']].transpose()
             t['Size'] = t[t.columns[0]]
             t['Size'].to_csv(os.path.join(csv_dir, "inner_index_transposed.csv"))
             axs[0][2].set_xlabel("Index")
@@ -237,7 +237,8 @@ def main(argv):
             axs[0][2].set_title("Inner Index Size")
         elif metric_fields[-1] == "inner_index_build_duration_sec":
             axs[1][2].bar(pivot.columns, pivot.iloc[0], log=True)
-            t = pivot[['PGM-8', 'PGM-64', 'PGM-128', 'PGM-256', 'PGM-1024']].transpose()
+            t = pivot[['BTree', 'PGM-8', 'PGM-64', 'PGM-128']].transpose()
+            #t = pivot[['PGM-8', 'PGM-64', 'PGM-128', 'PGM-256', 'PGM-1024']].transpose()
             t['Size'] = t[t.columns[0]]
             t['Size'].to_csv(os.path.join(csv_dir, "inner_index_build_time_transposed.csv"))
             axs[1][2].set_xlabel("Index")

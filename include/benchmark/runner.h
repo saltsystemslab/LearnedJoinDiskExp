@@ -15,6 +15,8 @@
 #include <unordered_set>
 #include "one_level_pgm_index.h"
 #include "pgm_index.h"
+#include "btree_index.h"
+#include "runner.h"
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -694,6 +696,8 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
     return new PgmIndexBuilder<KVSlice, 256>(0, get_converter(test_spec));
   } else if (index_type == "pgm1024") {
     return new PgmIndexBuilder<KVSlice, 1024>(0, get_converter(test_spec));
+  } else if (index_type == "btree") {
+    return new BTreeIndexBuilder();
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();

@@ -14,8 +14,8 @@ local test_output_dir = std.extVar("TEST_OUTPUT_DIR");
 local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
-local num_common_keys = 1000;
-local num_keys_in_inner = 100000;
+local num_common_keys = 10000;
+local num_keys_in_inner = 1000000;
 
 local max_ratio = 100;
 local points = 10;
@@ -35,14 +35,14 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             "name": name,
             "num_keys": num_keys_in_inner,
             "result_path": test_input_dir + "/inner",
-            "common_keys": test_input_dir + "/common",
+            "common_keys_file": test_input_dir + "/common",
         }] +
         [
             input_template + {
             local name = "input" + i,
             "num_keys": std.ceil(num_keys_in_inner/i),
             "name": name,
-            "common_keys": test_input_dir + "/common",
+            "common_keys_file": test_input_dir + "/common",
             "result_path": test_input_dir + "/" + name,
             }  for i in ratios
         ],
@@ -73,6 +73,20 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "inlj_pgm",
                 "index": {
                     "type": "pgm64"
+                },
+            },
+            {
+                "algo_name": "pgm128",
+                "algo": "inlj_pgm",
+                "index": {
+                    "type": "pgm128"
+                },
+            },
+            {
+                "algo_name": "btree",
+                "algo": "inlj_pgm",
+                "index": {
+                    "type": "btree"
                 },
             },
         ]

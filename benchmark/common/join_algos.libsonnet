@@ -10,10 +10,6 @@
             "name": "sort_join_exp"
          },
          {
-            "algo": "inlj_btree",
-            "name": "BTree"
-         },
-         {
             "algo": "inlj_pgm",
             "index": {
                "type": "onelevel_pgm8"
@@ -42,11 +38,11 @@
             "name": "PGM_128"
          },
          {
-            "algo": "inlj",
+            "algo": "inlj_pgm",
             "index": {
-               "type": "rbtree"
+               "type": "btree"
             },
-            "name": "RbTree"
+            "name": "BTree"
          },
       ]
 }
