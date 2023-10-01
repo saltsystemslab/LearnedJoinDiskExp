@@ -31,22 +31,6 @@ void check_randomAccess(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
   }
 }
 
-void check_index_monotoneAccess(Iterator<KVSlice> *iterator,
-                                Index<KVSlice> *index) {
-  iterator->seekToFirst();
-  while (iterator->valid()) {
-    auto pos = index->getApproxPosition(iterator->key());
-    auto posMonotone = index->getApproxPositionMonotoneAccess(iterator->key());
-    ASSERT_EQ(pos, posMonotone);
-    iterator->next();
-  }
-}
-
-void check_index(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
-  // check_randomAccess(iterator, index);
-  check_index_monotoneAccess(iterator, index);
-}
-
 TEST(IndexCreationTest, TestPGMUInt64) {
   uint64_t num_elts = 10000000;
   int key_size_bytes = 8;
@@ -62,11 +46,9 @@ TEST(IndexCreationTest, TestPGMUInt64) {
   IndexBuilder<KVSlice> *builder =
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
-  check_index(iterator, index);
 
   Iterator<KVSlice> *subRangeIterator = table->getSSTableForSubRange(3000000, 4000000)->iterator();
   Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
-  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestPGM8Byte) {

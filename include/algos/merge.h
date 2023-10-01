@@ -350,8 +350,7 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
       continue;
     }
     uint64_t lower_bound =
-        inner_index->getApproxLowerBoundPositionMonotoneAccess(
-            outer_iter->key());
+        inner_index->getPositionBounds(outer_iter->key()).lower;
     lower_bound = std::max(lower_bound, inner_iter->current_pos());
     uint64_t distance = lower_bound - inner_iter->current_pos();
     if (distance >= threshold) {
@@ -450,8 +449,8 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
 #if TRACK_STATS
   uint64_t error_correction = 0;
 #endif
-  uint64_t approx_pos = smallest->index->getApproxPositionMonotoneAccess(
-      second_smallest->iter->key());
+  uint64_t approx_pos = smallest->index->getPositionBounds(
+      second_smallest->iter->key()).approx_pos;
   approx_pos = std::max(approx_pos, smallest->iter->current_pos());
   approx_pos = std::min(approx_pos, smallest->iter->num_elts() - 1);
   bool is_overshoot = false;

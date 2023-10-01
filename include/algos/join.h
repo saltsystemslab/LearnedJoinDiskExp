@@ -73,7 +73,7 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer, SSTable<T> *inner,
   inner_iterator->seekToFirst();
   uint64_t inner_num_elts = inner_iterator->num_elts();
   while (outer_iterator->valid()) {
-    uint64_t approx_pos = inner_index->getApproxPosition(outer_iterator->key());
+    uint64_t approx_pos = inner_index->getPositionBounds(outer_iterator->key()).approx_pos;
     approx_pos = std::min(approx_pos, inner_num_elts - 1);
     // Set to first value lesser than or equal to the inner key.
     bool is_overshoot = false;
@@ -118,7 +118,7 @@ SSTable<T> *indexed_nested_loop_join_with_pgm(SSTable<T> *outer, SSTable<T> *inn
   inner_iterator->seekToFirst();
   uint64_t inner_num_elts = inner_iterator->num_elts();
   while (outer_iterator->valid()) {
-    uint64_t approx_pos = inner_index->getApproxPosition(outer_iterator->key());
+    uint64_t approx_pos = inner_index->getPositionBounds(outer_iterator->key()).approx_pos;
     approx_pos = std::min(approx_pos, inner_num_elts - 1);
     // WARNING: A LOT OF HARDCODED ASSUMPTIONS BELOW
     // TODO(chesetti): Generalize these.

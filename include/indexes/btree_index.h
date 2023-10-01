@@ -53,19 +53,14 @@ public:
     pos = std::clamp(pos, start_idx_, end_idx_);
     return pos - start_idx_;
   }
-  uint64_t getApproxLowerBoundPosition(const KVSlice &t) override { 
-    return getApproxPosition(t);
-  }
-  Bounds getPositionBounds(const KVSlice &t) override { abort(); }
-  uint64_t
-  getApproxLowerBoundPositionMonotoneAccess(const KVSlice &t) override {
-    return getApproxLowerBoundPosition(t);
-  };
-  uint64_t getApproxPositionMonotoneAccess(const KVSlice &t) { 
-    return getApproxPosition(t);
-  };
-  Bounds getPositionBoundsMonotoneAccess(const KVSlice &t) { abort(); };
-  void resetMonotoneAccess() override{};
+  Bounds getPositionBounds(const KVSlice &t) override { 
+    uint64_t pos = getApproxPosition(t);
+    return Bounds {
+      pos,
+      pos,
+      pos
+    };
+   }
 
   uint64_t size_in_bytes() override { 
     return tree_->get_inner_size();

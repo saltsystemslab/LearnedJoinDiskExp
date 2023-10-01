@@ -18,11 +18,6 @@ public:
       start_idx_(start_idx), end_idx_(end_idx) {
     segments_ = new std::vector(pgm_index_->segments);
   }
-  uint64_t getApproxPosition(const T &t) override {
-    uint64_t pos = pgm_index_->search(converter_->toPoint(t)).pos;
-    pos = std::clamp(pos, start_idx_, end_idx_);
-    return pos - start_idx_;
-  }
   Bounds getPositionBounds(const T &t) override {
     auto bounds = pgm_index_->search(converter_->toPoint(t));
     bounds.lo = std::clamp(bounds.lo, start_idx_, end_idx_);
@@ -30,42 +25,6 @@ public:
     bounds.pos = std::clamp(bounds.lo, start_idx_, end_idx_);
     return Bounds{bounds.lo - start_idx_, bounds.hi-start_idx_, bounds.pos-start_idx_};
   }
-  uint64_t getApproxPositionMonotoneAccess(const T &t) override {
-    POINT_FLOAT_TYPE point = converter_->toPoint(t);
-    while (point >= (*segments_)[cur_segment_index_].key) {
-      cur_segment_index_++;
-    }
-    if (cur_segment_index_)
-      cur_segment_index_--;
-    uint64_t pos = std::min<size_t>((*segments_)[cur_segment_index_](point),
-                            (*segments_)[cur_segment_index_ + 1].intercept);
-    pos = std::clamp(pos, start_idx_, end_idx_);
-    return pos - start_idx_;
-  };
-  uint64_t getApproxLowerBoundPosition(const T &t) override {
-    uint64_t position = getApproxPosition(t);
-    if (position >= Epsilon) {
-      position = position - Epsilon;
-    } else {
-      position = 0;
-    }
-    position = std::clamp(position, start_idx_, end_idx_);
-    return position - start_idx_;
-  };
-  Bounds getPositionBoundsMonotoneAccess(const T &t) override {
-    return getPositionBounds(t);
-  };
-  uint64_t getApproxLowerBoundPositionMonotoneAccess(const T &t) override {
-    uint64_t position = getApproxPositionMonotoneAccess(t);
-    if (position >= Epsilon) {
-      position = position - Epsilon;
-    } else {
-      position = 0;
-    }
-    position = std::clamp(position, start_idx_, end_idx_);
-    return position - start_idx_;
-  };
-  void resetMonotoneAccess() override { cur_segment_index_ = 0; };
 
   uint64_t size_in_bytes() override {
     return segments_->size() * sizeof(segments_[0]);
