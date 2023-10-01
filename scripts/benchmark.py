@@ -20,6 +20,9 @@ flags.DEFINE_bool("check_results", True, "")
 flags.DEFINE_bool("track_stats", False, "")
 flags.DEFINE_bool("string_keys", False, "")
 flags.DEFINE_bool("debug_build", False, "")
+flags.DEFINE_integer("repeat", 3, "")
+flags.DEFINE_integer("threads", 1, "")
+flags.DEFINE_bool("regen_report", False, "")
 
 runner_bin = './bench/benchmark_runner'
 def build_runner(force_track_stats=False):
@@ -60,6 +63,8 @@ def extract_table(results, metric_fields):
     return results_table
 
 def run(command, force_dry_run=False, prefix=''):
+    if FLAGS.regen_report:
+        return
     command = ['numactl', '-N', '1', '-m', '1'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
@@ -80,17 +85,21 @@ def remove_result(result_path):
 def main(argv):
     bench_dir = os.path.join(FLAGS.run_dir, os.path.splitext(FLAGS.spec)[0])
     config_dir = os.path.join(bench_dir, "configs")
-    input_dir = os.path.join(bench_dir, "outputs")
-    output_dir = os.path.join(bench_dir, "inputs")
+    input_dir = os.path.join(bench_dir, "inputs")
+    output_dir = os.path.join(bench_dir, "outputs")
+    csv_dir = os.path.join(bench_dir, "csv")
     os.makedirs(config_dir, exist_ok=True)
     os.makedirs(input_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(csv_dir, exist_ok=True)
     
 
     json_str = _jsonnet.evaluate_file(
         FLAGS.spec, ext_vars = {
-            "TEST_OUTPUT_DIR": input_dir,
-            "TEST_INPUT_DIR": output_dir,
+            "TEST_OUTPUT_DIR": output_dir,
+            "TEST_INPUT_DIR": input_dir,
+            "TEST_REPEAT": str(FLAGS.repeat),
+            "TEST_NUM_THREADS": str(FLAGS.threads),
         }
     )
 
@@ -105,6 +114,7 @@ def main(argv):
         result_json = run([runner_bin, run_config['spec_path']], prefix="Running %s" % run_config['spec_path'])
         print(result_json)
 
+    results = []
     for test_config in json_obj["tests"]:
         run_config = {}
         json_dict = json.dumps(test_config, indent=4)
@@ -112,8 +122,46 @@ def main(argv):
         with open(run_config['spec_path'], "w") as outfile:
             outfile.write(json_dict)
         result_json = run([runner_bin, run_config['spec_path']], prefix="Running %s" % run_config['spec_path'])
-        print(result_json)
+        if not FLAGS.regen_report:
+            remove_result(result_json['spec']['result_path'])
+        results.append(result_json)
         
+    if FLAGS.regen_report:
+        result_json_file = os.path.join(bench_dir, "results.json")
+        with open(result_json_file, "r") as out:
+            results = json.load(out)
+            print(results)
+    else:
+        result_json_file = os.path.join(bench_dir, "results.json")
+        with open(result_json_file, "w") as out:
+            out.write(json.dumps(results, indent=4))
+
+    result_checksums = {}
+    for result in results:
+        result_path = result['spec']['result_path']
+        result_common_key = result['spec']['common_key']
+        if result_common_key not in result_checksums:
+            result_checksums[result_common_key] = []
+        result_checksums[result_common_key].append(result['result']['checksum'])
+
+    for result_common_key in result_checksums:
+        diff_found = False
+        for idx, checksum in enumerate(result_checksums[result_common_key][1:]):
+            if checksum != result_checksums[result_common_key][idx-1]:
+                diff_found = True
+        if diff_found:
+            print(str(result_common_key) + "_DIFF: FAIL")
+        else:
+            print(str(result_common_key) + "_DIFF: OK")
+
+    df = pd.json_normalize(results)
+    print(df.columns)
+    print(df.groupby(['spec.common_key', 'spec.algo_name']).agg({
+        'result.duration_ns': 'median', 
+        'result.inner_index_build_duration_sec': 'median',
+        'result.inner_index_size': 'median',
+        'result.inner_disk_fetch': 'median'
+    }).to_markdown())
 
 if __name__ == "__main__":
     app.run(main)
