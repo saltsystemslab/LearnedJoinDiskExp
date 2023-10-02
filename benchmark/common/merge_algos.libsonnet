@@ -11,7 +11,7 @@
                "type": "pgm64"
             },
             "name": "PGM_64",
-            "threshold": 5
+            "threshold": 0
          },
          {
             "algo": "learned_merge_threshold",
@@ -19,15 +19,15 @@
                "type": "onelevel_pgm64"
             },
             "name": "ONELEVEL_PGM_64_THRESH",
-            "threshold": 5
+            "threshold": 0
          },
          {
             "algo": "learned_merge_threshold",
             "index": {
-               "type": "rbtree"
+               "type": "btree"
             },
-            "name": "RbTree",
-            "threshold": 5
+            "name": "BTree",
+            "threshold": 0
          },
       ]
 }

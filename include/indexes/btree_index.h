@@ -51,7 +51,7 @@ public:
     return tree_->get_tree_size();
   }
   Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
-    return new BTreeWIndex(tree_, block_size_, start, end);
+    return new BTreeWIndex(tree_, block_size_, num_blocks_, start, end);
   }
 
 private:
