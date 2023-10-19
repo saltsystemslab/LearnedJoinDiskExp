@@ -6,9 +6,9 @@
 #include "iterator.h"
 #include "partition.h"
 #include "sstable.h"
-#include <stdint.h>
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include <stdint.h>
 #include <thread>
 
 using json = nlohmann::json;
@@ -73,7 +73,7 @@ parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                       json *merge_log) {
   std::vector<std::thread> threads;
   std::vector<json> merge_logs(num_threads);
-  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["inner_disk_fetch"] = 0;
   (*merge_log)["outer_disk_fetch"] = 0;
   auto partitions = partition_sstables<T>(num_threads, outer_table, inner_table,
                                           inner_index, comparator);
@@ -125,7 +125,7 @@ parallelLearnedMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                      PSSTableBuilder<T> *resultBuilder, json *merge_log) {
   std::vector<std::thread> threads;
   std::vector<json> merge_logs(num_threads);
-  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["inner_disk_fetch"] = 0;
   (*merge_log)["outer_disk_fetch"] = 0;
   auto partitions = partition_sstables<T>(num_threads, outer_table, inner_table,
                                           inner_index, comparator);
@@ -177,7 +177,7 @@ SSTable<T> *parallelLearnedMergeWithThreshold(
     PSSTableBuilder<T> *resultBuilder, json *merge_log) {
   std::vector<std::thread> threads;
   std::vector<json> merge_logs(num_threads);
-  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["inner_disk_fetch"] = 0;
   (*merge_log)["outer_disk_fetch"] = 0;
   auto partitions = partition_sstables<T>(num_threads, outer_table, inner_table,
                                           inner_index, comparator);
@@ -229,7 +229,7 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
 #if TRACK_STATS
   comparator = new CountingComparator<T>(comparator);
 #endif
-  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["inner_disk_fetch"] = 0;
   (*merge_log)["outer_disk_fetch"] = 0;
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
@@ -251,7 +251,7 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   }
 #if TRACK_STATS
   (*merge_log)["comparison_count"] =
-      ((CountingComparator<T> *)(comparator))->get_count();
+      ((CountingComparator<T> *)(comparator))->getCount();
 #endif
   (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
   (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
@@ -268,7 +268,7 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["max_index_error_correction"] = 0;
   comparator = new CountingComparator<T>(comparator);
 #endif
-  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["inner_disk_fetch"] = 0;
   (*merge_log)["outer_disk_fetch"] = 0;
 
   Iterator<T> *inner_iter = inner_table->iterator();
@@ -303,7 +303,7 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
   }
 #if TRACK_STATS
   (*merge_log)["comparison_count"] =
-      ((CountingComparator<T> *)(comparator))->get_count();
+      ((CountingComparator<T> *)(comparator))->getCount();
 #endif
   (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
   (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
@@ -320,7 +320,7 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["max_index_error_correction"] = 0;
   comparator = new CountingComparator<T>(comparator);
 #endif
-  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["inner_disk_fetch"] = 0;
   (*merge_log)["outer_disk_fetch"] = 0;
 
   Iterator<T> *inner_iter = inner_table->iterator();
@@ -369,7 +369,7 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
 
 #if TRACK_STATS
   (*merge_log)["comparison_count"] =
-      ((CountingComparator<T> *)(comparator))->get_count();
+      ((CountingComparator<T> *)(comparator))->getCount();
 #endif
   (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
   (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
@@ -438,8 +438,9 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
 #if TRACK_STATS
   uint64_t error_correction = 0;
 #endif
-  uint64_t approx_pos = smallest->index->getPositionBounds(
-      second_smallest->iter->key()).approx_pos;
+  uint64_t approx_pos =
+      smallest->index->getPositionBounds(second_smallest->iter->key())
+          .approx_pos;
   approx_pos = std::max(approx_pos, smallest->iter->currentPos());
   approx_pos = std::min(approx_pos, smallest->iter->numElts() - 1);
   bool is_overshoot = false;

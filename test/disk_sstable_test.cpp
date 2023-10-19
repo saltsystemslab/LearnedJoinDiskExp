@@ -51,19 +51,18 @@ TEST(DiskSSTable, TestCreation) {
   uint64_t end = 300000;
   auto subRangeTable = table->getSSTableForSubRange(start, end);
   auto subRangeIter = subRangeTable->iterator();
-  for (uint64_t i=start; i<end; i++) {
+  for (uint64_t i = start; i < end; i++) {
     KVSlice cur_kv(data_ptrs[i], key_size_bytes, value_size_bytes);
     ASSERT_TRUE(memcmp(subRangeIter->key().data(), cur_kv.data(),
                        key_size_bytes + value_size_bytes) == 0);
     subRangeIter->next();
   }
-  ASSERT_EQ(subRangeIter->numElts(), end-start);
+  ASSERT_EQ(subRangeIter->numElts(), end - start);
   ASSERT_FALSE(subRangeIter->valid());
 
   delete[] data_ptrs;
   delete[] data;
 }
-
 
 TEST(PDiskSSTable, PTestCreation_SingleThread) {
   uint64_t numElts = 5000000;
@@ -77,11 +76,12 @@ TEST(PDiskSSTable, PTestCreation_SingleThread) {
       numElts, key_size_bytes, value_size_bytes, comparator);
   char **data_ptrs =
       sort_buffer(data, numElts, key_size_bytes, value_size_bytes, comparator);
-  for (int i=0; i<4; i++) {
-    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(numElts/4 * i, numElts/4 * (i+1));
-    uint64_t start = numElts/4 * i;
-    uint64_t end = start + numElts/4;
-    for (uint64_t idx=start; idx<end; idx++) {
+  for (int i = 0; i < 4; i++) {
+    SSTableBuilder<KVSlice> *p_builder =
+        builder->getBuilderForRange(numElts / 4 * i, numElts / 4 * (i + 1));
+    uint64_t start = numElts / 4 * i;
+    uint64_t end = start + numElts / 4;
+    for (uint64_t idx = start; idx < end; idx++) {
       KVSlice kv(data_ptrs[idx], key_size_bytes, value_size_bytes);
       p_builder->add(kv);
     }
@@ -110,12 +110,14 @@ TEST(PDiskSSTable, PTestCreation_SingleThread) {
   delete[] data;
 }
 
-void add_to_table(SSTableBuilder<KVSlice> *builder, char **data_ptrs, int key_size_bytes, int value_size_bytes, uint64_t start, uint64_t end) {
-    for (uint64_t idx=start; idx<end; idx++) {
-      KVSlice kv(data_ptrs[idx], key_size_bytes, value_size_bytes);
-      builder->add(kv);
-    }
-    builder->build();
+void add_to_table(SSTableBuilder<KVSlice> *builder, char **data_ptrs,
+                  int key_size_bytes, int value_size_bytes, uint64_t start,
+                  uint64_t end) {
+  for (uint64_t idx = start; idx < end; idx++) {
+    KVSlice kv(data_ptrs[idx], key_size_bytes, value_size_bytes);
+    builder->add(kv);
+  }
+  builder->build();
 }
 
 TEST(PDiskSSTable, PTestCreation_MultiThread) {
@@ -131,13 +133,16 @@ TEST(PDiskSSTable, PTestCreation_MultiThread) {
   char **data_ptrs =
       sort_buffer(data, numElts, key_size_bytes, value_size_bytes, comparator);
   std::vector<std::thread> threads;
-  for (int i=0; i<4; i++) {
-    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(numElts/4 * i, numElts/4 * (i+1));
-    uint64_t start = numElts/4 * i;
-    uint64_t end = start + numElts/4;
-    threads.push_back(std::thread(add_to_table, p_builder, data_ptrs, key_size_bytes, value_size_bytes, start, end));
+  for (int i = 0; i < 4; i++) {
+    SSTableBuilder<KVSlice> *p_builder =
+        builder->getBuilderForRange(numElts / 4 * i, numElts / 4 * (i + 1));
+    uint64_t start = numElts / 4 * i;
+    uint64_t end = start + numElts / 4;
+    threads.push_back(std::thread(add_to_table, p_builder, data_ptrs,
+                                  key_size_bytes, value_size_bytes, start,
+                                  end));
   }
-  for (int i=0; i<4; i++) {
+  for (int i = 0; i < 4; i++) {
     threads[i].join();
   }
   SSTable<KVSlice> *table = builder->build();
@@ -177,18 +182,20 @@ TEST(PDiskSSTable, PTestCreation_MultiThread_Split) {
       sort_buffer(data, numElts, key_size_bytes, value_size_bytes, comparator);
   std::vector<char *> expected_data_ptrs;
   std::vector<std::thread> threads;
-  for (int i=0; i<4; i++) {
-    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(numElts/4 * i, numElts/4 * (i+1));
-    uint64_t start = numElts/4 * i + 100;
-    uint64_t end = start + numElts/4 - 100;
-    for (int j=start; j<end; j++) {
+  for (int i = 0; i < 4; i++) {
+    SSTableBuilder<KVSlice> *p_builder =
+        builder->getBuilderForRange(numElts / 4 * i, numElts / 4 * (i + 1));
+    uint64_t start = numElts / 4 * i + 100;
+    uint64_t end = start + numElts / 4 - 100;
+    for (int j = start; j < end; j++) {
       expected_data_ptrs.push_back(data_ptrs[j]);
-    } 
-    #if 0
+    }
+#if 0
     threads.push_back(
       std::thread(add_to_table, p_builder, data_ptrs, key_size_bytes, value_size_bytes, start, end));
-    #endif
-      add_to_table(p_builder, data_ptrs, key_size_bytes, value_size_bytes, start, end);
+#endif
+    add_to_table(p_builder, data_ptrs, key_size_bytes, value_size_bytes, start,
+                 end);
   }
   SSTable<KVSlice> *table = builder->build();
   Iterator<KVSlice> *iterator = table->iterator();
@@ -201,7 +208,8 @@ TEST(PDiskSSTable, PTestCreation_MultiThread_Split) {
                        key_size_bytes + value_size_bytes) == 0);
 
     uint64_t peek_idx = random() % expected_data_ptrs.size();
-    KVSlice peek_kv(expected_data_ptrs[peek_idx], key_size_bytes, value_size_bytes);
+    KVSlice peek_kv(expected_data_ptrs[peek_idx], key_size_bytes,
+                    value_size_bytes);
     ASSERT_TRUE(memcmp(iterator->peek(peek_idx).data(), peek_kv.data(),
                        key_size_bytes + value_size_bytes) == 0);
     iterator->next();
@@ -212,7 +220,6 @@ TEST(PDiskSSTable, PTestCreation_MultiThread_Split) {
   delete[] data_ptrs;
   delete[] data;
 }
-
 
 TEST(DiskSSTable, DISABLED_TestCreationLarge) {
   uint64_t numElts = 50000000;

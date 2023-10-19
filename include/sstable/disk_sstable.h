@@ -7,16 +7,15 @@
 #include "key_value_slice.h"
 #include "sstable.h"
 #include <assert.h>
+#include <bit>
 #include <fcntl.h>
 #include <fstream>
+#include <functional>
 #include <map>
+#include <stdint.h>
 #include <string>
 #include <thread>
 #include <unistd.h>
-#include <bit>
-#include <stdint.h>
-#include <bit>
-#include <functional>
 
 #define HEADER_SIZE 16
 
@@ -35,28 +34,27 @@ public:
     uint64_t page_idx = (kv_idx * kv_size_bytes_) / PAGE_SIZE;
     uint64_t page_offset = (kv_idx * kv_size_bytes_) % PAGE_SIZE;
     char *page_data = file_page_cache_->get_page(page_idx);
-    return KVSlice(page_data + page_offset + PAGE_SIZE, key_size_bytes_, value_size_bytes_);
+    return KVSlice(page_data + page_offset + PAGE_SIZE, key_size_bytes_,
+                   value_size_bytes_);
   }
   uint64_t get_num_disk_fetches() {
     return file_page_cache_->get_num_disk_fetches();
   }
 
-/* Adapting Branchless Binary search from https://github.com/skarupke/branchless_binary_search */
-  inline size_t bit_floor(size_t i)
-{
+  /* Adapting Branchless Binary search from
+   * https://github.com/skarupke/branchless_binary_search */
+  inline size_t bit_floor(size_t i) {
     constexpr int num_bits = sizeof(i) * 8;
     return size_t(1) << (num_bits - std::countl_zero(i) - 1);
-}
-inline size_t bit_ceil(size_t i)
-{
+  }
+  inline size_t bit_ceil(size_t i) {
     constexpr int num_bits = sizeof(i) * 8;
     return size_t(1) << (num_bits - std::countl_zero(i - 1));
-}
+  }
 
-
-  char* lower_bound(char *buf, uint64_t len_in_bytes, const char *key) {
+  char *lower_bound(char *buf, uint64_t len_in_bytes, const char *key) {
     uint64_t start = 0;
-    uint64_t end = (len_in_bytes)/(key_size_bytes_ + value_size_bytes_);
+    uint64_t end = (len_in_bytes) / (key_size_bytes_ + value_size_bytes_);
     uint64_t len = end - start;
     uint64_t step = bit_floor(len);
 #ifdef STRING_KEYS
@@ -69,7 +67,7 @@ inline size_t bit_ceil(size_t i)
       step = bit_ceil(len);
       start = end - step;
     }
-    for (step /=2; step!=0; step /=2) {
+    for (step /= 2; step != 0; step /= 2) {
       cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
       if (memcmp(cur, key, key_size_bytes_) < 0) {
         start += step;
@@ -80,7 +78,8 @@ inline size_t bit_ceil(size_t i)
     return buf + (key_size_bytes_ + value_size_bytes_) * (start);
 #else
     uint64_t key_value = *(uint64_t *)(key);
-    uint64_t cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    uint64_t cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) *
+                                           (step + start));
     if (step != len && (cur < key_value)) {
       len -= step + 1;
       if (len == 0) {
@@ -89,12 +88,14 @@ inline size_t bit_ceil(size_t i)
       step = bit_ceil(len);
       start = end - step;
     }
-    for (step /=2; step!=0; step /=2) {
-      cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    for (step /= 2; step != 0; step /= 2) {
+      cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) *
+                                    (step + start));
       if (cur < key_value)
         start += step;
     }
-    cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
+    cur = *(uint64_t *)(buf +
+                        (key_size_bytes_ + value_size_bytes_) * (step + start));
     start = start + (cur < key_value);
     return buf + (key_size_bytes_ + value_size_bytes_) * (start);
 #endif
@@ -103,8 +104,11 @@ inline size_t bit_ceil(size_t i)
     uint64_t len;
     char *cache_buffer = file_page_cache_->get_cur_page(&len);
     char *lower = lower_bound(cache_buffer, len, key);
-    return (lower != cache_buffer + len) ? (memcmp(key, lower, key_size_bytes_) == 0) : false;
+    return (lower != cache_buffer + len)
+               ? (memcmp(key, lower, key_size_bytes_) == 0)
+               : false;
   }
+
 private:
   int kv_size_bytes_;
   int key_size_bytes_;
@@ -139,9 +143,9 @@ public:
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
   uint64_t currentPos() override { return cur_idx_ - start_idx_; }
   uint64_t numElts() override { return num_keys_; }
-  uint64_t getDiskFetches() override { 
-    return cur_kv_cache_->get_num_disk_fetches() 
-      + peek_kv_cache_->get_num_disk_fetches(); 
+  uint64_t getDiskFetches() override {
+    return cur_kv_cache_->get_num_disk_fetches() +
+           peek_kv_cache_->get_num_disk_fetches();
   }
   bool checkCache(KVSlice kv) override {
     return peek_kv_cache_->check_for_key_in_cache(kv.data());
@@ -181,7 +185,7 @@ public:
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =
         FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_keys_, key_size_bytes_,
-                                           value_size_bytes_, nullptr);
+                                                    value_size_bytes_, nullptr);
     Iterator<KVSlice> *iter = this->iterator();
     iter->seekToFirst();
     while (iter->valid()) {
@@ -263,7 +267,7 @@ private:
 };
 
 void addKeysToBuilder(Iterator<KVSlice> *iterator,
-                                          SSTableBuilder<KVSlice> *builder) {
+                      SSTableBuilder<KVSlice> *builder) {
   iterator->seekToFirst();
   while (iterator->valid()) {
     builder->add(iterator->key());
@@ -272,8 +276,8 @@ void addKeysToBuilder(Iterator<KVSlice> *iterator,
   builder->build();
 }
 
-/* 
-Will write out individual SSTables in the same file for each range. 
+/*
+Will write out individual SSTables in the same file for each range.
 Use this if you know exactly how many elements you need for each range.
 */
 
@@ -337,7 +341,8 @@ private:
   bool built_;
 };
 
-/* Will write out individual SSTables in new files for each range and then merge them together. */
+/* Will write out individual SSTables in new files for each range and then merge
+ * them together. */
 class PSplitFixedSizeKVDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
 public:
   PSplitFixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,

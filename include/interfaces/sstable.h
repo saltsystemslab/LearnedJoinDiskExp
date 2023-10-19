@@ -17,7 +17,8 @@ public:
 
 template <class T> class PSSTableBuilder {
 public:
-  virtual SSTableBuilder<T> *getBuilderForRange(uint64_t start_index, uint64_t end_index) = 0;
+  virtual SSTableBuilder<T> *getBuilderForRange(uint64_t start_index,
+                                                uint64_t end_index) = 0;
   virtual SSTable<T> *build() = 0;
 };
 } // namespace li_merge

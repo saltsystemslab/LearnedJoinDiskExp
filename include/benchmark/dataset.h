@@ -4,6 +4,7 @@
 #include "disk_sstable.h"
 #include "key_value_slice.h"
 #include "sstable.h"
+#include <algorithm>
 #include <fcntl.h>
 #include <openssl/rand.h>
 #include <random>
@@ -11,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <algorithm>
 
 namespace li_merge {
 

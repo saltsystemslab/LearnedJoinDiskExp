@@ -100,7 +100,8 @@ public:
         comparator_(comparator), total_kv_(total_keys) {
     data_ = new char[total_keys * (key_size_bytes + value_size_bytes)];
   }
-  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index, uint64_t end_index) override {
+  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index,
+                                              uint64_t end_index) override {
     return new FixedSizeKVInMemSSTableBuilder(
         data_ + (start_index * (key_size_bytes_ + value_size_bytes_)),
         key_size_bytes_, value_size_bytes_, comparator_);

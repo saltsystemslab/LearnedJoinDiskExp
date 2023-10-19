@@ -13,8 +13,8 @@ TEST(SyntheticGen, UniformRandom) {
   Comparator<KVSlice> *comparator = new KVUint64Cmp();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
-                                         value_size_bytes, comparator));
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(
+          num_elts, key_size_bytes, value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
   iterator->seekToFirst();
@@ -40,8 +40,8 @@ TEST(SyntheticGen, DISABLED_UniformRandom_Large) {
   Comparator<KVSlice> *comparator = new KVUint64Cmp();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
       num_elts, key_size_bytes, value_size_bytes, comparator,
-      FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_elts, key_size_bytes,
-                                         value_size_bytes, comparator));
+      FixedSizeKVInMemSSTableBuilder::InMemMalloc(
+          num_elts, key_size_bytes, value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
   iterator->seekToFirst();

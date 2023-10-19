@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 class FilePageCache {
 public:
@@ -29,7 +29,7 @@ public:
     if (!is_buffer_loaded_ || page_idx != cur_page_idx_) {
       // We assume that a page can always be read in a single pread call.
       int bytes_read =
-          pread(fd_, buffer_, PAGE_SIZE, start_offset_ + (page_idx) * PAGE_SIZE);
+          pread(fd_, buffer_, PAGE_SIZE, start_offset_ + (page_idx)*PAGE_SIZE);
       num_disk_fetches_++;
       if (bytes_read < 0) {
         perror("pread");
@@ -41,9 +41,7 @@ public:
     return buffer_;
   }
 
-  uint64_t get_num_disk_fetches() override {
-    return num_disk_fetches_;
-  }
+  uint64_t get_num_disk_fetches() override { return num_disk_fetches_; }
 
   char *get_cur_page(uint64_t *len) {
     *len = PAGE_SIZE;
@@ -68,17 +66,20 @@ public:
   char *get_page(uint64_t page_idx) override {
     if (!is_buffer_loaded_ || page_idx != cur_page_idx_) {
       // We assume that a page can always be read in a single pread call.
-      // If we go beyond, we fill the bits 1s. This won't work for all comparators.
+      // If we go beyond, we fill the bits 1s. This won't work for all
+      // comparators.
       int bytes_read;
       if (page_idx) {
-          bytes_read = pread(fd_, buffer_, 3 * PAGE_SIZE, start_offset_ + (page_idx - 1) * PAGE_SIZE);
-          if (bytes_read < 3 *PAGE_SIZE) {
-            int bytes_to_fill = (3*PAGE_SIZE) - bytes_read;
-            memset(buffer_ + bytes_read, -1, bytes_to_fill);
-          }
+        bytes_read = pread(fd_, buffer_, 3 * PAGE_SIZE,
+                           start_offset_ + (page_idx - 1) * PAGE_SIZE);
+        if (bytes_read < 3 * PAGE_SIZE) {
+          int bytes_to_fill = (3 * PAGE_SIZE) - bytes_read;
+          memset(buffer_ + bytes_read, -1, bytes_to_fill);
+        }
       } else {
-          memset(buffer_, 0, 3 * PAGE_SIZE);
-          bytes_read = pread(fd_, buffer_ + PAGE_SIZE, 2 * PAGE_SIZE, start_offset_);
+        memset(buffer_, 0, 3 * PAGE_SIZE);
+        bytes_read =
+            pread(fd_, buffer_ + PAGE_SIZE, 2 * PAGE_SIZE, start_offset_);
       }
       num_disk_fetches_++;
       if (bytes_read < 0) {
@@ -91,9 +92,7 @@ public:
     return buffer_;
   }
 
-  uint64_t get_num_disk_fetches() override {
-    return num_disk_fetches_;
-  }
+  uint64_t get_num_disk_fetches() override { return num_disk_fetches_; }
 
   char *get_cur_page(uint64_t *len) {
     *len = 3 * PAGE_SIZE;
@@ -108,6 +107,5 @@ private:
   uint64_t cur_page_idx_;
   uint64_t num_disk_fetches_;
 };
-
 
 #endif

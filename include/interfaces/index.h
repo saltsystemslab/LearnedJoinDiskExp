@@ -21,14 +21,14 @@ public:
 };
 
 template <class T> class IndexBuilder {
-  public:
+public:
   virtual void add(const T &t) = 0;
   virtual Index<T> *build() = 0;
 };
 
 template <class T>
 Index<T> *buildIndexFromIterator(Iterator<T> *iterator,
-                                    IndexBuilder<T> *builder) {
+                                 IndexBuilder<T> *builder) {
   iterator->seekToFirst();
   while (iterator->valid()) {
     builder->add(iterator->key());

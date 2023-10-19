@@ -1,6 +1,7 @@
 #ifndef LEARNEDMERGE_INDEX_TEST_RUNNER_H
 #define LEARNEDMERGE_INDEX_TEST_RUNNER_H
 
+#include "btree_index.h"
 #include "comparator.h"
 #include "dataset.h"
 #include "disk_sstable.h"
@@ -13,9 +14,6 @@
 #include "synthetic.h"
 #include <openssl/md5.h>
 #include <unordered_set>
-#include "one_level_pgm_index.h"
-#include "pgm_index.h"
-#include "btree_index.h"
 #include "runner.h"
 
 #include <nlohmann/json.hpp>
@@ -93,10 +91,10 @@ json create_input_sstable(json test_spec) {
       // TODO(chesetti): This doesn't have to be inmem.
       SSTableBuilder<KVSlice> *in_mem_result =
           FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-              num_keys + common_keys->iterator()->numElts(), key_size_bytes, value_size_bytes,
-              get_comparator(test_spec));
-      SSTable<KVSlice> *merged_key_list = standardMerge(
-          common_keys, keys, comparator, in_mem_result, &result);
+              num_keys + common_keys->iterator()->numElts(), key_size_bytes,
+              value_size_bytes, get_comparator(test_spec));
+      SSTable<KVSlice> *merged_key_list =
+          standardMerge(common_keys, keys, comparator, in_mem_result, &result);
 
       delete result_table_builder;
       auto iterator = merged_key_list->iterator();
@@ -216,8 +214,8 @@ json run_sort_join(json test_spec) {
 
   auto merge_start = std::chrono::high_resolution_clock::now();
   SSTable<KVSlice> *resultTable = parallel_presort_join<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index,
-      comparator, result_table_builder, &result);
+      num_threads, outer_table, inner_table, inner_index, comparator,
+      result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -253,8 +251,8 @@ json run_sort_join_exp(json test_spec) {
 
   auto merge_start = std::chrono::high_resolution_clock::now();
   SSTable<KVSlice> *resultTable = parallel_presort_join_exp<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index,
-      comparator, result_table_builder, &result);
+      num_threads, outer_table, inner_table, inner_index, comparator,
+      result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -300,8 +298,8 @@ json run_hash_join(json test_spec) {
 
   auto merge_start = std::chrono::high_resolution_clock::now();
   auto resultTable = parallel_hash_join<KVSlice>(
-      num_threads, outer_table, &outer_index, inner_table,
-      inner_index, comparator, result_table_builder, &result);
+      num_threads, outer_table, &outer_index, inner_table, inner_index,
+      comparator, result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -336,17 +334,19 @@ json run_learned_merge(json test_spec) {
   auto outer_index_build_begin = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *outer_index = buildIndex(outer_table, outer_index_builder);
   auto outer_index_build_end = std::chrono::high_resolution_clock::now();
-  auto outer_index_build_duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         outer_index_build_end - outer_index_build_end)
-                         .count();
+  auto outer_index_build_duration_ns =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          outer_index_build_end - outer_index_build_end)
+          .count();
   result["outer_index_build_duration_ns"] = outer_index_build_duration_ns;
 
   auto inner_index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
   auto inner_index_build_end = std::chrono::high_resolution_clock::now();
-  auto inner_index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         inner_index_build_start - inner_index_build_end)
-                         .count();
+  auto inner_index_build_duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          inner_index_build_start - inner_index_build_end)
+          .count();
   result["inner_index_build_duration_ns"] = inner_index_build_duration;
 
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
@@ -395,9 +395,10 @@ json run_learned_merge_threshold(json test_spec) {
   auto index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
   auto index_build_end = std::chrono::high_resolution_clock::now();
-  auto index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         index_build_start - index_build_end)
-                         .count();
+  auto index_build_duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(index_build_start -
+                                                           index_build_end)
+          .count();
   result["inner_index_build_duration_ns"] = index_build_duration;
 
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
@@ -448,13 +449,14 @@ json run_inlj_with_btree(json test_spec) {
   uint64_t pos = 0;
   while (inner_iterator->valid()) {
 #ifdef STRING_KEYS
-      data[pos].key = std::string(inner_iterator->key().data(), (uint64_t)test_spec["key_size"]);
+    data[pos].key = std::string(inner_iterator->key().data(),
+                                (uint64_t)test_spec["key_size"]);
 #else
-      data[pos].key = *(uint64_t *)(inner_iterator->key().data());
-      data[pos].value = *(uint64_t *)(inner_iterator->key().data());
+    data[pos].key = *(uint64_t *)(inner_iterator->key().data());
+    data[pos].value = *(uint64_t *)(inner_iterator->key().data());
 #endif
-      inner_iterator->next();
-      pos++;
+    inner_iterator->next();
+    pos++;
   }
   std::string btree_file_name(test_spec["inner_table"]);
   btree_file_name += "_inmem_btree";
@@ -462,8 +464,9 @@ json run_inlj_with_btree(json test_spec) {
   btree->bulk_load(data, pos);
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join_with_btree(num_threads, 
-      outer_table, inner_table, btree, result_table_builder, &result);
+  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join_with_btree(
+      num_threads, outer_table, inner_table, btree, result_table_builder,
+      &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -510,8 +513,8 @@ json run_index_study(json test_spec) {
   Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
   merge_end = std::chrono::high_resolution_clock::now();
   duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
+                    merge_end - merge_start)
+                    .count();
   duration_sec = duration_ns / 1e9;
   result["inner_index_build_duration"] = duration_sec;
 
@@ -550,8 +553,8 @@ json run_inlj(json test_spec) {
 
   auto merge_start = std::chrono::high_resolution_clock::now();
   SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index,
-      comparator, result_table_builder, &result);
+      num_threads, outer_table, inner_table, inner_index, comparator,
+      result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -590,17 +593,19 @@ json run_inlj_with_pgm(json test_spec) {
   auto outer_index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *outer_index = buildIndex(outer_table, outer_index_builder);
   auto outer_index_build_end = std::chrono::high_resolution_clock::now();
-  auto outer_index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         outer_index_build_end - outer_index_build_start)
-                         .count();
+  auto outer_index_build_duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          outer_index_build_end - outer_index_build_start)
+          .count();
   result["outer_index_build_duration"] = outer_index_build_duration;
 
   auto inner_index_build_start = std::chrono::high_resolution_clock::now();
   Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
   auto inner_index_build_end = std::chrono::high_resolution_clock::now();
-  auto inner_index_build_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         inner_index_build_end - inner_index_build_start)
-                         .count();
+  auto inner_index_build_duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          inner_index_build_end - inner_index_build_start)
+          .count();
   result["inner_index_build_duration_ns"] = inner_index_build_duration;
 
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
@@ -609,9 +614,10 @@ json run_inlj_with_pgm(json test_spec) {
   int num_threads = test_spec["num_threads"];
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join_with_pgm<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index,
-      comparator, result_table_builder, &result);
+  SSTable<KVSlice> *resultTable =
+      parallel_indexed_nested_loop_join_with_pgm<KVSlice>(
+          num_threads, outer_table, inner_table, inner_index, comparator,
+          result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -635,7 +641,6 @@ json run_inlj_with_pgm(json test_spec) {
 
   return result;
 }
-
 
 SSTable<KVSlice> *load_sstable(std::string path, bool load_in_mem) {
   FixedSizeKVDiskSSTable *table_disk = new FixedSizeKVDiskSSTable(path);
@@ -665,8 +670,7 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
   }
   std::string index_type = test_spec["index"]["type"];
   if (index_type == "onelevel_pgm8") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 8>(0,
-                                                    get_converter(test_spec));
+    return new OneLevelPgmIndexBuilder<KVSlice, 8>(0, get_converter(test_spec));
   } else if (index_type == "onelevel_pgm64") {
     return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
                                                     get_converter(test_spec));
@@ -678,7 +682,7 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
                                                      get_converter(test_spec));
   } else if (index_type == "onelevel_pgm1024") {
     return new OneLevelPgmIndexBuilder<KVSlice, 1024>(0,
-                                                     get_converter(test_spec));
+                                                      get_converter(test_spec));
   } else if (index_type == "onelevel_pgm16") {
     return new OneLevelPgmIndexBuilder<KVSlice, 16>(0,
                                                     get_converter(test_spec));
