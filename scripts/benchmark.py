@@ -14,53 +14,118 @@ import _jsonnet
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("spec", "", "JSON Test Spec")
-flags.DEFINE_string("run_dir", "sponge", "JSON Test Spec")
-flags.DEFINE_bool("skip_input", False, "")
-flags.DEFINE_bool("check_results", True, "")
-flags.DEFINE_bool("track_stats", False, "")
-flags.DEFINE_bool("string_keys", False, "")
+flags.DEFINE_string("test_dir", "sponge", "JSON Test Spec")
+flags.DEFINE_bool("skip_input", False, "Skip input creation")
+flags.DEFINE_bool("check_results", True, "Verify that all the outputs are same.")
+flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmark stats.")
+flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
 
-runner_bin = './bench/benchmark_runner'
-def build_runner(force_track_stats=False):
+def main(argv):
+    os.makedirs(FLAGS.test_dir, exist_ok=True)
+
+    # Create benchmark_runner in sponge/build/
+    # TODO(chesetti): Build to individual test directory.
+    runner_bin = build_runner(os.path.join(FLAGS.test_dir, 'build')); 
+
+    # Setup Experiment Directories
+    exp = setup_experiment_directories()
+
+    # Generate the experiment json config.
+    # This config has definitions to generate input files, and test configurations.
+    exp['config'] = json.loads(_jsonnet.evaluate_file(
+        FLAGS.spec, ext_vars = {
+            "TEST_OUTPUT_DIR": exp['output_dir'],
+            "TEST_INPUT_DIR": exp['input_dir'],
+            "TEST_REPEAT": str(FLAGS.repeat),
+            "TEST_NUM_THREADS": str(FLAGS.threads),
+        }
+    ))
+
+    # Benchmark Runner takes in a JSON config to either 
+    #   a) generate an input SSTable
+    #   b) run an experiment in a test (eg. join input 1 and input 2 using pgm)
+    # Generate all the JSON configs.
+    generate_configs(exp['config']['inputs'], exp['input_config_dir'])
+    generate_configs(exp['config']['tests'], exp['output_config_dir'])
+    run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False)
+    run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True)
+
+def build_runner(build_dir, force_track_stats=False):
     track_stats='-DTRACK_STATS=ON' if (FLAGS.track_stats or force_track_stats) else '-DTRACK_STATS=OFF'
     string_keys = '-DSTRING_KEYS=ON' if (FLAGS.string_keys) else '-DSTRING_KEYS=OFF'
     debug = '-DCMAKE_BUILD_TYPE=debug' if (FLAGS.debug_build) else '-DCMAKE_BUILD_TYPE=release'
-    subprocess.run(['cmake', '-B', 'bench', track_stats, string_keys, debug, '-S', '.'])
-    subprocess.run(['cmake', '--build', 'bench', '-j'])
+    subprocess.run(['cmake', '-B', build_dir, track_stats, string_keys, debug, '-S', '.'])
+    subprocess.run(['cmake', '--build', build_dir, '-j'])
+    return os.path.join(build_dir, 'benchmark_runner')
 
-#https://github.com/nschloe/tikzplotlib/issues/557#issuecomment-1401501721
-def tikzplotlib_fix_ncols(obj):
-    """
-    workaround for matplotlib 3.6 renamed legend's _ncol to _ncols, which breaks tikzplotlib
-    """
-    if hasattr(obj, "_ncols"):
-        obj._ncol = obj._ncols
-    for child in obj.get_children():
-        tikzplotlib_fix_ncols(child)
+def get_specname():
+    spec_path_with_extension = os.path.split(FLAGS.spec)[-1]
+    return os.path.splitext(spec_path_with_extension)[0]
 
+def setup_experiment_directories():
+    experiment_dir = os.path.join(FLAGS.test_dir, get_specname())
+    input_dir = os.path.join(experiment_dir, "inputs")
+    output_dir = os.path.join(experiment_dir, "outputs")
+    input_config_dir = os.path.join(input_dir, "configs")
+    output_config_dir = os.path.join(output_dir, "configs")
+    input_result_dir = os.path.join(input_dir, "results")
+    output_result_dir = os.path.join(output_dir, "results")
+    csv_dir = os.path.join(experiment_dir, "csv")
+    os.makedirs(input_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(input_config_dir, exist_ok=True)
+    os.makedirs(output_config_dir, exist_ok=True)
+    os.makedirs(input_result_dir, exist_ok=True)
+    os.makedirs(output_result_dir, exist_ok=True)
+    os.makedirs(csv_dir, exist_ok=True)
 
-def extract_table(results, metric_fields):
-    results_table = []
-    for result_json in results:
-        metric_dict = result_json
-        for field in metric_fields[:-1]:
-            if metric_dict and field in metric_dict:
-                metric_dict = metric_dict[field]
-        metric_val = None
-        if metric_dict and metric_fields[-1] in metric_dict:
-            metric_val = metric_dict[metric_fields[-1]]
-        if ('status' in result_json and result_json['status'] == 'NZEC'):
-            print("WARNING: COMMAND FAILED, check %s" % result_json['command'])
-            continue
-        results_table.append(
-            (result_json['spec']['label_x'],
-            result_json['spec']['name'],
-            metric_val))
-    return results_table
+    return {
+        'base_dir': experiment_dir,
+        'input_dir': input_dir,
+        'output_dir': output_dir,
+        'input_config_dir': input_config_dir,
+        'output_config_dir': output_config_dir,
+        'input_result_dir': input_result_dir,
+        'output_result_dir': output_result_dir
+
+    }
+
+def generate_configs(config_list, output_dir):
+    for config in config_list:
+        config_path = os.path.join(output_dir, config["name"])
+        with open(config_path, "w") as outfile:
+            config_json = json.dumps(config, indent=4)
+            outfile.write(config_json)
+
+def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False):
+    for repeat in range(total_repeat):
+        configs = os.listdir(config_dir)
+        if shuffle:
+            random.shuffle(configs)
+        else:
+            configs = sorted(configs)
+
+        if total_repeat > 1:
+            run_result_dir = os.path.join(result_dir, f'run{repeat}')
+            os.makedirs(run_result_dir, exist_ok=True)
+        else:
+            run_result_dir = result_dir
+
+        print(config_dir)
+        print(configs)
+        for config in configs:
+            result_json = run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
+            if delete_result_path:
+               os.remove(result_json['spec']['result_path'])
+            test_result_file = result_json
+            with open(os.path.join(run_result_dir, config), "w") as outfile:
+                result_json = json.dumps(result_json, indent=4)
+                outfile.write(result_json)
+
 
 def run(command, force_dry_run=False, prefix=''):
     if FLAGS.regen_report:
@@ -83,84 +148,6 @@ def remove_result(result_path):
     except FileNotFoundError:
         pass
 
-def main(argv):
-    bench_dir = os.path.join(FLAGS.run_dir, os.path.splitext(FLAGS.spec)[0])
-    config_dir = os.path.join(bench_dir, "configs")
-    input_dir = os.path.join(bench_dir, "inputs")
-    output_dir = os.path.join(bench_dir, "outputs")
-    csv_dir = os.path.join(bench_dir, "csv")
-    os.makedirs(config_dir, exist_ok=True)
-    os.makedirs(input_dir, exist_ok=True)
-    os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(csv_dir, exist_ok=True)
-    
-
-    json_str = _jsonnet.evaluate_file(
-        FLAGS.spec, ext_vars = {
-            "TEST_OUTPUT_DIR": output_dir,
-            "TEST_INPUT_DIR": input_dir,
-            "TEST_REPEAT": str(FLAGS.repeat),
-            "TEST_NUM_THREADS": str(FLAGS.threads),
-        }
-    )
-
-    build_runner();
-    json_obj = json.loads(json_str)
-    for input_config in json_obj["inputs"]:
-        run_config = {}
-        json_dict = json.dumps(input_config, indent=4)
-        run_config['spec_path'] = os.path.join(config_dir, input_config["name"] + "_input.json")
-        with open(run_config['spec_path'], "w") as outfile:
-            outfile.write(json_dict)
-        result_json = run([runner_bin, run_config['spec_path']], prefix="Running %s" % run_config['spec_path'])
-        print(result_json)
-
-    results = []
-    for test_config in json_obj["tests"]:
-        run_config = {}
-        json_dict = json.dumps(test_config, indent=4)
-        run_config['spec_path'] = os.path.join(config_dir, test_config["name"] + "_test.json")
-        with open(run_config['spec_path'], "w") as outfile:
-            outfile.write(json_dict)
-        result_json = run([runner_bin, run_config['spec_path']], prefix="Running %s" % run_config['spec_path'])
-        results.append(result_json)
-        
-    if FLAGS.regen_report:
-        result_json_file = os.path.join(bench_dir, "results.json")
-        with open(result_json_file, "r") as out:
-            results = json.load(out)
-            print(results)
-    else:
-        result_json_file = os.path.join(bench_dir, "results.json")
-        with open(result_json_file, "w") as out:
-            out.write(json.dumps(results, indent=4))
-
-    result_checksums = {}
-    for result in results:
-        result_path = result['spec']['result_path']
-        result_common_key = result['spec']['common_key']
-        if result_common_key not in result_checksums:
-            result_checksums[result_common_key] = []
-        result_checksums[result_common_key].append(result['result']['checksum'])
-
-    for result_common_key in result_checksums:
-        diff_found = False
-        for idx, checksum in enumerate(result_checksums[result_common_key][1:]):
-            if checksum != result_checksums[result_common_key][idx-1]:
-                diff_found = True
-        if diff_found:
-            print(str(result_common_key) + "_DIFF: FAIL")
-        else:
-            print(str(result_common_key) + "_DIFF: OK")
-
-    df = pd.json_normalize(results)
-    print(df.columns)
-    (df.groupby(['spec.common_key', 'spec.algo_name']).agg({
-        'result.duration_ns': 'median', 
-        'result.inner_index_build_duration_sec': 'median',
-        'result.inner_index_size': 'median',
-        'result.inner_disk_fetch': 'median'
-    }).to_markdown())
 
 if __name__ == "__main__":
     app.run(main)
