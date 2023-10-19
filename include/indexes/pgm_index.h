@@ -21,7 +21,7 @@ public:
     bounds.pos = std::clamp(bounds.lo, start_idx_, end_idx_);
     return Bounds{bounds.lo - start_idx_, bounds.hi-start_idx_, bounds.pos-start_idx_};
   }
-  uint64_t size_in_bytes() override { return pgm_index_->size_in_bytes(); }
+  uint64_t sizeInBytes() override { return pgm_index_->size_in_bytes(); }
   Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) override {
     return new PgmIndex(pgm_index_, converter_, start, end);
   }

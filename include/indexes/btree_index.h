@@ -47,7 +47,7 @@ public:
     return Bounds {pos, pos + block_size_, pos};
    }
 
-  uint64_t size_in_bytes() override { 
+  uint64_t sizeInBytes() override { 
     return tree_->get_tree_size();
   }
   Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {

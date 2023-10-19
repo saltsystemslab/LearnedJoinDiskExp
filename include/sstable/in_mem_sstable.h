@@ -77,8 +77,8 @@ public:
   KVSlice key() override {
     return KVSlice(get_kv_offset(cur_idx_), key_size_bytes_, value_size_bytes_);
   }
-  uint64_t current_pos() override { return cur_idx_; }
-  uint64_t num_elts() override { return num_keys_; }
+  uint64_t currentPos() override { return cur_idx_; }
+  uint64_t numElts() override { return num_keys_; }
 
 private:
   char *data_;

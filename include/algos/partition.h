@@ -26,7 +26,7 @@ partition_sstables(int num_partitions, SSTable<T> *outer_table,
   inner_iter->seekToFirst();
   outer_iter->seekToFirst();
 
-  uint64_t num_items = outer_iter->num_elts();
+  uint64_t num_items = outer_iter->numElts();
   uint64_t block_size = num_items / num_partitions;
   uint64_t spill = num_items % num_partitions;
 
@@ -42,7 +42,7 @@ partition_sstables(int num_partitions, SSTable<T> *outer_table,
       spill--;
     }
     uint64_t inner_end = inner_index->getPositionBounds(outer_iter->peek(outer_end - 1)).lower;
-    while (inner_end < inner_iter->num_elts() &&
+    while (inner_end < inner_iter->numElts() &&
            comparator->compare(inner_iter->peek(inner_end),
                                outer_iter->peek(outer_end - 1)) <= 0) {
       inner_end++;
@@ -53,7 +53,7 @@ partition_sstables(int num_partitions, SSTable<T> *outer_table,
       inner_end--;
     }
     if (i == num_partitions - 1) {
-      inner_end = inner_iter->num_elts();
+      inner_end = inner_iter->numElts();
     }
     Comparator<T> *thread_comparator = comparator;
 

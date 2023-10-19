@@ -198,7 +198,7 @@ public:
 #endif
   }
 
-  uint64_t get_disk_fetches() {
+  uint64_t getDiskFetches() {
     return disk_reads;
   }
 };

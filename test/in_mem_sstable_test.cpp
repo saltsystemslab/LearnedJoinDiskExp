@@ -22,7 +22,7 @@ TEST(InMemSSTable, TestCreation) {
 
   SSTable<KVSlice> *table = builder->build();
   Iterator<KVSlice> *iterator = table->iterator();
-  ASSERT_EQ(iterator->num_elts(), 3);
+  ASSERT_EQ(iterator->numElts(), 3);
 
   KVSlice kv;
   iterator->seekToFirst();
@@ -80,17 +80,17 @@ SSTable<KVSlice> *add_to_table(SSTableBuilder<KVSlice> *builder, char **data_ptr
 }
 
 TEST(InMemSSTable, TestSubRange) {
-  uint64_t num_elts = 5000000;
+  uint64_t numElts = 5000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVSliceMemcmp();
   SSTableBuilder<KVSlice> *builder = FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-      num_elts, key_size_bytes, value_size_bytes, comparator);
+      numElts, key_size_bytes, value_size_bytes, comparator);
 
   char *data = create_uniform_random_distribution_buffer(
-      num_elts, key_size_bytes, value_size_bytes, comparator);
+      numElts, key_size_bytes, value_size_bytes, comparator);
   char **data_ptrs =
-      sort_buffer(data, num_elts, key_size_bytes, value_size_bytes, comparator);
+      sort_buffer(data, numElts, key_size_bytes, value_size_bytes, comparator);
   auto table = add_to_table(builder, data_ptrs, key_size_bytes, value_size_bytes, 0, 5000000);
 
   uint64_t start = 200000;
@@ -103,27 +103,27 @@ TEST(InMemSSTable, TestSubRange) {
                        key_size_bytes + value_size_bytes) == 0);
     subRangeIter->next();
   }
-  ASSERT_EQ(subRangeIter->num_elts(), end-start);
+  ASSERT_EQ(subRangeIter->numElts(), end-start);
   ASSERT_FALSE(subRangeIter->valid());
 }
 
 TEST(PInMemSTable, PTestCreation_MultiThread) {
-  uint64_t num_elts = 5000000;
+  uint64_t numElts = 5000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVSliceMemcmp();
   PSSTableBuilder<KVSlice> *builder = new PFixedSizeKVInMemSSTableBuilder(
-      num_elts, key_size_bytes, value_size_bytes, comparator);
+      numElts, key_size_bytes, value_size_bytes, comparator);
 
   char *data = create_uniform_random_distribution_buffer(
-      num_elts, key_size_bytes, value_size_bytes, comparator);
+      numElts, key_size_bytes, value_size_bytes, comparator);
   char **data_ptrs =
-      sort_buffer(data, num_elts, key_size_bytes, value_size_bytes, comparator);
+      sort_buffer(data, numElts, key_size_bytes, value_size_bytes, comparator);
   std::vector<std::thread> threads;
   for (int i=0; i<4; i++) {
-    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(num_elts/4 * i, num_elts/4 * (i+1));
-    uint64_t start = num_elts/4 * i;
-    uint64_t end = start + num_elts/4;
+    SSTableBuilder<KVSlice> *p_builder = builder->getBuilderForRange(numElts/4 * i, numElts/4 * (i+1));
+    uint64_t start = numElts/4 * i;
+    uint64_t end = start + numElts/4;
     threads.push_back(std::thread(add_to_table, p_builder, data_ptrs, key_size_bytes, value_size_bytes, start, end));
   }
   for (int i=0; i<4; i++) {
@@ -131,7 +131,7 @@ TEST(PInMemSTable, PTestCreation_MultiThread) {
   }
   SSTable<KVSlice> *table = builder->build();
   Iterator<KVSlice> *iterator = table->iterator();
-  ASSERT_EQ(iterator->num_elts(), num_elts);
+  ASSERT_EQ(iterator->numElts(), numElts);
   uint64_t idx = 0;
   iterator->seekToFirst();
   while (iterator->valid()) {
@@ -139,14 +139,14 @@ TEST(PInMemSTable, PTestCreation_MultiThread) {
     ASSERT_TRUE(memcmp(iterator->key().data(), cur_kv.data(),
                        key_size_bytes + value_size_bytes) == 0);
 
-    uint64_t peek_idx = random() % num_elts;
+    uint64_t peek_idx = random() % numElts;
     KVSlice peek_kv(data_ptrs[peek_idx], key_size_bytes, value_size_bytes);
     ASSERT_TRUE(memcmp(iterator->peek(peek_idx).data(), peek_kv.data(),
                        key_size_bytes + value_size_bytes) == 0);
     iterator->next();
     idx++;
   }
-  ASSERT_EQ(idx, num_elts);
+  ASSERT_EQ(idx, numElts);
 
   delete[] data_ptrs;
   delete[] data;

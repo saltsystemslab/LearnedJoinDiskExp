@@ -33,7 +33,7 @@ SSTable<T> *hash_join(std::unordered_map<std::string, uint64_t> *outer_index,
     prev = key;
     inner_iterator->next();
   }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->get_disk_fetches();
+  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
   (*join_stats)["outer_disk_fetch"] = 0;
   return result->build();
 }
@@ -56,8 +56,8 @@ SSTable<T> *indexed_nested_loop_join_with_btree(SSTable<T> *outer,
     }
     outer_iterator->next();
   }
-  (*join_stats)["inner_disk_fetch"] = inner_index->get_disk_fetches(); // inner_iterator->get_disk_fetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->get_disk_fetches();
+  (*join_stats)["inner_disk_fetch"] = inner_index->getDiskFetches(); // inner_iterator->getDiskFetches();
+  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
   return result->build();
 }
 
@@ -71,7 +71,7 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer, SSTable<T> *inner,
   auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
-  uint64_t inner_num_elts = inner_iterator->num_elts();
+  uint64_t inner_num_elts = inner_iterator->numElts();
   while (outer_iterator->valid()) {
     uint64_t approx_pos = inner_index->getPositionBounds(outer_iterator->key()).approx_pos;
     approx_pos = std::min(approx_pos, inner_num_elts - 1);
@@ -85,14 +85,14 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer, SSTable<T> *inner,
     // We could have undershot before, so go ahead till you meet key greater
     // than current key. If overshot, then there's no need to do this
     // correction.
-    while (!is_overshoot && approx_pos < inner_iterator->num_elts() &&
+    while (!is_overshoot && approx_pos < inner_iterator->numElts() &&
            comparator->compare(inner_iterator->peek(approx_pos),
                                outer_iterator->key()) < 0) {
       approx_pos++;
     }
 
     // No more keys in larger list.
-    if (approx_pos == inner_iterator->num_elts()) {
+    if (approx_pos == inner_iterator->numElts()) {
       break;
     }
     if (comparator->compare(inner_iterator->peek(approx_pos),
@@ -101,8 +101,8 @@ SSTable<T> *indexed_nested_loop_join(SSTable<T> *outer, SSTable<T> *inner,
     }
     outer_iterator->next();
   }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->get_disk_fetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->get_disk_fetches();
+  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
   return result->build();
 }
 
@@ -116,7 +116,7 @@ SSTable<T> *indexed_nested_loop_join_with_pgm(SSTable<T> *outer, SSTable<T> *inn
   auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
-  uint64_t inner_num_elts = inner_iterator->num_elts();
+  uint64_t inner_num_elts = inner_iterator->numElts();
   while (outer_iterator->valid()) {
     uint64_t approx_pos = inner_index->getPositionBounds(outer_iterator->key()).approx_pos;
     approx_pos = std::min(approx_pos, inner_num_elts - 1);
@@ -128,13 +128,13 @@ SSTable<T> *indexed_nested_loop_join_with_pgm(SSTable<T> *outer, SSTable<T> *inn
     // For 8 + 8 byte keys, and a page size of 4096, a page has 256 keys.
     // So we can handle a max error of 128. We also can't handle 16 byte keys yet.
     inner_iterator->peek(approx_pos);
-    if (inner_iterator->check_cache(outer_iterator->key())) {
+    if (inner_iterator->checkCache(outer_iterator->key())) {
       result->add(outer_iterator->key());
     }
     outer_iterator->next();
   }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->get_disk_fetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->get_disk_fetches();
+  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
   return result->build();
 }
 
@@ -163,8 +163,8 @@ SSTable<T> *presorted_merge_join(SSTable<T> *outer, SSTable<T> *inner,
     }
     outer_iterator->next();
   }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->get_disk_fetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->get_disk_fetches();
+  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
   return result_builder->build();
 }
 
@@ -195,7 +195,7 @@ SSTable<T> *presorted_merge_join_exp(SSTable<T> *outer, SSTable<T> *inner,
   auto inner_iterator = inner->iterator();
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
-  uint64_t inner_nelts = inner_iterator->num_elts();
+  uint64_t inner_nelts = inner_iterator->numElts();
   uint64_t inner_cur_pos = 0;
   while (outer_iterator->valid()) {
     uint64_t cur_pos = inner_cur_pos;
@@ -213,8 +213,8 @@ SSTable<T> *presorted_merge_join_exp(SSTable<T> *outer, SSTable<T> *inner,
     }
     outer_iterator->next();
   }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->get_disk_fetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->get_disk_fetches();
+  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
   return result_builder->build();
 }
 
@@ -402,8 +402,8 @@ SSTable<T> *parallel_indexed_nested_loop_join_with_btree(
     int num_threads, SSTable<T> *outer_table, SSTable<T> *inner_table,
     InnerInMemBTree *inner_btree,
     PSSTableBuilder<T> *resultBuilder, json *join_stats) {
-  uint64_t num_elts_in_outer = outer_table->iterator()->num_elts();
-  uint64_t num_elts_in_inner = inner_table->iterator()->num_elts();
+  uint64_t num_elts_in_outer = outer_table->iterator()->numElts();
+  uint64_t num_elts_in_inner = inner_table->iterator()->numElts();
   uint64_t outer_block_size = num_elts_in_outer / num_threads;
   uint64_t outer_spill = num_elts_in_outer % num_threads;
   uint64_t inner_block_size = num_elts_in_inner / num_threads;

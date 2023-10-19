@@ -73,6 +73,8 @@ parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                       json *merge_log) {
   std::vector<std::thread> threads;
   std::vector<json> merge_logs(num_threads);
+  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["outer_disk_fetch"] = 0;
   auto partitions = partition_sstables<T>(num_threads, outer_table, inner_table,
                                           inner_index, comparator);
   for (int i = 0; i < num_threads; i++) {
@@ -95,10 +97,6 @@ parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                     &merge_logs[i]));
   }
 
-  for (int i = 0; i < num_threads; i++) {
-    threads[i].join();
-  }
-
 #if TRACK_STATS
   uint64_t total_comp_count = 0;
   for (int i = 0; i < num_threads; i++) {
@@ -107,6 +105,15 @@ parallelStandardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   }
   (*merge_log)["comparison_count"] = total_comp_count;
 #endif
+  uint64_t inner_disk_fetch_count = 0;
+  uint64_t outer_disk_fetch_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+    inner_disk_fetch_count += (uint64_t)merge_logs[i]["inner_disk_fetch"];
+    outer_disk_fetch_count += (uint64_t)merge_logs[i]["outer_disk_fetch"];
+  }
+  (*merge_log)["inner_disk_fetch"] = inner_disk_fetch_count;
+  (*merge_log)["outer_disk_fetch"] = outer_disk_fetch_count;
   return resultBuilder->build();
 }
 
@@ -118,6 +125,8 @@ parallelLearnedMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                      PSSTableBuilder<T> *resultBuilder, json *merge_log) {
   std::vector<std::thread> threads;
   std::vector<json> merge_logs(num_threads);
+  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["outer_disk_fetch"] = 0;
   auto partitions = partition_sstables<T>(num_threads, outer_table, inner_table,
                                           inner_index, comparator);
   for (int i = 0; i < num_threads; i++) {
@@ -141,10 +150,6 @@ parallelLearnedMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
                     &merge_logs[i]));
   }
 
-  for (int i = 0; i < num_threads; i++) {
-    threads[i].join();
-  }
-
 #if TRACK_STATS
   uint64_t total_comp_count = 0;
   for (int i = 0; i < num_threads; i++) {
@@ -153,6 +158,15 @@ parallelLearnedMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   }
   (*merge_log)["comparison_count"] = total_comp_count;
 #endif
+  uint64_t inner_disk_fetch_count = 0;
+  uint64_t outer_disk_fetch_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+    inner_disk_fetch_count += (uint64_t)merge_logs[i]["inner_disk_fetch"];
+    outer_disk_fetch_count += (uint64_t)merge_logs[i]["outer_disk_fetch"];
+  }
+  (*merge_log)["inner_disk_fetch"] = inner_disk_fetch_count;
+  (*merge_log)["outer_disk_fetch"] = outer_disk_fetch_count;
   return resultBuilder->build();
 }
 
@@ -163,6 +177,8 @@ SSTable<T> *parallelLearnedMergeWithThreshold(
     PSSTableBuilder<T> *resultBuilder, json *merge_log) {
   std::vector<std::thread> threads;
   std::vector<json> merge_logs(num_threads);
+  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["outer_disk_fetch"] = 0;
   auto partitions = partition_sstables<T>(num_threads, outer_table, inner_table,
                                           inner_index, comparator);
   for (int i = 0; i < num_threads; i++) {
@@ -186,10 +202,6 @@ SSTable<T> *parallelLearnedMergeWithThreshold(
                     &merge_logs[i]));
   }
 
-  for (int i = 0; i < num_threads; i++) {
-    threads[i].join();
-  }
-
 #if TRACK_STATS
   uint64_t total_comp_count = 0;
   for (int i = 0; i < num_threads; i++) {
@@ -198,6 +210,15 @@ SSTable<T> *parallelLearnedMergeWithThreshold(
   }
   (*merge_log)["comparison_count"] = total_comp_count;
 #endif
+  uint64_t inner_disk_fetch_count = 0;
+  uint64_t outer_disk_fetch_count = 0;
+  for (int i = 0; i < num_threads; i++) {
+    threads[i].join();
+    inner_disk_fetch_count += (uint64_t)merge_logs[i]["inner_disk_fetch"];
+    outer_disk_fetch_count += (uint64_t)merge_logs[i]["outer_disk_fetch"];
+  }
+  (*merge_log)["inner_disk_fetch"] = inner_disk_fetch_count;
+  (*merge_log)["outer_disk_fetch"] = outer_disk_fetch_count;
   return resultBuilder->build();
 }
 
@@ -208,6 +229,8 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
 #if TRACK_STATS
   comparator = new CountingComparator<T>(comparator);
 #endif
+  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["outer_disk_fetch"] = 0;
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
   inner_iter->seekToFirst();
@@ -230,52 +253,10 @@ SSTable<T> *standardMerge(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["comparison_count"] =
       ((CountingComparator<T> *)(comparator))->get_count();
 #endif
+  (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
+  (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
   return resultBuilder->build();
 }
-
-#if 0
-template <class T>
-SSTable<T> *LM_1W(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                  Index<T> *outer_index, Index<T> *inner_index,
-                  Comparator<T> *comparator,
-                  SSTableBuilder<T> *resultBuilder) {
-  Iterator<T> *inner_iter = inner_table->iterator();
-  Iterator<T> *outer_iter = outer_table->iterator();
-  while (outer_iter->valid()) {
-    Bounds window = inner_index->get_window(outer_iter->key());
-    // [current_pos ..... lower_bound .... upper_bound]
-    // Do a sequential read from current_pos to lower_bound.
-    char *buffer, int len;
-    while(inner_iter->current_pos() < lower_bound) {
-      inner_iter->bulkLoad(lower_bound, &buffer, len);
-      inner_iter->advance(len);
-      resultBuilder->bulkAdd(buffer, len);
-    }
-    // Now deal with [lower_bound...upper_bound] either by comparing..
-    while (compare(outer_iter->key(), inner_iter->key()) < 0) {
-      resultBulder->add(inner_iter->key());
-      inner_iter->next();
-    }
-    // Or loading the entire window.
-    while (inner_iter->current_pos() < upper_bound) {
-      inner_iter->bulkNext(upper_bound, &buffer, len);
-      // Check the last element.
-      if (buffer[last_elem] < outer_iter()) {
-        resultBuilder->bulkAdd(buffer, len);
-        inner_iter->advance(len);
-      } else {
-        // Otherwise binary search inside buffer.
-        lb = get_lower_bound(buffer, len, outer_iter);
-        resultBuilder->bulkAdd(buffer, lb);
-        inner_iter->advance(lb);
-      }
-    }
-    resultBuilder->add(outer_iter->key());
-    outer_iter->next();
-  }
-  resultBuilder->bulkAdd(inner_iterator, inner_iterator->num_elements()); // To End
-}
-#endif
 
 template <class T>
 SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
@@ -287,6 +268,8 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["max_index_error_correction"] = 0;
   comparator = new CountingComparator<T>(comparator);
 #endif
+  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["outer_disk_fetch"] = 0;
 
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
@@ -322,6 +305,8 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["comparison_count"] =
       ((CountingComparator<T> *)(comparator))->get_count();
 #endif
+  (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
+  (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
   return resultBuilder->build();
 }
 
@@ -335,6 +320,8 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["max_index_error_correction"] = 0;
   comparator = new CountingComparator<T>(comparator);
 #endif
+  (*merge_log)["inner_disk_fetch"] = 0; 
+  (*merge_log)["outer_disk_fetch"] = 0;
 
   Iterator<T> *inner_iter = inner_table->iterator();
   Iterator<T> *outer_iter = outer_table->iterator();
@@ -351,12 +338,12 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
     }
     uint64_t lower_bound =
         inner_index->getPositionBounds(outer_iter->key()).lower;
-    lower_bound = std::max(lower_bound, inner_iter->current_pos());
-    uint64_t distance = lower_bound - inner_iter->current_pos();
+    lower_bound = std::max(lower_bound, inner_iter->currentPos());
+    uint64_t distance = lower_bound - inner_iter->currentPos();
     if (distance >= threshold) {
       // Don't copy the bounds.lower item, it could be equal to the item we
       // searched for.
-      while (inner_iter->valid() && inner_iter->current_pos() < lower_bound) {
+      while (inner_iter->valid() && inner_iter->currentPos() < lower_bound) {
 #if DEBUG
         if (comparator->compare(inner_iter->key(), outer_iter->key()) > 0) {
           abort();
@@ -384,6 +371,8 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
   (*merge_log)["comparison_count"] =
       ((CountingComparator<T> *)(comparator))->get_count();
 #endif
+  (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
+  (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
   return resultBuilder->build();
 }
 
@@ -451,8 +440,8 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
 #endif
   uint64_t approx_pos = smallest->index->getPositionBounds(
       second_smallest->iter->key()).approx_pos;
-  approx_pos = std::max(approx_pos, smallest->iter->current_pos());
-  approx_pos = std::min(approx_pos, smallest->iter->num_elts() - 1);
+  approx_pos = std::max(approx_pos, smallest->iter->currentPos());
+  approx_pos = std::min(approx_pos, smallest->iter->numElts() - 1);
   bool is_overshoot = false;
   while (comparator->compare(smallest->iter->peek(approx_pos),
                              second_smallest->iter->key()) > 0) {
@@ -462,7 +451,7 @@ void addClusterToResult(IteratorIndexPair<T> *smallest,
     error_correction++;
 #endif
   }
-  while (smallest->iter->current_pos() <= approx_pos) {
+  while (smallest->iter->currentPos() <= approx_pos) {
     resultBuilder->add(smallest->iter->key());
     smallest->iter->next();
   }

@@ -17,7 +17,7 @@ public:
     comp_count_++;
     return comparator_->compare(first_key, sec_key);
   }
-  uint64_t get_count() { return comp_count_; }
+  uint64_t getCount() { return comp_count_; }
 
 private:
   Comparator<T> *comparator_;

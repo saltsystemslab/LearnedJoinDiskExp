@@ -137,13 +137,13 @@ public:
   }
   void seekToFirst() override { cur_idx_ = start_idx_; }
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
-  uint64_t current_pos() override { return cur_idx_ - start_idx_; }
-  uint64_t num_elts() override { return num_keys_; }
-  uint64_t get_disk_fetches() override { 
+  uint64_t currentPos() override { return cur_idx_ - start_idx_; }
+  uint64_t numElts() override { return num_keys_; }
+  uint64_t getDiskFetches() override { 
     return cur_kv_cache_->get_num_disk_fetches() 
       + peek_kv_cache_->get_num_disk_fetches(); 
   }
-  bool check_cache(KVSlice kv) override {
+  bool checkCache(KVSlice kv) override {
     return peek_kv_cache_->check_for_key_in_cache(kv.data());
   }
 
@@ -366,10 +366,10 @@ public:
       Iterator<KVSlice> *subRangeSrcIter = subRangeSrcSSTable->iterator();
       SSTableBuilder<KVSlice> *subRangeDstSSTableBuilder =
           pBuilder->getBuilderForRange(num_keys_,
-                                       num_keys_ + subRangeSrcIter->num_elts());
+                                       num_keys_ + subRangeSrcIter->numElts());
       threads.push_back(std::thread(addKeysToBuilder, subRangeSrcIter,
                                     subRangeDstSSTableBuilder));
-      num_keys_ += subRangeSrcIter->num_elts();
+      num_keys_ += subRangeSrcIter->numElts();
     }
     for (int i = 0; i < threads.size(); i++) {
       threads[i].join();

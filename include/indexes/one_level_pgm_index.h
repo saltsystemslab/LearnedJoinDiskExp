@@ -26,7 +26,7 @@ public:
     return Bounds{bounds.lo - start_idx_, bounds.hi-start_idx_, bounds.pos-start_idx_};
   }
 
-  uint64_t size_in_bytes() override {
+  uint64_t sizeInBytes() override {
     return segments_->size() * sizeof(segments_[0]);
   }
   Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) override {

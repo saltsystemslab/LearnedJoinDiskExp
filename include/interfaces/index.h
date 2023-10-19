@@ -16,16 +16,8 @@ struct Bounds {
 template <class T> class Index {
 public:
   virtual Bounds getPositionBounds(const T &t) = 0;
-  virtual uint64_t size_in_bytes() = 0;
+  virtual uint64_t sizeInBytes() = 0;
   virtual Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) = 0;
-};
-
-/* Exact Index with Bulk Load. Mainly a wrapper around B+ Tree. */
-template <class T> class BTreeIndex {
-public:
-  virtual bool exists(const T &t);
-  virtual void bulkLoad();
-  virtual BTreeIndex<T> *getIndexForRange(uint64_t s, uint64_t e);
 };
 
 template <class T> class IndexBuilder {
@@ -35,7 +27,7 @@ template <class T> class IndexBuilder {
 };
 
 template <class T>
-Index<T> *build_index_from_iterator(Iterator<T> *iterator,
+Index<T> *buildIndexFromIterator(Iterator<T> *iterator,
                                     IndexBuilder<T> *builder) {
   iterator->seekToFirst();
   while (iterator->valid()) {
@@ -46,9 +38,9 @@ Index<T> *build_index_from_iterator(Iterator<T> *iterator,
 }
 
 template <class T>
-Index<T> *build_index(SSTable<T> *table, IndexBuilder<T> *builder) {
+Index<T> *buildIndex(SSTable<T> *table, IndexBuilder<T> *builder) {
   Iterator<T> *iter = table->iterator();
-  Index<T> *index = build_index_from_iterator(iter, builder);
+  Index<T> *index = buildIndexFromIterator(iter, builder);
   delete iter;
   return index;
 }
