@@ -23,15 +23,12 @@ namespace li_merge {
 
 json run_test(json test_spec);
 json run_standard_merge(json test_spec);
-json run_learned_merge(json test_spec);
-json run_learned_merge_threshold(json test_spec);
+json run_learned_merge(json test_spec); // LM-2W
+json run_learned_merge_threshold(json test_spec); // LM-1W
 json run_sort_join(json test_spec);
 json run_sort_join_exp(json test_spec);
 json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
-json run_index_study(json test_spec);
-json run_inlj_with_btree(json test_spec);
-json run_inlj_with_pgm(json test_spec);
 json create_input_sstable(json test_spec);
 std::string md5_checksum(SSTable<KVSlice> *sstable);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
@@ -60,12 +57,6 @@ json run_test(json test_spec) {
     return run_hash_join(test_spec);
   } else if (test_spec["algo"] == "inlj") {
     return run_inlj(test_spec);
-  } else if (test_spec["algo"] == "index_study") {
-    return run_index_study(test_spec);
-  } else if (test_spec["algo"] == "inlj_btree") {
-    return run_inlj_with_btree(test_spec);
-  } else if (test_spec["algo"] == "inlj_pgm") {
-    return run_inlj_with_pgm(test_spec);
   }
   fprintf(stderr, "Unknown algorithm in testspec!");
   abort();
@@ -319,7 +310,6 @@ json run_hash_join(json test_spec) {
   return result;
 }
 
-// Depercate
 json run_learned_merge(json test_spec) {
   json result;
   SSTable<KVSlice> *inner_table =
@@ -382,7 +372,6 @@ json run_learned_merge(json test_spec) {
   return result;
 }
 
-// Rename.
 json run_learned_merge_threshold(json test_spec) {
   json result;
   SSTable<KVSlice> *inner_table =
@@ -432,154 +421,7 @@ json run_learned_merge_threshold(json test_spec) {
   return result;
 }
 
-// Deprecate.
-json run_inlj_with_btree(json test_spec) {
-  json result;
-  SSTable<KVSlice> *inner_table =
-      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
-  SSTable<KVSlice> *outer_table =
-      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  PSSTableBuilder<KVSlice> *result_table_builder =
-      get_parallel_result_builder_for_join(test_spec);
-  int num_threads = test_spec["num_threads"];
-  InnerInMemBTree *btree;
-
-  auto inner_iterator = inner_table->iterator();
-  LeafNodeIterm *data = new LeafNodeIterm[inner_iterator->numElts()];
-  uint64_t pos = 0;
-  while (inner_iterator->valid()) {
-#ifdef STRING_KEYS
-    data[pos].key = std::string(inner_iterator->key().data(),
-                                (uint64_t)test_spec["key_size"]);
-#else
-    data[pos].key = *(uint64_t *)(inner_iterator->key().data());
-    data[pos].value = *(uint64_t *)(inner_iterator->key().data());
-#endif
-    inner_iterator->next();
-    pos++;
-  }
-  std::string btree_file_name(test_spec["inner_table"]);
-  btree_file_name += "_inmem_btree";
-  btree = new InnerInMemBTree(true, btree_file_name.c_str());
-  btree->bulk_load(data, pos);
-
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join_with_btree(
-      num_threads, outer_table, inner_table, btree, result_table_builder,
-      &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["inner_index_size"] = btree->get_inner_size();
-  result["checksum"] = md5_checksum(resultTable);
-
-  delete inner_table;
-  delete outer_table;
-  delete result_table_builder;
-  delete btree;
-
-  return result;
-}
-
-// Deprecate
-json run_index_study(json test_spec) {
-  json result;
-  SSTable<KVSlice> *inner_table =
-      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
-  SSTable<KVSlice> *outer_table =
-      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder =
-      get_index_builder(test_spec["inner_table"], test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder =
-      get_index_builder(test_spec["outer_table"], test_spec);
-  Comparator<KVSlice> *comparator = get_comparator(test_spec);
-
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  Index<KVSlice> *outer_index = buildIndex(outer_table, outer_index_builder);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-  result["outer_index_build_duration"] = duration_sec;
-  result["duration_sec"] = duration_sec;
-
-  merge_start = std::chrono::high_resolution_clock::now();
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  merge_end = std::chrono::high_resolution_clock::now();
-  duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    merge_end - merge_start)
-                    .count();
-  duration_sec = duration_ns / 1e9;
-  result["inner_index_build_duration"] = duration_sec;
-
-  result["inner_index_size"] = inner_index->sizeInBytes();
-  result["outer_index_size"] = outer_index->sizeInBytes();
-  result["checksum"] = "NA";
-
-  delete inner_table;
-  delete outer_table;
-  delete inner_index_builder;
-  delete outer_index_builder;
-  delete inner_index;
-  delete outer_index;
-  delete comparator;
-
-  return result;
-}
-
-// Deprecate.
 json run_inlj(json test_spec) {
-  json result;
-  SSTable<KVSlice> *inner_table =
-      load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
-  SSTable<KVSlice> *outer_table =
-      load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder =
-      get_index_builder(test_spec["inner_table"], test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder =
-      get_index_builder(test_spec["outer_table"], test_spec);
-  Index<KVSlice> *outer_index = buildIndex(outer_table, outer_index_builder);
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  PSSTableBuilder<KVSlice> *result_table_builder =
-      get_parallel_result_builder_for_join(test_spec);
-  int num_threads = test_spec["num_threads"];
-
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable = parallel_indexed_nested_loop_join<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index, comparator,
-      result_table_builder, &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["inner_index_size"] = inner_index->sizeInBytes();
-  result["outer_index_size"] = outer_index->sizeInBytes();
-  result["checksum"] = md5_checksum(resultTable);
-
-  delete inner_table;
-  delete outer_table;
-  delete inner_index_builder;
-  delete outer_index_builder;
-  delete result_table_builder;
-  delete inner_index;
-  delete outer_index;
-  delete comparator;
-
-  return result;
-}
-
-json run_inlj_with_pgm(json test_spec) {
   json result;
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
@@ -615,7 +457,7 @@ json run_inlj_with_pgm(json test_spec) {
 
   auto merge_start = std::chrono::high_resolution_clock::now();
   SSTable<KVSlice> *resultTable =
-      parallel_indexed_nested_loop_join_with_pgm<KVSlice>(
+      parallel_indexed_nested_loop_join<KVSlice>(
           num_threads, outer_table, inner_table, inner_index, comparator,
           result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
