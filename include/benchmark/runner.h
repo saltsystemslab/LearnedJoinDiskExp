@@ -544,10 +544,12 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
     return new PgmIndexBuilder<KVSlice, 128>(0, get_converter(test_spec));
   } else if (index_type == "pgm256") {
     return new PgmIndexBuilder<KVSlice, 256>(0, get_converter(test_spec));
+  } else if (index_type == "pgm512") {
+    return new PgmIndexBuilder<KVSlice, 512>(0, get_converter(test_spec));
   } else if (index_type == "pgm1024") {
     return new PgmIndexBuilder<KVSlice, 1024>(0, get_converter(test_spec));
   } else if (index_type == "btree") {
-    return new BTreeIndexBuilder();
+    return new BTreeIndexBuilder(test_spec["index"]["leaf_size_in_pages"], test_spec["key_size"], test_spec["value_size"]);
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();

@@ -34,6 +34,7 @@ public:
   Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) override {
     return new OneLevelPgmIndex(pgm_index_, converter_, start, end);
   }
+  uint64_t getMaxError() override { return 2*pgm_index_->epsilon_value; }
 
 private:
   uint64_t start_idx_;

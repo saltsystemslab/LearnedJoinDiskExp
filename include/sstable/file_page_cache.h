@@ -29,7 +29,11 @@ public:
       is_buffer_loaded_(false),
       buffer_(new char[buffer_size * PAGE_SIZE]), 
       num_disk_fetches_(0),
-      always_load_ahead_(always_load_ahead) {}
+      always_load_ahead_(always_load_ahead) {
+        if (buffer_size_ == 0) {
+          abort();
+        }
+      }
   ~FileNPageBuffer() { delete[] buffer_; }
   char *get_page(uint64_t page_idx) override {
     if (is_buffer_loaded_) {

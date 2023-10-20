@@ -126,9 +126,8 @@ public:
     fd_ = open(file_path.c_str(), O_RDONLY);
     readHeader();
     num_keys_ = end_idx - start_idx;
-    printf("CacheSizeInPages: %d\n", cache_size_in_pages);
     cur_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
-                                              value_size_bytes_, HEADER_SIZE, cache_size_in_pages, false);
+                                              value_size_bytes_, HEADER_SIZE, 1, false);
     peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
                                                value_size_bytes_, HEADER_SIZE, cache_size_in_pages, true);
   }
@@ -186,7 +185,8 @@ public:
     return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, 1);
   }
   Iterator<KVSlice> *iterator(int kv_buffer_size) override {
-    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, std::ceil(((kv_buffer_size * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)));
+    kv_buffer_size = std::max(kv_buffer_size, PAGE_SIZE/(key_size_bytes_ + value_size_bytes_));
+    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, std::ceil(((kv_buffer_size * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE) + 1));
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =

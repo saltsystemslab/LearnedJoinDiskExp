@@ -5,6 +5,7 @@
 #include "iterator.h"
 #include "sstable.h"
 #include <unistd.h>
+#include <stdlib.h>
 
 namespace li_merge {
 struct Bounds {
@@ -18,6 +19,7 @@ public:
   virtual Bounds getPositionBounds(const T &t) = 0;
   virtual uint64_t sizeInBytes() = 0;
   virtual Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) = 0;
+  virtual uint64_t getMaxError() {abort();};
 };
 
 template <class T> class IndexBuilder {

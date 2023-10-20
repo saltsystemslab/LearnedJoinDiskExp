@@ -11,7 +11,6 @@
 #include <unordered_set>
 // TODO(chesetti): Must be last for some reason. Fix.
 #include <nlohmann/json.hpp>
-#include "inner_inmem_b_tree.h"
 
 using json = nlohmann::json;
 
@@ -40,29 +39,20 @@ SSTable<T> *hash_join(std::unordered_map<std::string, uint64_t> *outer_index,
   return result->build();
 }
 
-
 template <class T>
 SSTable<T> *indexed_nested_loop_join_windowed(
     SSTable<T> *outer, SSTable<T> *inner, Index<T> *inner_index,
     Comparator<T> *comparator, SSTableBuilder<T> *result, json *join_stats) {
   auto outer_iterator = outer->iterator();
-  auto inner_iterator = inner->iterator();
+  auto inner_iterator = inner->iterator(inner_index->getMaxError());
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
   uint64_t inner_num_elts = inner_iterator->numElts();
   while (outer_iterator->valid()) {
-    uint64_t approx_pos =
-        inner_index->getPositionBounds(outer_iterator->key()).approx_pos;
-    approx_pos = std::min(approx_pos, inner_num_elts - 1);
-    // WARNING: A LOT OF HARDCODED ASSUMPTIONS BELOW
-    // TODO(chesetti): Generalize these.
-    // Rename to load_window, and check.
-    // Right now we assume peek loads the correct pages in cache, and then check
-    // them. We also assume that the pages loaded are inside the error bound.
-    // For 8 + 8 byte keys, and a page size of 4096, a page has 256 keys.
-    // So we can handle a max error of 128. We also can't handle 16 byte keys
-    // yet.
-    inner_iterator->peek(approx_pos);
+    uint64_t lower =
+        inner_index->getPositionBounds(outer_iterator->key()).lower;
+    lower = std::min(lower, inner_num_elts - 1);
+    inner_iterator->peek(lower);
     if (inner_iterator->checkCache(outer_iterator->key())) {
       result->add(outer_iterator->key());
     }

@@ -340,6 +340,7 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
         inner_index->getPositionBounds(outer_iter->key()).lower;
     lower_bound = std::max(lower_bound, inner_iter->currentPos());
     uint64_t distance = lower_bound - inner_iter->currentPos();
+    // We also can do a memcmp here.
     if (distance >= threshold) {
       // Don't copy the bounds.lower item, it could be equal to the item we
       // searched for.
@@ -353,6 +354,8 @@ mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
         inner_iter->next();
       }
     }
+    // This can also be made faster, we have already loaded items here into the peek
+    // cache. That is an extra IO that can be saved.
     while (inner_iter->valid() &&
            comparator->compare(inner_iter->key(), outer_iter->key()) <= 0) {
       resultBuilder->add(inner_iter->key());
