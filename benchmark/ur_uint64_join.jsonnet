@@ -15,7 +15,7 @@ local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_common_keys = 10000;
-local num_keys_in_inner = 1000000;
+local num_keys_in_inner = 100000000;
 
 local max_ratio = 100;
 local points = 10;
@@ -53,7 +53,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             "num_threads" : 1,
             "inner_table" : test_input_dir + "/inner",
             "outer_table" : test_input_dir + "/input" + i,
-            "result_path": test_output_dir + "/" + algo["algo_name"] + "_" + "run_" + r + "_ratio_ "+ i,
+            "result_path": test_output_dir + "/" + algo["algo_name"] + "_" + "run_" + r + "_ratio_"+ i,
             "load_sstable_in_mem": false,
             "write_result_to_disk": true,
         }   
@@ -70,23 +70,69 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             },
             {
                 "algo_name": "pgm64",
-                "algo": "inlj_pgm",
+                "algo": "inlj",
                 "index": {
                     "type": "pgm64"
                 },
             },
             {
                 "algo_name": "pgm128",
-                "algo": "inlj_pgm",
+                "algo": "inlj",
                 "index": {
                     "type": "pgm128"
                 },
             },
             {
-                "algo_name": "btree",
-                "algo": "inlj_pgm",
+                "algo_name": "pgm256",
+                "algo": "inlj",
                 "index": {
-                    "type": "btree"
+                    "type": "pgm256"
+                },
+            },
+            {
+                "algo_name": "pgm512",
+                "algo": "inlj",
+                "index": {
+                    "type": "pgm512"
+                },
+            },
+            {
+                "algo_name": "pgm1024",
+                "algo": "inlj",
+                "index": {
+                    "type": "pgm1024"
+                },
+            },
+            {
+                "algo_name": "btree_1page",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 1,
+                },
+            },
+            {
+                "algo_name": "btree_2page",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 2,
+                },
+            },
+            {
+                "algo_name": "btree_4page",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 4,
+                },
+            },
+            {
+                "algo_name": "btree_16page",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 16,
                 },
             },
         ]
