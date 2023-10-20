@@ -10,7 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
-class FilePageCache {
+class FilePageBuffer {
 public:
   // Return a pointer to buffer containing bytes from that pge.
   // The buffer is valid atleast until the next get_page. Not Thread Safe.
@@ -19,87 +19,58 @@ public:
   virtual uint64_t get_num_disk_fetches() = 0;
 };
 
-class FileSinglePageCache : public FilePageCache {
+
+class FileNPageBuffer : public FilePageBuffer{
 public:
-  FileSinglePageCache(int fd, uint64_t start_offset)
-      : fd_(fd), start_offset_(start_offset), is_buffer_loaded_(false),
-        buffer_(new char[PAGE_SIZE]), num_disk_fetches_(0) {}
-  ~FileSinglePageCache() { delete[] buffer_; }
+  FileNPageBuffer(int fd, uint64_t start_offset, int buffer_size, bool always_load_ahead)
+      : fd_(fd), 
+      start_offset_(start_offset), 
+      buffer_size_(buffer_size),
+      is_buffer_loaded_(false),
+      buffer_(new char[buffer_size * PAGE_SIZE]), 
+      num_disk_fetches_(0),
+      always_load_ahead_(always_load_ahead) {}
+  ~FileNPageBuffer() { delete[] buffer_; }
   char *get_page(uint64_t page_idx) override {
-    if (!is_buffer_loaded_ || page_idx != cur_page_idx_) {
-      // We assume that a page can always be read in a single pread call.
-      int bytes_read =
-          pread(fd_, buffer_, PAGE_SIZE, start_offset_ + (page_idx)*PAGE_SIZE);
-      num_disk_fetches_++;
-      if (bytes_read < 0) {
-        perror("pread");
-        abort();
+    if (is_buffer_loaded_) {
+      if (page_idx == cur_page_idx_) {
+        return buffer_;
       }
-      cur_page_idx_ = page_idx;
-      is_buffer_loaded_ = true;
+      if (!always_load_ahead_ && cur_page_idx_ + buffer_size_ > page_idx) {
+        return buffer_ + (page_idx - cur_page_idx_) * PAGE_SIZE;
+      }
     }
+
+    // We assume that a page can always be read in a single pread call.
+    // If we go beyond, we fill the bits 1s. This won't work for all
+    // comparators.
+    int bytes_read;
+    bytes_read = pread(fd_, buffer_, buffer_size_ * PAGE_SIZE,
+                           start_offset_ + page_idx * PAGE_SIZE);
+    if (bytes_read < buffer_size_ * PAGE_SIZE) {
+      int bytes_to_fill = (buffer_size_ * PAGE_SIZE) - bytes_read;
+      memset(buffer_ + bytes_read, -1, bytes_to_fill);
+    }
+    num_disk_fetches_++;
+    if (bytes_read < 0) {
+      perror("pread");
+      abort();
+    }
+    cur_page_idx_ = page_idx;
+    is_buffer_loaded_ = true;
     return buffer_;
   }
 
   uint64_t get_num_disk_fetches() override { return num_disk_fetches_; }
 
   char *get_cur_page(uint64_t *len) {
-    *len = PAGE_SIZE;
+    *len = buffer_size_ * PAGE_SIZE;
     return buffer_;
   }
 
 private:
-  int fd_;
-  uint64_t start_offset_;
-  bool is_buffer_loaded_;
-  char *buffer_;
-  uint64_t cur_page_idx_;
-  uint64_t num_disk_fetches_;
-};
-
-class FileThreePageCache : public FilePageCache {
-public:
-  FileThreePageCache(int fd, uint64_t start_offset)
-      : fd_(fd), start_offset_(start_offset), is_buffer_loaded_(false),
-        buffer_(new char[3 * PAGE_SIZE]), num_disk_fetches_(0) {}
-  ~FileThreePageCache() { delete[] buffer_; }
-  char *get_page(uint64_t page_idx) override {
-    if (!is_buffer_loaded_ || page_idx != cur_page_idx_) {
-      // We assume that a page can always be read in a single pread call.
-      // If we go beyond, we fill the bits 1s. This won't work for all
-      // comparators.
-      int bytes_read;
-      if (page_idx) {
-        bytes_read = pread(fd_, buffer_, 3 * PAGE_SIZE,
-                           start_offset_ + (page_idx - 1) * PAGE_SIZE);
-        if (bytes_read < 3 * PAGE_SIZE) {
-          int bytes_to_fill = (3 * PAGE_SIZE) - bytes_read;
-          memset(buffer_ + bytes_read, -1, bytes_to_fill);
-        }
-      } else {
-        memset(buffer_, 0, 3 * PAGE_SIZE);
-        bytes_read =
-            pread(fd_, buffer_ + PAGE_SIZE, 2 * PAGE_SIZE, start_offset_);
-      }
-      num_disk_fetches_++;
-      if (bytes_read < 0) {
-        perror("pread");
-        abort();
-      }
-      cur_page_idx_ = page_idx;
-      is_buffer_loaded_ = true;
-    }
-    return buffer_;
-  }
-
-  uint64_t get_num_disk_fetches() override { return num_disk_fetches_; }
-
-  char *get_cur_page(uint64_t *len) {
-    *len = 3 * PAGE_SIZE;
-    return buffer_;
-  }
-
-private:
+  int buffer_size_;
+  bool always_load_ahead_;
   int fd_;
   uint64_t start_offset_;
   bool is_buffer_loaded_;

@@ -2,10 +2,13 @@
 #define LEARNEDINDEXMERGE_SSTABLE_H
 
 #include "iterator.h"
+#include <stdlib.h>
+
 namespace li_merge {
 template <class T> class SSTable {
 public:
   virtual Iterator<T> *iterator() = 0;
+  virtual Iterator<T> *iterator(int kv_buffer_size) {abort();};
   virtual SSTable<T> *getSSTableForSubRange(uint64_t start, uint64_t end) = 0;
 };
 

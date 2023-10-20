@@ -13,6 +13,43 @@ void dump_kv(KVSlice *kv) {
   printf("\n");
 }
 
+TEST(DiskSSTable, TestLargerIterator) {
+  uint64_t numElts = 5000000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVSliceMemcmp();
+  SSTableBuilder<KVSlice> *builder = new FixedSizeKVDiskSSTableBuilder(
+      "test_sstable", key_size_bytes, value_size_bytes);
+  char *data = create_uniform_random_distribution_buffer(
+      numElts, key_size_bytes, value_size_bytes, comparator);
+  char **data_ptrs =
+      sort_buffer(data, numElts, key_size_bytes, value_size_bytes, comparator);
+  for (uint64_t i = 0; i < numElts; i++) {
+    KVSlice kv(data_ptrs[i], key_size_bytes, value_size_bytes);
+    builder->add(kv);
+  }
+  SSTable<KVSlice> *table = builder->build();
+  Iterator<KVSlice> *cur_iterator = table->iterator(256 * 5); // (4096/16) * 5
+  Iterator<KVSlice> *peek_iterator = table->iterator(256 * 5);
+  uint64_t idx = 0;
+  cur_iterator->seekToFirst();
+  while (cur_iterator->valid()) {
+    KVSlice cur_kv(data_ptrs[idx], key_size_bytes, value_size_bytes);
+    ASSERT_TRUE(memcmp(cur_iterator->key().data(), cur_kv.data(),
+                       key_size_bytes + value_size_bytes) == 0);
+
+    KVSlice peek_kv(data_ptrs[idx], key_size_bytes, value_size_bytes);
+    ASSERT_TRUE(memcmp(peek_iterator->peek(idx).data(), peek_kv.data(),
+                       key_size_bytes + value_size_bytes) == 0);
+    cur_iterator->next();
+    idx++;
+  }
+  ASSERT_EQ(peek_iterator->getDiskFetches()/5 + 1, cur_iterator->getDiskFetches());
+  delete[] data_ptrs;
+  delete[] data;
+}
+
+
 TEST(DiskSSTable, TestCreation) {
   uint64_t numElts = 5000000;
   int key_size_bytes = 8;

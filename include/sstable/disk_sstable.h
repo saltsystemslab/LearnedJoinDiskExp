@@ -16,6 +16,7 @@
 #include <string>
 #include <thread>
 #include <unistd.h>
+#include <math.h>
 
 #define HEADER_SIZE 16
 
@@ -26,15 +27,15 @@ namespace li_merge {
 class FixedKSizeKVFileCache {
 public:
   FixedKSizeKVFileCache(int fd, int key_size_bytes, int value_size_bytes,
-                        uint64_t file_start_offset)
-      : file_page_cache_(new FileThreePageCache(fd, file_start_offset)),
+                        uint64_t file_start_offset, int cache_size_in_pages, bool load_ahead)
+      : file_page_cache_(new FileNPageBuffer(fd, file_start_offset, cache_size_in_pages, load_ahead)),
         key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),
         kv_size_bytes_(key_size_bytes + value_size_bytes) {}
   KVSlice get_kv(uint64_t kv_idx) {
     uint64_t page_idx = (kv_idx * kv_size_bytes_) / PAGE_SIZE;
     uint64_t page_offset = (kv_idx * kv_size_bytes_) % PAGE_SIZE;
     char *page_data = file_page_cache_->get_page(page_idx);
-    return KVSlice(page_data + page_offset + PAGE_SIZE, key_size_bytes_,
+    return KVSlice(page_data + page_offset, key_size_bytes_,
                    value_size_bytes_);
   }
   uint64_t get_num_disk_fetches() {
@@ -113,21 +114,23 @@ private:
   int kv_size_bytes_;
   int key_size_bytes_;
   int value_size_bytes_;
-  FilePageCache *file_page_cache_;
+  FilePageBuffer *file_page_cache_;
+  bool load_ahead_;
 };
 
 class FixedSizeKVDiskSSTableIterator : public Iterator<KVSlice> {
 public:
   FixedSizeKVDiskSSTableIterator(std::string file_path, uint64_t start_idx,
-                                 uint64_t end_idx)
+                                 uint64_t end_idx, int cache_size_in_pages)
       : cur_idx_(start_idx), start_idx_(start_idx), end_idx_(end_idx) {
     fd_ = open(file_path.c_str(), O_RDONLY);
     readHeader();
     num_keys_ = end_idx - start_idx;
+    printf("CacheSizeInPages: %d\n", cache_size_in_pages);
     cur_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
-                                              value_size_bytes_, HEADER_SIZE);
+                                              value_size_bytes_, HEADER_SIZE, cache_size_in_pages, false);
     peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
-                                               value_size_bytes_, HEADER_SIZE);
+                                               value_size_bytes_, HEADER_SIZE, cache_size_in_pages, true);
   }
   ~FixedSizeKVDiskSSTableIterator() {
     delete cur_kv_cache_;
@@ -180,7 +183,10 @@ public:
     end_idx_ = end;
   }
   Iterator<KVSlice> *iterator() override {
-    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_);
+    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, 1);
+  }
+  Iterator<KVSlice> *iterator(int kv_buffer_size) override {
+    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, std::ceil(((kv_buffer_size * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)));
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =
@@ -206,6 +212,7 @@ private:
   uint64_t num_keys_;
   int key_size_bytes_;
   int value_size_bytes_;
+  int cache_size_in_pages_;
   uint64_t start_idx_;
   uint64_t end_idx_;
   std::string file_path_;

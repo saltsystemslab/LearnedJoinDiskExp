@@ -83,7 +83,7 @@ SSTable<KVSlice> *generate_from_datafile(
   std::set<uint64_t> selected_keys =
       select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
   FixedKSizeKVFileCache sosd_keys(fd, key_size_bytes, 0 /*no values*/,
-                                  header_size);
+                                  header_size, 1, false);
   char kv_buf[key_size_bytes + value_size_bytes];
   for (auto key_idx : selected_keys) {
     KVSlice k = sosd_keys.get_kv(key_idx);
