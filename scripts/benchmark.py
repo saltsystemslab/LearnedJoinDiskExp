@@ -7,8 +7,6 @@ import pandas as pd
 from absl import app
 from absl import flags
 import filecmp
-from matplotlib import pyplot as plt
-import tikzplotlib
 import _jsonnet
 
 FLAGS = flags.FLAGS
