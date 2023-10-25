@@ -15,7 +15,7 @@ local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_common_keys = 10000;
-local num_keys_in_inner = 100000000;
+local num_keys_in_inner = 1000000;
 
 local max_ratio = 100;
 local points = 10;

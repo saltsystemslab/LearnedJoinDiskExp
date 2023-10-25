@@ -42,15 +42,40 @@ public:
     return file_page_cache_->get_num_disk_fetches();
   }
 
+	int countLeadingZeros(size_t number) {
+    int count = 0;
+    int numBits = sizeof(number) * 8; // Assuming 32-bit integers
+
+    for (int i = 0; i < numBits; ++i) {
+        if ((number & (size_t(1) << (numBits - 1))) == 0) {
+            count++;
+        } else {
+            break;
+        }
+        number <<= 1;
+    }
+
+    return count;
+	}
+
   /* Adapting Branchless Binary search from
    * https://github.com/skarupke/branchless_binary_search */
   inline size_t bit_floor(size_t i) {
     constexpr int num_bits = sizeof(i) * 8;
+#ifdef C23
     return size_t(1) << (num_bits - std::countl_zero(i) - 1);
+#else
+    return size_t(1) << (num_bits - countLeadingZeros(i) - 1);
+#endif
   }
+
   inline size_t bit_ceil(size_t i) {
     constexpr int num_bits = sizeof(i) * 8;
+#ifdef C23
     return size_t(1) << (num_bits - std::countl_zero(i - 1));
+#else
+    return size_t(1) << (num_bits - countLeadingZeros(i) - 1);
+#endif
   }
 
   char *lower_bound(char *buf, uint64_t len_in_bytes, const char *key) {

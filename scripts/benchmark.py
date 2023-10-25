@@ -128,7 +128,7 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
 def run(command, force_dry_run=False, prefix=''):
     if FLAGS.regen_report:
         return
-    command = ['numactl', '-N', '1', '-m', '1'] + command
+    #command = ['numactl', '-N', '1', '-m', '1'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
     print(' '.join(command))
