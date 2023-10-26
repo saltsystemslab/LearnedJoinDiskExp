@@ -67,7 +67,7 @@ def get_specname():
     return os.path.splitext(spec_path_with_extension)[0]
 
 def setup_experiment_directories():
-    experiment_dir = os.path.join(FLAGS.test_dir, get_specname())
+    experiment_dir = os.path.join(FLAGS.test_dir, get_specname() + "_"+str(FLAGS.threads))
     input_dir = os.path.join(experiment_dir, "inputs")
     output_dir = os.path.join(experiment_dir, "outputs")
     input_config_dir = os.path.join(input_dir, "configs")
@@ -75,6 +75,7 @@ def setup_experiment_directories():
     input_result_dir = os.path.join(input_dir, "results")
     output_result_dir = os.path.join(output_dir, "results")
     csv_dir = os.path.join(experiment_dir, "csv")
+    os.makedirs(experiment_dir, exist_ok=True)
     os.makedirs(input_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(input_config_dir, exist_ok=True)
