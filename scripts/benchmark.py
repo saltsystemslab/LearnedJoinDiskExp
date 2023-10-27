@@ -24,6 +24,10 @@ flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
 
+flags.DEFINE_string("test_name", "unknown", "Test Case Name.")
+flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
+flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
+
 def main(argv):
     os.makedirs(FLAGS.test_dir, exist_ok=True)
 
@@ -42,6 +46,8 @@ def main(argv):
             "TEST_INPUT_DIR": exp['input_dir'],
             "TEST_REPEAT": str(FLAGS.repeat),
             "TEST_NUM_THREADS": str(FLAGS.threads),
+            "TEST_DATASET_SIZE": str(FLAGS.sosd_num_keys),
+            "TEST_DATASET_SOURCE": str(FLAGS.sosd_source)
         }
     ))
 
@@ -67,7 +73,7 @@ def get_specname():
     return os.path.splitext(spec_path_with_extension)[0]
 
 def setup_experiment_directories():
-    experiment_dir = os.path.join(FLAGS.test_dir, get_specname() + "_"+str(FLAGS.threads))
+    experiment_dir = os.path.join(FLAGS.test_dir, FLAGS.test_name + "_"+str(FLAGS.threads))
     input_dir = os.path.join(experiment_dir, "inputs")
     output_dir = os.path.join(experiment_dir, "outputs")
     input_config_dir = os.path.join(input_dir, "configs")

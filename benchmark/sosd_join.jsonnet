@@ -7,15 +7,16 @@ local key_template = {
 };
 local input_template = key_template + {
     "algo": "create_input",
-    "method": "uniform_dist",
+    "method": "sosd",
     "write_result_to_disk": true, // Can be false.
+    "source": std.extVar("TEST_DATASET_SOURCE")
 };
 local test_output_dir = std.extVar("TEST_OUTPUT_DIR");
 local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
+local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local num_common_keys = 10000;
-local num_keys_in_inner = 1000000;
 
 local max_ratio = 100;
 local points = 10;
@@ -25,24 +26,16 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
 {
     inputs : 
         [input_template + {
-            local name = "common",
-            "name": name,
-            "num_keys": 100,
-            "result_path": test_input_dir + "/" + name,
-        }] +
-        [input_template + {
             local name = "inner",
             "name": name,
             "num_keys": num_keys_in_inner,
             "result_path": test_input_dir + "/inner",
-            "common_keys_file": test_input_dir + "/common",
         }] +
         [
             input_template + {
             local name = "input" + i,
             "num_keys": std.ceil(num_keys_in_inner/i),
             "name": name,
-            "common_keys_file": test_input_dir + "/common",
             "result_path": test_input_dir + "/" + name,
             }  for i in ratios
         ],
@@ -119,22 +112,23 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "leaf_size_in_pages": 2,
                 },
             },
-            {
-                "algo_name": "btree_4page",
-                "algo": "inlj",
-                "index": {
-                    "type": "btree",
-                    "leaf_size_in_pages": 4,
-                },
-            },
-            {
-                "algo_name": "btree_16page",
-                "algo": "inlj",
-                "index": {
-                    "type": "btree",
-                    "leaf_size_in_pages": 16,
-                },
-            },
+            // Has bugs disabled for now.
+            //{
+            //    "algo_name": "btree_4page",
+            //    "algo": "inlj",
+            //    "index": {
+            //        "type": "btree",
+            //        "leaf_size_in_pages": 4,
+            //    },
+            //},
+            //{
+            //    "algo_name": "btree_16page",
+            //    "algo": "inlj",
+            //    "index": {
+            //        "type": "btree",
+            //        "leaf_size_in_pages": 16,
+            //    },
+            //},
         ]
     ]
 }

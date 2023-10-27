@@ -14,7 +14,7 @@ local test_output_dir = std.extVar("TEST_OUTPUT_DIR");
 local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
-local num_keys_in_inner = 100000000;
+local num_keys_in_inner = 1000000;
 
 local max_ratio = 200;
 local points = 10;
@@ -56,11 +56,27 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "standard_merge",
             }, 
             {
+                "algo": "learned_merge",
+                "index": {
+                    "type": "pgm64"
+                },
+                "algo_name": "PGM_64",
+                "threshold": 0
+            },
+            {
                 "algo": "learned_merge_threshold",
                 "index": {
                     "type": "pgm64"
                 },
                 "algo_name": "PGM_64",
+                "threshold": 0
+            },
+            {
+                "algo": "learned_merge_threshold",
+                "index": {
+                    "type": "pgm256"
+                },
+                "algo_name": "PGM_256",
                 "threshold": 0
             },
             {
