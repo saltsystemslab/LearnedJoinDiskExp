@@ -6,11 +6,11 @@ import shutil
 
 dstDir = '../LearnedMergerPaper/experiment'
 
-small_join_test_cases = {
-    "uniform_random_dense" : {
+small_join = {
+    "URDense" : {
         "dir": "./sponge/uniform_dense_join_small_1"
     },
-    "uniform_random_sparse" : {
+    "URSparse" : {
         "dir": "./sponge/uniform_sparse_join_small_1"
     },
     "lognormal" : {
@@ -34,10 +34,10 @@ small_join_test_cases = {
 }
 
 small_merge_test_cases = {
-    "uniform_random_dense" : {
+    "URDense" : {
         "dir": "./sponge/uniform_dense_merge_small_1"
     },
-    "uniform_random_sparse" : {
+    "URSparse" : {
         "dir": "./sponge/uniform_sparse_merge_small_1"
     },
     "lognormal" : {
@@ -61,16 +61,37 @@ small_merge_test_cases = {
 }
 
 
-def generateReport(test_cases):
+def generateReport(name, test_cases):
+    inner_index_size = []
+    inner_index_build_duration = []
     for test_case in test_cases:
-        generateReportForTestCase(test_cases[test_case])
+        test_case_properties = test_cases[test_case]
+        test_dir = os.path.join(test_case_properties['dir'])
+        results_dir = os.path.join(test_dir, 'outputs', 'results')
+        csv_dir = os.path.join(test_dir, 'csv')
+        os.makedirs(csv_dir, exist_ok=True)
+        df = buildDataFrame(results_dir)
+        inner_index_size.append(getInnerIndexSizeForTestCase(df))
+        inner_index_build_duration.append(getInnerIndexBuildDurationForTestCase(df))
+        generateReportForTestCase(test_case, df, csv_dir)
+    pd.DataFrame.from_records(inner_index_size, index=test_cases.keys()).to_csv(os.path.join(dstDir, name + '_innerIndexSize.csv'))
+    pd.DataFrame.from_records(inner_index_build_duration, index = test_cases.keys()).to_csv(os.path.join(dstDir, name + '_innerIndexBuildDuration.csv'))
+    
+def getInnerIndexSizeForTestCase(test_dataframe):
+    inner_index_size = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_size', aggfunc='median')
+    data = {}
+    for index in inner_index_size:
+        data[index] = inner_index_size[index].mean()
+    return data
 
-def generateReportForTestCase(test_case):
-    test_dir = os.path.join(test_case['dir'])
-    results_dir = os.path.join(test_dir, 'outputs', 'results')
-    csv_dir = os.path.join(test_dir, 'csv')
-    os.makedirs(csv_dir, exist_ok=True)
+def getInnerIndexBuildDurationForTestCase(test_dataframe):
+    inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
+    data = {}
+    for index in inner_index_build_duration:
+        data[index] = inner_index_build_duration[index].mean()
+    return data
 
+def buildDataFrame(results_dir):
     runs = [os.path.join(results_dir, run) for run in os.listdir(results_dir)]
     test_results = []
     for run in runs:
@@ -81,19 +102,13 @@ def generateReportForTestCase(test_case):
             test_results.append(test_result)
             json_file.close()
     test_dataframe = pd.json_normalize(test_results)
+    return test_dataframe
 
+
+def generateReportForTestCase(test_case_name, test_dataframe, csv_dir):
     overall_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.duration_ns', aggfunc='median')
     overall_duration.to_csv(os.path.join(csv_dir, 'duration_sec.csv'))
 
-    inner_index_size = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_size', aggfunc='median')
-    data = {}
-    data['indexes'] = []
-    data['memory_bytes'] = []
-    for index in inner_index_size:
-        data['indexes'].append(index)
-        data['memory_bytes'].append(inner_index_size[index].mean())
-    inner_index_size = pd.DataFrame(data=data)
-    inner_index_size.to_csv(os.path.join(csv_dir, 'inner_index_size.csv'))
 
     inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
     data = {}
@@ -116,17 +131,17 @@ def generateReportForTestCase(test_case):
         else:
             pass
             #print(f"common_key: {common_key} checksums don't match")
-    print(test_case['dir'], "\t\t[Test Pass: ", test_case_ok, "]")
+    print(test_case_name, "\t\t[Test Pass: ", test_case_ok, "]")
 
-def copyCsvToPaper(test_cases):
+def copyCsvToPaper(name, test_cases):
     for test_case in test_cases:
         exp_name = os.path.basename(test_cases[test_case]['dir'])
         print(exp_name)
         os.makedirs(os.path.join(dstDir, exp_name), exist_ok=True)
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, exp_name), dirs_exist_ok=True)
 
-generateReport(small_join_test_cases)
-generateReport(small_merge_test_cases)
+generateReport('small_join', small_join)
+generateReport('small_merge', small_merge_test_cases)
 
-copyCsvToPaper(small_join_test_cases)
-copyCsvToPaper(small_merge_test_cases)
+copyCsvToPaper('small_join_synthetic', small_join)
+copyCsvToPaper('small_merge', small_merge_test_cases)

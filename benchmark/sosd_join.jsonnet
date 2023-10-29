@@ -62,6 +62,10 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "sort_join",
             },
             {
+                "algo_name": "hash_join",
+                "algo": "hash_join",
+            },
+            {
                 "algo_name": "pgm64",
                 "algo": "inlj",
                 "index": {
@@ -97,7 +101,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 },
             },
             {
-                "algo_name": "btree_1page",
+                "algo_name": "btree256",
                 "algo": "inlj",
                 "index": {
                     "type": "btree",
@@ -105,7 +109,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 },
             },
             {
-                "algo_name": "btree_2page",
+                "algo_name": "btree512",
                 "algo": "inlj",
                 "index": {
                     "type": "btree",
@@ -113,22 +117,24 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 },
             },
             // Has bugs disabled for now.
-            //{
-            //    "algo_name": "btree_4page",
-            //    "algo": "inlj",
-            //    "index": {
-            //        "type": "btree",
-            //        "leaf_size_in_pages": 4,
-            //    },
-            //},
-            //{
-            //    "algo_name": "btree_16page",
-            //    "algo": "inlj",
-            //    "index": {
-            //        "type": "btree",
-            //        "leaf_size_in_pages": 16,
-            //    },
-            //},
+/*
+            {
+                "algo_name": "btree1024",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 4,
+                },
+            },
+            {
+                "algo_name": "btree2048",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 16,
+                },
+            },
+*/
         ]
     ]
 }

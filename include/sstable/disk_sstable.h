@@ -74,7 +74,7 @@ public:
 #ifdef C23
     return size_t(1) << (num_bits - std::countl_zero(i - 1));
 #else
-    return size_t(1) << (num_bits - countLeadingZeros(i) - 1);
+    return size_t(1) << (num_bits - countLeadingZeros(i - 1));
 #endif
   }
 
