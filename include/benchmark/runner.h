@@ -101,7 +101,7 @@ json create_input_sstable(json test_spec) {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
-    std::set<uint64_t> common_keys;
+    std::set<uint64_t> common_keys; // UNUSED.
     generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
                            get_result_builder(test_spec));
