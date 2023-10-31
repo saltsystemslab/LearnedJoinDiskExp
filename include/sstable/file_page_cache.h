@@ -15,7 +15,7 @@ public:
   // Return a pointer to buffer containing bytes from that pge.
   // The buffer is valid atleast until the next get_page. Not Thread Safe.
   virtual char *get_page(uint64_t page_idx) = 0;
-  virtual char *get_cur_page(uint64_t *len) = 0;
+  virtual char *getLoadedPages(uint64_t *len) = 0;
   virtual uint64_t get_num_disk_fetches() = 0;
 };
 
@@ -67,7 +67,7 @@ public:
 
   uint64_t get_num_disk_fetches() override { return num_disk_fetches_; }
 
-  char *get_cur_page(uint64_t *len) {
+  char *getLoadedPages(uint64_t *len) override {
     *len = buffer_size_ * PAGE_SIZE;
     return buffer_;
   }

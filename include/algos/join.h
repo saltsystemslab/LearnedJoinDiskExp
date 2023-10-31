@@ -44,16 +44,15 @@ SSTable<T> *indexed_nested_loop_join_windowed(
     SSTable<T> *outer, SSTable<T> *inner, Index<T> *inner_index,
     Comparator<T> *comparator, SSTableBuilder<T> *result, json *join_stats) {
   auto outer_iterator = outer->iterator();
-  auto inner_iterator = inner->iterator(inner_index->getMaxError());
+  auto inner_iterator = inner->iterator(inner_index->getMaxError(), inner_index->isErrorPageAligned());
   outer_iterator->seekToFirst();
   inner_iterator->seekToFirst();
   uint64_t inner_num_elts = inner_iterator->numElts();
   while (outer_iterator->valid()) {
-    uint64_t lower =
-        inner_index->getPositionBounds(outer_iterator->key()).lower;
-    lower = std::min(lower, inner_num_elts - 1);
-    inner_iterator->peek(lower);
-    if (inner_iterator->checkCache(outer_iterator->key())) {
+    auto bounds =
+        inner_index->getPositionBounds(outer_iterator->key());
+    bounds.lower = std::min(bounds.lower, inner_num_elts - 1);
+    if (inner_iterator->keyIsPresent(bounds.lower, bounds.approx_pos, bounds.upper, outer_iterator->key())) {
       result->add(outer_iterator->key());
     }
     outer_iterator->next();

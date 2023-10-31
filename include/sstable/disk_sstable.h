@@ -128,7 +128,7 @@ public:
   }
   bool check_for_key_in_cache(const char *key) {
     uint64_t len;
-    char *cache_buffer = file_page_cache_->get_cur_page(&len);
+    char *cache_buffer = file_page_cache_->getLoadedPages(&len);
     char *lower = lower_bound(cache_buffer, len, key);
     return (lower != cache_buffer + len)
                ? (memcmp(key, lower, key_size_bytes_) == 0)
@@ -174,7 +174,12 @@ public:
     return cur_kv_cache_->get_num_disk_fetches() +
            peek_kv_cache_->get_num_disk_fetches();
   }
-  bool checkCache(KVSlice kv) override {
+  bool keyIsPresent(uint64_t lower_idx, uint64_t pos, uint64_t upper_idx, KVSlice kv) override {
+    // This part here is a bit brittle and relies on side effects.
+    // The cache is always configured to load lower_idx + cache pages in size.
+    // We don't really use pos, upper_idx here, since we use binary search.
+    // But a future variant could use exponential search starting from pos and going up or down.
+    peek_kv_cache_->get_kv(lower_idx + start_idx_);
     return peek_kv_cache_->check_for_key_in_cache(kv.data());
   }
 
@@ -209,9 +214,11 @@ public:
   Iterator<KVSlice> *iterator() override {
     return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, 1);
   }
-  Iterator<KVSlice> *iterator(int kv_buffer_size) override {
-    kv_buffer_size = std::max(kv_buffer_size, PAGE_SIZE/(key_size_bytes_ + value_size_bytes_));
-    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, std::ceil(((kv_buffer_size * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE) + 1));
+  Iterator<KVSlice> *iterator(int max_error_window_in_keys, bool aligned) override {
+    max_error_window_in_keys = std::max(max_error_window_in_keys, PAGE_SIZE/(key_size_bytes_ + value_size_bytes_));
+    int pages_to_fetch = std::floor(((max_error_window_in_keys * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)); 
+    if (!aligned) pages_to_fetch++;
+    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, pages_to_fetch);
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =

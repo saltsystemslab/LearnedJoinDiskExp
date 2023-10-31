@@ -79,6 +79,9 @@ public:
   }
   uint64_t currentPos() override { return cur_idx_; }
   uint64_t numElts() override { return num_keys_; }
+  bool keyIsPresent(uint64_t lower, uint64_t pos, uint64_t upper, KVSlice key) override {
+    abort();
+  }
 
 private:
   char *data_;

@@ -2,9 +2,9 @@
 
 #include "in_mem_sstable.h"
 #include "index.h"
-#include "inner_inmem_b_tree.h"
 #include "key_to_point.h"
 #include "one_level_pgm_index.h"
+#include "btree_index.h"
 #include "pgm_index.h"
 #include "synthetic.h"
 #include <openssl/rand.h>
@@ -13,7 +13,7 @@
 namespace li_merge {
 
 void check_randomAccess(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
-  uint64_t num_keys = iterator->num_elts();
+  uint64_t num_keys = iterator->numElts();
   iterator->seekToFirst();
   uint64_t pos = 0;
   std::random_device rd;  // a seed source for the random number engine
@@ -31,21 +31,80 @@ void check_randomAccess(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
   }
 }
 
+void check_index(Iterator<KVSlice> *iterator, Index<KVSlice> *index) {
+  uint64_t num_keys = iterator->numElts();
+  iterator->seekToFirst();
+  uint64_t pos = 0;
+  for (uint64_t i = 0; i < num_keys; i++) {
+    auto bounds = index->getPositionBounds(iterator->peek(i));
+    if (bounds.lower > 20) {
+      bounds.lower = 0;
+    }
+    ASSERT_LE(bounds.lower, pos);
+    ASSERT_GE(bounds.upper + 20, pos);
+  }
+}
+
+TEST(IndexCreationTest, TestBTree1Page) {
+  uint64_t numElts = 10000000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVUint64Cmp();
+  KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
+  SSTable<KVSlice> *table = generate_uniform_random_distribution(
+      numElts, key_size_bytes, value_size_bytes, comparator,
+        new FixedSizeKVDiskSSTableBuilder("1page", 8, 8));
+
+  Iterator<KVSlice> *iterator = table->iterator();
+  IndexBuilder<KVSlice> *builder =
+      new BTreeIndexBuilder(1, 8, 8);
+  Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
+  check_index(iterator, index);
+
+  //Iterator<KVSlice> *subRangeIterator =
+  //    table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  //Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  //check_index(subRangeIterator, subRangeIndex);
+}
+
+TEST(IndexCreationTest, TestBTree16Page) {
+  uint64_t numElts = 1000000;
+  int key_size_bytes = 8;
+  int value_size_bytes = 8;
+  Comparator<KVSlice> *comparator = new KVUint64Cmp();
+  SSTable<KVSlice> *table = generate_uniform_random_distribution(
+      numElts, key_size_bytes, value_size_bytes, comparator,
+        new FixedSizeKVDiskSSTableBuilder("16page", 8, 8));
+
+  Iterator<KVSlice> *iterator = table->iterator();
+  IndexBuilder<KVSlice> *builder =
+      new BTreeIndexBuilder(16, 8, 8);
+  Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
+  check_index(iterator, index);
+
+  /*
+  Iterator<KVSlice> *subRangeIterator =
+      table->getSSTableForSubRange(3000000, 4000000)->iterator();
+  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
+  check_index(subRangeIterator, subRangeIndex);
+  */
+}
+
 TEST(IndexCreationTest, TestPGMUInt64) {
-  uint64_t num_elts = 10000000;
+  uint64_t numElts = 10000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVUint64Cmp();
   KeyToPointConverter<KVSlice> *converter = new KVUint64ToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
+      numElts, key_size_bytes, value_size_bytes, comparator,
       FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-          num_elts, key_size_bytes, value_size_bytes, comparator));
+          numElts, key_size_bytes, value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
   IndexBuilder<KVSlice> *builder =
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
 
   Iterator<KVSlice> *subRangeIterator =
       table->getSSTableForSubRange(3000000, 4000000)->iterator();
@@ -53,20 +112,20 @@ TEST(IndexCreationTest, TestPGMUInt64) {
 }
 
 TEST(IndexCreationTest, TestPGM8Byte) {
-  uint64_t num_elts = 10000000;
+  uint64_t numElts = 10000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVSliceMemcmp();
   KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
+      numElts, key_size_bytes, value_size_bytes, comparator,
       FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-          num_elts, key_size_bytes, value_size_bytes, comparator));
+          numElts, key_size_bytes, value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
   IndexBuilder<KVSlice> *builder =
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
   check_index(iterator, index);
 
   Iterator<KVSlice> *subRangeIterator =
@@ -76,20 +135,20 @@ TEST(IndexCreationTest, TestPGM8Byte) {
 }
 
 TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
-  uint64_t num_elts = 10000000;
+  uint64_t numElts = 10000000;
   int key_size_bytes = 8;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVSliceMemcmp();
   KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
+      numElts, key_size_bytes, value_size_bytes, comparator,
       FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-          num_elts, key_size_bytes, value_size_bytes, comparator));
+          numElts, key_size_bytes, value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
   IndexBuilder<KVSlice> *builder =
       new OneLevelPgmIndexBuilder<KVSlice, 64>(10, converter);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
   check_index(iterator, index);
 
   Iterator<KVSlice> *subRangeIterator =
@@ -99,20 +158,20 @@ TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
 }
 
 TEST(IndexCreationTest, TestPGM16Byte) {
-  uint64_t num_elts = 10000000;
+  uint64_t numElts = 10000000;
   int key_size_bytes = 16;
   int value_size_bytes = 8;
   Comparator<KVSlice> *comparator = new KVSliceMemcmp();
   KeyToPointConverter<KVSlice> *converter = new KVStringToDouble();
   SSTable<KVSlice> *table = generate_uniform_random_distribution(
-      num_elts, key_size_bytes, value_size_bytes, comparator,
+      numElts, key_size_bytes, value_size_bytes, comparator,
       FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-          num_elts, key_size_bytes, value_size_bytes, comparator));
+          numElts, key_size_bytes, value_size_bytes, comparator));
 
   Iterator<KVSlice> *iterator = table->iterator();
   IndexBuilder<KVSlice> *builder =
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
-  Index<KVSlice> *index = build_index_from_iterator(iterator, builder);
+  Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
   check_index(iterator, index);
 
   Iterator<KVSlice> *subRangeIterator =
@@ -121,71 +180,11 @@ TEST(IndexCreationTest, TestPGM16Byte) {
   check_index(subRangeIterator, subRangeIndex);
 }
 
-void load_keys(std::vector<uint64_t> &keys, LeafNodeIterm *data, int count) {
-  for (uint64_t i = 0; i < count; i++) {
-    uint64_t k;
-    RAND_bytes((unsigned char *)&k, sizeof(k));
-    keys.push_back(k);
-  }
-  std::sort(keys.begin(), keys.end());
-  for (uint64_t i = 0; i < count; i++) {
-    data[i].key = keys[i];
-    data[i].value = keys[i];
-  }
-}
-
 void pad_int_string_with_zeros(std::string &s, int len) {
   while (s.size() < len) {
     s = "0" + s;
   }
 }
 
-#ifdef STRING_KEYS
-
-TEST(InMemBTreeIndex, TestBulkLoadAndLookupString) {
-  InnerInMemBTree *tree_;
-  tree_ = new InnerInMemBTree(true, "leafdisk_bulk_copy");
-  int count = 2000;
-  std::vector<std::string> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  for (uint64_t i = 0; i < count; i++) {
-    std::string key = std::to_string(2 * i);
-    pad_int_string_with_zeros(key, 16);
-    keys.push_back(key);
-    data[i].key = key;
-    data[i].value = i;
-  }
-  tree_->bulk_load(data, count);
-
-  for (uint64_t i = 0; i < count; i++) {
-    std::string key = std::to_string(2 * i);
-    pad_int_string_with_zeros(key, 16);
-    ASSERT_EQ(tree_->keyExists(key), true);
-
-    key = std::to_string(2 * i + 1);
-    pad_int_string_with_zeros(key, 16);
-    ASSERT_EQ(tree_->keyExists(key), false);
-  }
-}
-#else
-void check_inmem_tree(std::vector<uint64_t> &keys, InnerInMemBTree *tree) {
-  int c;
-  for (uint64_t i = 1; i < keys.size(); i++) {
-    ASSERT_EQ(tree->keyExists(keys[i]), true);
-    ASSERT_EQ(tree->keyExists(keys[i] + 1), false);
-  }
-}
-
-TEST(InMemBTreeIndex, TestBulkLoadAndLookup) {
-  InnerInMemBTree *tree_;
-  tree_ = new InnerInMemBTree(true, "leafdisk_bulk_copy");
-  int count = 2000;
-  std::vector<uint64_t> keys;
-  LeafNodeIterm *data = new LeafNodeIterm[count];
-  load_keys(keys, data, count);
-  tree_->bulk_load(data, count);
-  check_inmem_tree(keys, tree_);
-}
-#endif
 
 } // namespace li_merge

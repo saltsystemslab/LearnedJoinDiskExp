@@ -29,8 +29,8 @@ TEST(DiskSSTable, TestLargerIterator) {
     builder->add(kv);
   }
   SSTable<KVSlice> *table = builder->build();
-  Iterator<KVSlice> *cur_iterator = table->iterator(256 * 5); // (4096/16) * 5
-  Iterator<KVSlice> *peek_iterator = table->iterator(256 * 5);
+  Iterator<KVSlice> *cur_iterator = table->iterator(256 * 5, false); // (4096/16) * 5
+  Iterator<KVSlice> *peek_iterator = table->iterator(256 * 5, false);
   uint64_t idx = 0;
   cur_iterator->seekToFirst();
   while (cur_iterator->valid()) {

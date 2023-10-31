@@ -29,6 +29,7 @@ public:
   Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) override {
     return new PgmIndex(pgm_index_, converter_, start, end);
   }
+  bool isErrorPageAligned() override { return false; }
 
 private:
   uint64_t start_idx_;

@@ -45,6 +45,7 @@ public:
 
   uint64_t sizeInBytes() override { return tree_->get_tree_size(); }
   uint64_t getMaxError() override { return leaf_size_in_keys_; }
+  bool isErrorPageAligned() override { return true; }
   Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
     return new BTreeWIndex(tree_, leaf_size_in_keys_, num_blocks_, start, end);
   }
@@ -67,6 +68,7 @@ public:
     num_items_block_ = (leaf_size_in_pages * 4096) / (key_size_bytes + value_size_bytes);
   }
   void add(const KVSlice &t) override {
+    num_elts_++;
 #ifdef STRING_KEYS
     elts_.push_back(std::string(t.data(), key_size_bytes_));
 #else
@@ -75,7 +77,6 @@ public:
       elts_.push_back(std::pair<uint64_t, uint64_t>(*key, block_id++));
     }
 #endif
-    num_elts_++;
   }
   Index<KVSlice> *build() override {
     tree_->bulk_load(elts_.begin(), elts_.end());

@@ -35,6 +35,7 @@ public:
     return new OneLevelPgmIndex(pgm_index_, converter_, start, end);
   }
   uint64_t getMaxError() override { return 2*pgm_index_->epsilon_value; }
+  bool isErrorPageAligned() override { return false; }
 
 private:
   uint64_t start_idx_;
