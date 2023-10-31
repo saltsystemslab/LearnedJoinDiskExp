@@ -19,6 +19,7 @@
 #include <math.h>
 
 #define HEADER_SIZE 16
+#define C23 1
 
 namespace li_merge {
 
@@ -216,7 +217,7 @@ public:
   }
   Iterator<KVSlice> *iterator(int max_error_window_in_keys, bool aligned) override {
     max_error_window_in_keys = std::max(max_error_window_in_keys, PAGE_SIZE/(key_size_bytes_ + value_size_bytes_));
-    int pages_to_fetch = std::floor(((max_error_window_in_keys * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)); 
+    int pages_to_fetch = std::ceil(((1.0 * max_error_window_in_keys * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)); 
     if (!aligned) pages_to_fetch++;
     return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, pages_to_fetch);
   }
