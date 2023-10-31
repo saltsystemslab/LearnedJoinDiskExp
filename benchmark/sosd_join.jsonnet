@@ -116,8 +116,6 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "leaf_size_in_pages": 2,
                 },
             },
-            // Has bugs disabled for now.
-/*
             {
                 "algo_name": "btree1024",
                 "algo": "inlj",
@@ -134,7 +132,6 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "leaf_size_in_pages": 16,
                 },
             },
-*/
         ]
     ]
 }

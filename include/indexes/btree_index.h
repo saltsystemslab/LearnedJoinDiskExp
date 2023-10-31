@@ -37,7 +37,7 @@ public:
     if (it != tree_->end()) {
       block_id = it.data();
     } else {
-      block_id = num_blocks_ - 1;
+      block_id = num_blocks_;
     }
     uint64_t pos = block_id * leaf_size_in_keys_;
     return Bounds{pos, pos + leaf_size_in_keys_, pos};
@@ -90,6 +90,7 @@ private:
 #else
   std::vector<std::pair<uint64_t, uint64_t>> elts_;
 #endif
+  std::vector<uint64_t> keys_;
   stx_btree *tree_;
   int num_items_block_;
 };
