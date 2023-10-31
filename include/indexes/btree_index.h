@@ -4,7 +4,7 @@
 #include "comparator.h"
 #include "index.h"
 #include "key_value_slice.h"
-#include "stx/btree_multimap.h"
+#include "stx/btree_map.h"
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -16,7 +16,7 @@ struct traits_inner : stx::btree_default_map_traits<uint64_t, uint64_t> {
   static const int leafslots = 4096 / (sizeof(uint64_t) + sizeof(uint64_t));
   static const int innerslots = 4096 / (sizeof(uint64_t) + sizeof(uint64_t));
 };
-typedef stx::btree_multimap<uint64_t, uint64_t, std::less<uint64_t>,
+typedef stx::btree_map<uint64_t, uint64_t, std::less<uint64_t>,
                             traits_inner>
     stx_btree;
 
@@ -32,7 +32,7 @@ public:
         };
   Bounds getPositionBounds(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
-    stx_btree::iterator it = tree_->find_for_disk(*key);
+    stx_btree::iterator it = tree_->lower_bound(*key);
     int block_id;
     if (it != tree_->end()) {
       block_id = it.data();
