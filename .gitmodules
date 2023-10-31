@@ -6,7 +6,7 @@
 	url = git@github.com:droidkid/PGM-index
 [submodule "third_party/LearnedIndexDiskExp"]
 	path = third_party/LearnedIndexDiskExp
-	url = https://github.com/rmitbggroup/LearnedIndexDiskExp
+	url = git@github.com:saltsystemslab/LearnedIndexDiskExp
 [submodule "SOSD"]
 	path = SOSD
 	url = https://github.com/learnedsystems/SOSD
