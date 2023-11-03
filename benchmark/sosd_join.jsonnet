@@ -16,7 +16,6 @@ local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
-local num_common_keys = 10000;
 
 local max_ratio = 100;
 local points = 10;
@@ -62,7 +61,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "sort_join",
             },
             {
-                "algo_name": "hash_join",
+                "algo_name": "hashJoin",
                 "algo": "hash_join",
             },
             {

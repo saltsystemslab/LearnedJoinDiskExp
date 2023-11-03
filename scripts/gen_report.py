@@ -8,29 +8,30 @@ dstDir = '../LearnedMergerPaper/experiment'
 
 small_join = {
     "URDense" : {
-        "dir": "./sponge/uniform_dense_join_small_1"
+        "dir": "./sponge/uniform_dense_join_1"
     },
     "URSparse" : {
-        "dir": "./sponge/uniform_sparse_join_small_1"
+        "dir": "./sponge/uniform_sparse_join_1"
     },
     "lognormal" : {
-        "dir": "./sponge/lognormal_join_small_1"
+        "dir": "./sponge/lognormal_join_1"
     },
     "normal": {
-        "dir": "./sponge/normal_join_small_1"
+        "dir": "./sponge/normal_join_1"
     },
     "fb": {
         "dir": "./sponge/fb_join_small_1"
     },
-    "osm": {
-        "dir": "./sponge/osm_join_small_1"
-    },
     "wiki": {
         "dir": "./sponge/wiki_join_small_1"
-    },
-    "books": {
-        "dir": "./sponge/books_join_small_1"
     }
+    # Disabled for now, these are large datasets.
+    #"books": {
+    #    "dir": "./sponge/books_join_small_1"
+    #}
+    #"osm": {
+    #    "dir": "./sponge/osm_join_small_1"
+    #},
 }
 
 small_merge_test_cases = {
@@ -108,7 +109,8 @@ def buildDataFrame(results_dir):
 def generateReportForTestCase(test_case_name, test_dataframe, csv_dir):
     overall_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.duration_ns', aggfunc='median')
     overall_duration.to_csv(os.path.join(csv_dir, 'duration_sec.csv'))
-
+    inner_index_disk_fetch = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_disk_fetch', aggfunc='median')
+    inner_index_disk_fetch.to_csv(os.path.join(csv_dir, 'inner_disk_fetch.csv'))
 
     inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
     data = {}
@@ -141,7 +143,7 @@ def copyCsvToPaper(name, test_cases):
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, exp_name), dirs_exist_ok=True)
 
 generateReport('small_join', small_join)
-generateReport('small_merge', small_merge_test_cases)
+#generateReport('small_merge', small_merge_test_cases)
 
-copyCsvToPaper('small_join_synthetic', small_join)
-copyCsvToPaper('small_merge', small_merge_test_cases)
+copyCsvToPaper('small_join', small_join)
+#copyCsvToPaper('small_merge', small_merge_test_cases)

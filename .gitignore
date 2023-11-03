@@ -21,3 +21,7 @@ csv/*
 cmake_build/*
 sponge/*
 debug/*
+sponge-oct-30/*
+sponge_debug/*
+benchmark/sosd_join_debug.jsonnet
+benchmark/sosd_join_pgm_compare.jsonnet
