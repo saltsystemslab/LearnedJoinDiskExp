@@ -16,15 +16,14 @@
 #include <thread>
 #include <unistd.h>
 #include <math.h>
-#include "file_page_cache.h"
 
+#define PAGE_SIZE 4096
 #define HEADER_SIZE 16
 #define C23 1
 
 namespace li_merge {
 
 // TODO(chesetti): Rename FixedSizeKV to Disk.
-
 
 struct DiskSSTableMetadata {
   std::string file_path;
@@ -36,6 +35,22 @@ struct DiskSSTableMetadata {
   }
   int getHeaderSize() {
     return 16;
+  }
+  static DiskSSTableMetadata loadMetadata(std::string file_path) {
+    int fd = open(file_path.c_str(), O_RDONLY);
+    char header[16];
+    int bytes_read = pread(fd, header, HEADER_SIZE, 0);
+    assert(bytes_read == HEADER_SIZE);
+    uint64_t num_keys_ = *((uint64_t *)(header));
+    int key_size_bytes_ = *((int *)(header + 8));
+    int value_size_bytes_ = *((int *)(header + 12));
+    return {
+      file_path, 
+      num_keys_,
+      key_size_bytes_,
+      value_size_bytes_
+    };
+    close(fd);
   }
 };
 
@@ -129,7 +144,7 @@ public:
     return cache_->getWindowFrom(lo_idx, hi_idx);
   }
   uint64_t getDiskFetches() override {
-    return 0;
+    return cache_->getDiskFetches();
   }
 
 private:
@@ -139,86 +154,70 @@ private:
   DiskSSTablePageCache *cache_;
 };
 
-class FixedSizeKVDiskSSTableIterator : public Iterator<KVSlice> {
+class DiskSSTableIterator: public Iterator<KVSlice> {
 public:
-  FixedSizeKVDiskSSTableIterator(std::string file_path, int cache_size_in_pages)
-      : cur_idx_(0) {
-    fd_ = open(file_path.c_str(), O_RDONLY);
-    readHeader();
-    cur_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
-                                              value_size_bytes_, HEADER_SIZE, 1, false);
-    peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
-                                               value_size_bytes_, HEADER_SIZE, cache_size_in_pages, true);
+  DiskSSTableIterator(std::string file_path) {
+    cur_idx_ = 0;
+    metadata_ = DiskSSTableMetadata::loadMetadata(file_path);
+    cur_kv_cache_ = new DiskSSTablePageCache(metadata_);
+    peek_kv_cache_ = new DiskSSTablePageCache(metadata_);
   }
-  ~FixedSizeKVDiskSSTableIterator() {
+  DiskSSTableIterator(DiskSSTableMetadata metadata): metadata_(metadata) {
+    cur_idx_ = 0;
+    cur_kv_cache_ = new DiskSSTablePageCache(metadata_);
+    peek_kv_cache_ = new DiskSSTablePageCache(metadata_);
+  }
+  DiskSSTableIterator() {
     delete cur_kv_cache_;
     delete peek_kv_cache_;
   }
-  bool valid() override { return cur_idx_ < num_keys_; }
+  bool valid() override { return cur_idx_ < metadata_.num_keys; }
   void next() override { cur_idx_++; }
   KVSlice peek(uint64_t pos) override {
-    return peek_kv_cache_->get_kv(pos);
+    // TODO(chesetti): Assert pos is in bounds.
+    peekWindow_ = peek_kv_cache_->getWindowFrom(pos, pos+1);
+    return KVSlice(peekWindow_.buf, metadata_.key_size, metadata_.val_size);
+  }
+  KVSlice key() override { 
+    curWindow_ = peek_kv_cache_->getWindowFrom(cur_idx_, cur_idx_+1);
+    return KVSlice(curWindow_.buf, metadata_.key_size, metadata_.val_size);
   }
   void seekToFirst() override { cur_idx_ = 0; }
   void seekTo(uint64_t pos) override { cur_idx_ = pos; }
-  KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
   uint64_t currentPos() override { return cur_idx_; }
-  uint64_t numElts() override { return num_keys_; }
+  uint64_t numElts() override { return metadata_.num_keys; }
   uint64_t getDiskFetches() override {
-    return cur_kv_cache_->get_num_disk_fetches() +
-           peek_kv_cache_->get_num_disk_fetches();
-  }
-  bool keyIsPresent(uint64_t lower_idx, uint64_t pos, uint64_t upper_idx, KVSlice kv) override {
-    // This part here is a bit brittle and relies on side effects.
-    // The cache is always configured to load lower_idx + cache pages in size.
-    // We don't really use pos, upper_idx here, since we use binary search.
-    // But a future variant could use exponential search starting from pos and going up or down.
-    peek_kv_cache_->get_kv(lower_idx);
-    return peek_kv_cache_->check_for_key_in_cache(kv.data());
+    return cur_kv_cache_->getDiskFetches() +
+           peek_kv_cache_->getDiskFetches();
   }
 
 private:
-  int fd_;
   uint64_t cur_idx_; // cur_idx_ always (0, num_keys]
-  uint64_t num_keys_;    // total number of keys in this iterator.
-  int key_size_bytes_;   // loaded from header
-  int value_size_bytes_; // loaded from header
-  int kv_size_bytes_;
-  FixedKSizeKVFileCache *cur_kv_cache_;
-  FixedKSizeKVFileCache *peek_kv_cache_;
-  void readHeader();
+  DiskSSTableMetadata metadata_;
+  DiskSSTablePageCache *cur_kv_cache_;
+  DiskSSTablePageCache *peek_kv_cache_;
+  Window<KVSlice> curWindow_;
+  Window<KVSlice> peekWindow_;
 };
 
 class FixedSizeKVDiskSSTable : public SSTable<KVSlice> {
 public:
-  FixedSizeKVDiskSSTable(std::string file_path) : file_path_(file_path) {
-    readHeader();
+  FixedSizeKVDiskSSTable(std::string file_path)  {
+    metadata_ = DiskSSTableMetadata::loadMetadata(file_path);
   }
-  FixedSizeKVDiskSSTable(std::string file_path, uint64_t start, uint64_t end)
-      : file_path_(file_path) {
-    readHeader();
-    num_keys_ = end - start;
-  }
+
   Iterator<KVSlice> *iterator() override {
-    return new FixedSizeKVDiskSSTableIterator(file_path_, 1);
+    return new DiskSSTableIterator(metadata_);
   }
-  Iterator<KVSlice> *iterator(int max_error_window_in_keys, bool aligned) override {
-    max_error_window_in_keys = std::max(max_error_window_in_keys, PAGE_SIZE/(key_size_bytes_ + value_size_bytes_));
-    int pages_to_fetch = std::ceil(((1.0 * max_error_window_in_keys * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)); 
-    if (!aligned) pages_to_fetch++;
-    return new FixedSizeKVDiskSSTableIterator(file_path_, pages_to_fetch);
-  }
+
   WindowIterator<KVSlice> *windowIterator() {
-    DiskSSTableMetadata metadata;
-    metadata.file_path = file_path_;
-    metadata.key_size = key_size_bytes_;
-    metadata.val_size = value_size_bytes_;
-    return new DiskSSTableWindowIterator(metadata);
+    return new DiskSSTableWindowIterator(metadata_);
   }
+
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =
-        FixedSizeKVInMemSSTableBuilder::InMemMalloc(num_keys_, key_size_bytes_,
-                                                    value_size_bytes_, nullptr);
+        FixedSizeKVInMemSSTableBuilder::InMemMalloc(metadata_.num_keys, metadata_.key_size,
+                                                    metadata_.val_size, nullptr);
     Iterator<KVSlice> *iter = this->iterator();
     iter->seekToFirst();
     while (iter->valid()) {
@@ -230,20 +229,12 @@ public:
     delete iter;
     return in_mem_table;
   }
-  SSTable<KVSlice> *getSSTableForSubRange(uint64_t start,
-                                          uint64_t end) {
-    return new FixedSizeKVDiskSSTable(file_path_, start, end);
-  }
 
 private:
-  uint64_t num_keys_;
-  int key_size_bytes_;
-  int value_size_bytes_;
-  int cache_size_in_pages_;
-  std::string file_path_;
-  void readHeader();
+  DiskSSTableMetadata metadata_;
 };
 
+// TODO(chesetti): Refactor with DiskSSTableMetadata.
 class FixedSizeKVDiskSSTableBuilder : public SSTableBuilder<KVSlice> {
 public:
   FixedSizeKVDiskSSTableBuilder(std::string file_path, int key_size_bytes,
@@ -461,31 +452,6 @@ void FixedSizeKVDiskSSTableBuilder::add(const KVSlice &kvSlice) {
   memcpy(buffer_ + buffer_offset_, kvSlice.data(), kv_size_bytes_);
   buffer_offset_ += kv_size_bytes_;
   num_keys_++;
-}
-
-void FixedSizeKVDiskSSTableIterator::readHeader() {
-  char header[16];
-  uint64_t bytes_read = 0;
-  while (bytes_read < HEADER_SIZE) {
-    bytes_read += pread(fd_, header, HEADER_SIZE - bytes_read, bytes_read);
-  }
-  num_keys_ = *((uint64_t *)(header));
-  key_size_bytes_ = *((int *)(header + 8));
-  value_size_bytes_ = *((int *)(header + 12));
-  kv_size_bytes_ = key_size_bytes_ + value_size_bytes_;
-}
-
-void FixedSizeKVDiskSSTable::readHeader() {
-  int fd = open(file_path_.c_str(), O_RDONLY);
-  char header[16];
-  uint64_t bytes_read = 0;
-  while (bytes_read < HEADER_SIZE) {
-    bytes_read += pread(fd, header, HEADER_SIZE - bytes_read, bytes_read);
-  }
-  num_keys_ = *((uint64_t *)(header));
-  key_size_bytes_ = *((int *)(header + 8));
-  value_size_bytes_ = *((int *)(header + 12));
-  close(fd);
 }
 
 } // namespace li_merge

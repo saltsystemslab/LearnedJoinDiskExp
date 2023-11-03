@@ -14,8 +14,6 @@ public:
   virtual T key() = 0;
   virtual uint64_t currentPos() = 0;
   virtual uint64_t numElts() = 0;
-  // Deprecate.
-  virtual bool keyIsPresent(uint64_t lower, uint64_t pos, uint64_t upper, T key) = 0;
   // STATS.
   virtual uint64_t getDiskFetches() { return 0; };
 };

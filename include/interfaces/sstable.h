@@ -8,7 +8,6 @@ namespace li_merge {
 template <class T> class SSTable {
 public:
   virtual Iterator<T> *iterator() = 0;
-  virtual Iterator<T> *iterator(int kv_buffer_size, bool aligned) { return nullptr; }
   virtual WindowIterator<T> *windowIterator() { return nullptr; }
 };
 

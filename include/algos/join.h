@@ -206,7 +206,7 @@ class SortJoin: public BaseMergeAndJoinOp<T> {
       uint64_t inner_end = partition.inner.second;
 
       auto outer_iterator = this->outer_->iterator();
-      auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
+      auto inner_iterator = this->inner_->iterator();
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
       outer_iterator->seekTo(outer_start);
       inner_iterator->seekTo(inner_start);
@@ -269,7 +269,7 @@ class SortJoinExpSearch: public BaseMergeAndJoinOp<T> {
       uint64_t inner_end = partition.inner.second;
 
       auto outer_iterator = this->outer_->iterator();
-      auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
+      auto inner_iterator = this->inner_->iterator();
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
       outer_iterator->seekTo(outer_start);
       inner_iterator->seekTo(inner_start);

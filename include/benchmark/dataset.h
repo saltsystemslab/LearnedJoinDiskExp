@@ -4,6 +4,7 @@
 #include "disk_sstable.h"
 #include "key_value_slice.h"
 #include "sstable.h"
+#include "file_page_cache.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <openssl/rand.h>
