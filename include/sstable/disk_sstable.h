@@ -23,6 +23,122 @@
 
 namespace li_merge {
 
+// TODO(chesetti): Rename FixedSizeKV to Disk.
+
+
+struct DiskSSTableMetadata {
+  std::string file_path;
+  uint64_t num_keys;
+  int key_size;
+  int val_size;
+  int getKVSize() {
+    return key_size + val_size;
+  }
+  int getHeaderSize() {
+    return 16;
+  }
+};
+
+class DiskSSTablePageCache {
+public:
+  DiskSSTablePageCache(DiskSSTableMetadata metadata): metadata_(metadata) {
+    fd_ = open(metadata_.file_path.c_str(), O_RDONLY);
+    buf_ = new char[PAGE_SIZE];
+    buf_capacity_ = PAGE_SIZE;
+    buf_first_idx_ = 0;
+    buf_len_ = 0;
+    disk_fetches_ = 0;
+  }
+  ~DiskSSTablePageCache() {
+    close(fd_);
+    delete buf_;
+  }
+  void resize(uint64_t num_items) {
+    delete buf_;
+    uint64_t num_items_per_page = std::ceil((1.0 * PAGE_SIZE) / (metadata_.getKVSize()));
+    uint64_t num_pages = std::ceil((1.0 * num_items) / num_items_per_page);
+    buf_capacity_ = num_pages * PAGE_SIZE;
+    buf_ = new char[buf_capacity_];
+    buf_len_ = 0;
+    buf_first_idx_ = 0;
+  }
+
+  bool isIdxInBuffer(uint64_t lo_idx) {
+    if (!buf_len_) return false;
+    if (buf_first_idx_ > lo_idx) return false;
+    uint64_t buf_last_idx_ = buf_first_idx_ + (buf_len_) / metadata_.getKVSize();
+    if (lo_idx >= buf_last_idx_) return false;
+    return true;
+  }
+
+  void loadBufferFrom(uint64_t lo_idx) {
+    disk_fetches_++;
+    buf_len_ = pread(
+        fd_, 
+        buf_, 
+        buf_capacity_, 
+        metadata_.getHeaderSize() + lo_idx * metadata_.getKVSize()
+    );
+    is_buf_loaded_ = true;
+    buf_first_idx_  = lo_idx;
+  }
+
+  Window<KVSlice> getWindowFrom(uint64_t lo_idx, uint64_t hi_idx) {
+    uint64_t lo_page = (lo_idx * metadata_.getKVSize()) / (PAGE_SIZE);
+    if (!isIdxInBuffer(lo_idx)) {
+      loadBufferFrom(lo_idx);
+    }
+    Window<KVSlice> w;
+    w.lo_idx = lo_idx;
+    w.hi_idx = buf_first_idx_ + (buf_len_) / metadata_.getKVSize();
+    w.hi_idx = std::min(w.hi_idx, hi_idx);
+    w.buf = buf_ + ((lo_idx - buf_first_idx_) * metadata_.getKVSize());
+    w.buf_len = (w.hi_idx - w.lo_idx) * metadata_.getKVSize();
+    w.iter = nullptr;
+    return w;
+  }
+
+  uint64_t getDiskFetches() {
+    return disk_fetches_;
+  }
+
+private:
+  DiskSSTableMetadata metadata_;
+  int fd_;
+  // Buffer holding pages.
+  char *buf_;
+  uint64_t buf_capacity_;
+  uint64_t buf_len_;
+  bool is_buf_loaded_;
+  uint64_t buf_first_idx_;
+  uint64_t disk_fetches_;
+};
+
+class DiskSSTableWindowIterator : public WindowIterator<KVSlice> {
+public:
+  DiskSSTableWindowIterator(DiskSSTableMetadata metadata): 
+    metadata_(metadata)  {
+      cache_ = new DiskSSTablePageCache(metadata);
+    }
+
+  void setWindowSize(uint64_t num_keys) override {
+    cache_->resize(num_keys);
+  }
+
+  Window<KVSlice> getWindow(uint64_t lo_idx, uint64_t hi_idx) override {
+    return cache_->getWindowFrom(lo_idx, hi_idx);
+  }
+  uint64_t getDiskFetches() override {
+    return 0;
+  }
+
+private:
+  int fd_;
+  uint64_t window_size_;
+  DiskSSTableMetadata metadata_;
+  DiskSSTablePageCache *cache_;
+};
+
 class FixedSizeKVDiskSSTableIterator : public Iterator<KVSlice> {
 public:
   FixedSizeKVDiskSSTableIterator(std::string file_path, int cache_size_in_pages)
@@ -91,6 +207,13 @@ public:
     int pages_to_fetch = std::ceil(((1.0 * max_error_window_in_keys * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)); 
     if (!aligned) pages_to_fetch++;
     return new FixedSizeKVDiskSSTableIterator(file_path_, pages_to_fetch);
+  }
+  WindowIterator<KVSlice> *windowIterator() {
+    DiskSSTableMetadata metadata;
+    metadata.file_path = file_path_;
+    metadata.key_size = key_size_bytes_;
+    metadata.val_size = value_size_bytes_;
+    return new DiskSSTableWindowIterator(metadata);
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =

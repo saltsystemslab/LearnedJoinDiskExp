@@ -7,6 +7,7 @@
 #include "key_value_slice.h"
 #include "partition.h"
 #include "sstable.h"
+#include "search.h"
 #include <thread>
 #include <unordered_set>
 // TODO(chesetti): Must be last for some reason. Fix.
@@ -81,9 +82,11 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         SSTable<T> *inner, 
         IndexBuilder<T> *inner_index_builder,
         Comparator<T> *comparator,
+        SearchStrategy<T> *search_strategy,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads),
+    search_strategy_(search_strategy) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
       uint64_t outer_start = partition.outer.first;
@@ -92,28 +95,37 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       uint64_t inner_end = partition.inner.second;
 
       auto outer_iterator = this->outer_->iterator();
-      auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
+      // auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
+      auto inner_iterator = this->inner_->windowIterator();
       auto inner_index = this->inner_index_; // TODO Make a Copy.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
 
+      inner_iterator->setWindowSize(inner_index->getMaxError());
       outer_iterator->seekTo(outer_start);
-      inner_iterator->seekTo(inner_start);
 
       while (outer_iterator->currentPos() < outer_end) {
         auto bounds =
           inner_index->getPositionBounds(outer_iterator->key());
-          if (inner_iterator->keyIsPresent(bounds.lower, bounds.approx_pos, bounds.upper, outer_iterator->key())) {
-            result_builder->add(outer_iterator->key());
-          }
+        bounds.upper = std::min(inner_end, bounds.upper);
+        SearchResult result;
+        do {
+          auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
+          result = search_strategy_->search(window, outer_iterator->key(), bounds);
+          bounds.lower = window.hi_idx; // If you search next time, search from here.
+        } while (result.shouldContinue);
+        if (result.found) {
+          result_builder->add(outer_iterator->key());
+        }
         outer_iterator->next();
       }
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
       result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
       result->output_table = result_builder->build(),
-
       delete outer_iterator;
       delete inner_iterator;
     }
+  private:
+    SearchStrategy<T> *search_strategy_;
 };
 
 // TODO: Generalize to all types.
