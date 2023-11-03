@@ -397,10 +397,16 @@ json run_inlj(json test_spec) {
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
-  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
+  Comparator<KVSlice> *comparator = get_comparator(test_spec);
+  PSSTableBuilder<KVSlice> *result_table_builder = get_parallel_result_builder_for_join(test_spec);
 
-  TableOp<KVSlice> *inlj = new LearnedIndexInlj<KVSlice>(outer_table, inner_table, inner_index_builder, result_table_builder);
-  TableOp<KVSlice>::TableOpResult result = inlj->profileOp();
+  TableOp<KVSlice> *inlj = new LearnedIndexInlj<KVSlice>(
+      outer_table, inner_table, 
+      inner_index_builder, 
+      comparator, 
+      result_table_builder,
+      test_spec["num_threads"]);
+  TableOpResult<KVSlice> result = inlj->profileOp();
   result.stats["checksum"] = md5_checksum(result.output_table);
   return result.stats;
 }
