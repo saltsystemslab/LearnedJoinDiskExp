@@ -105,10 +105,6 @@ TEST(IndexCreationTest, TestPGMUInt64) {
   IndexBuilder<KVSlice> *builder =
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
-
-  Iterator<KVSlice> *subRangeIterator =
-      table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
 }
 
 TEST(IndexCreationTest, TestPGM8Byte) {
@@ -128,10 +124,6 @@ TEST(IndexCreationTest, TestPGM8Byte) {
   Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
   check_index(iterator, index);
 
-  Iterator<KVSlice> *subRangeIterator =
-      table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
-  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
@@ -150,11 +142,6 @@ TEST(IndexCreationTest, TestOneLevelPGM8Byte) {
       new OneLevelPgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
   check_index(iterator, index);
-
-  Iterator<KVSlice> *subRangeIterator =
-      table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
-  check_index(subRangeIterator, subRangeIndex);
 }
 
 TEST(IndexCreationTest, TestPGM16Byte) {
@@ -173,11 +160,6 @@ TEST(IndexCreationTest, TestPGM16Byte) {
       new PgmIndexBuilder<KVSlice, 64>(10, converter);
   Index<KVSlice> *index = buildIndexFromIterator(iterator, builder);
   check_index(iterator, index);
-
-  Iterator<KVSlice> *subRangeIterator =
-      table->getSSTableForSubRange(3000000, 4000000)->iterator();
-  Index<KVSlice> *subRangeIndex = index->getIndexForSubrange(3000000, 4000000);
-  check_index(subRangeIterator, subRangeIndex);
 }
 
 void pad_int_string_with_zeros(std::string &s, int len) {

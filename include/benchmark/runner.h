@@ -130,15 +130,14 @@ json run_standard_merge(json test_spec) {
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
   Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  PSSTableBuilder<KVSlice> *result_table_builder =
-      get_parallel_result_builder_for_merge(test_spec);
+  SSTableBuilder<KVSlice> *result_table_builder =
+      get_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   int num_threads = test_spec["num_threads"];
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = parallelStandardMerge<KVSlice>(
-      outer_table, inner_table, inner_index, comparator, num_threads,
-      result_table_builder, &result);
+  auto resultTable = standardMerge<KVSlice>(
+      outer_table, inner_table, comparator, result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          merge_end - merge_start)
@@ -254,12 +253,12 @@ json run_learned_merge(json test_spec) {
 
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   int num_threads = test_spec["num_threads"];
-  PSSTableBuilder<KVSlice> *result_table_builder =
-      get_parallel_result_builder_for_merge(test_spec);
+  SSTableBuilder<KVSlice> *result_table_builder =
+      get_result_builder(test_spec);
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = parallelLearnedMerge(inner_table, outer_table, inner_index,
-                                          outer_index, comparator, num_threads,
+  auto resultTable = mergeWithIndexes(outer_table, inner_table, outer_index,
+                                          inner_index, comparator,
                                           result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -306,12 +305,12 @@ json run_learned_merge_threshold(json test_spec) {
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   uint64_t threshold = test_spec["threshold"];
   int num_threads = test_spec["num_threads"];
-  PSSTableBuilder<KVSlice> *result_table_builder =
-      get_parallel_result_builder_for_merge(test_spec);
+  SSTableBuilder<KVSlice> *result_table_builder =
+      get_result_builder(test_spec);
 
   auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = parallelLearnedMergeWithThreshold(
-      outer_table, inner_table, inner_index, threshold, comparator, num_threads,
+  auto resultTable = mergeWithIndexesThreshold(
+      outer_table, inner_table, inner_index, threshold, comparator,
       result_table_builder, &result);
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(

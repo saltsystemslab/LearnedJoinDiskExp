@@ -84,19 +84,6 @@ TEST(DiskSSTable, TestCreation) {
   }
   ASSERT_EQ(idx, numElts);
 
-  uint64_t start = 200000;
-  uint64_t end = 300000;
-  auto subRangeTable = table->getSSTableForSubRange(start, end);
-  auto subRangeIter = subRangeTable->iterator();
-  for (uint64_t i = start; i < end; i++) {
-    KVSlice cur_kv(data_ptrs[i], key_size_bytes, value_size_bytes);
-    ASSERT_TRUE(memcmp(subRangeIter->key().data(), cur_kv.data(),
-                       key_size_bytes + value_size_bytes) == 0);
-    subRangeIter->next();
-  }
-  ASSERT_EQ(subRangeIter->numElts(), end - start);
-  ASSERT_FALSE(subRangeIter->valid());
-
   delete[] data_ptrs;
   delete[] data;
 }

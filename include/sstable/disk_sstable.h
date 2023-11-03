@@ -1,7 +1,6 @@
 #ifndef LEARNEDINDEXMERGE_DISK_SSTABLE_H
 #define LEARNEDINDEXMERGE_DISK_SSTABLE_H
 
-#include "file_page_cache.h"
 #include "in_mem_sstable.h"
 #include "iterator.h"
 #include "key_value_slice.h"
@@ -17,141 +16,19 @@
 #include <thread>
 #include <unistd.h>
 #include <math.h>
+#include "file_page_cache.h"
 
 #define HEADER_SIZE 16
 #define C23 1
 
 namespace li_merge {
 
-// TODO(chesetti): Extract SSTable Header into own class.
-
-class FixedKSizeKVFileCache {
-public:
-  FixedKSizeKVFileCache(int fd, int key_size_bytes, int value_size_bytes,
-                        uint64_t file_start_offset, int cache_size_in_pages, bool load_ahead)
-      : file_page_cache_(new FileNPageBuffer(fd, file_start_offset, cache_size_in_pages, load_ahead)),
-        key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),
-        kv_size_bytes_(key_size_bytes + value_size_bytes) {}
-  KVSlice get_kv(uint64_t kv_idx) {
-    uint64_t page_idx = (kv_idx * kv_size_bytes_) / PAGE_SIZE;
-    uint64_t page_offset = (kv_idx * kv_size_bytes_) % PAGE_SIZE;
-    char *page_data = file_page_cache_->get_page(page_idx);
-    return KVSlice(page_data + page_offset, key_size_bytes_,
-                   value_size_bytes_);
-  }
-  uint64_t get_num_disk_fetches() {
-    return file_page_cache_->get_num_disk_fetches();
-  }
-
-	int countLeadingZeros(size_t number) {
-    int count = 0;
-    int numBits = sizeof(number) * 8; // Assuming 32-bit integers
-
-    for (int i = 0; i < numBits; ++i) {
-        if ((number & (size_t(1) << (numBits - 1))) == 0) {
-            count++;
-        } else {
-            break;
-        }
-        number <<= 1;
-    }
-
-    return count;
-	}
-
-  /* Adapting Branchless Binary search from
-   * https://github.com/skarupke/branchless_binary_search */
-  inline size_t bit_floor(size_t i) {
-    constexpr int num_bits = sizeof(i) * 8;
-#ifdef C23
-    return size_t(1) << (num_bits - std::countl_zero(i) - 1);
-#else
-    return size_t(1) << (num_bits - countLeadingZeros(i) - 1);
-#endif
-  }
-
-  inline size_t bit_ceil(size_t i) {
-    constexpr int num_bits = sizeof(i) * 8;
-#ifdef C23
-    return size_t(1) << (num_bits - std::countl_zero(i - 1));
-#else
-    return size_t(1) << (num_bits - countLeadingZeros(i - 1));
-#endif
-  }
-
-  char *lower_bound(char *buf, uint64_t len_in_bytes, const char *key) {
-    uint64_t start = 0;
-    uint64_t end = (len_in_bytes) / (key_size_bytes_ + value_size_bytes_);
-    uint64_t len = end - start;
-    uint64_t step = bit_floor(len);
-#ifdef STRING_KEYS
-    char *cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
-    if (step != len && memcmp(cur, key, key_size_bytes_) < 0) {
-      len -= step + 1;
-      if (len == 0) {
-        return buf + (key_size_bytes_ + value_size_bytes_) * end;
-      }
-      step = bit_ceil(len);
-      start = end - step;
-    }
-    for (step /= 2; step != 0; step /= 2) {
-      cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
-      if (memcmp(cur, key, key_size_bytes_) < 0) {
-        start += step;
-      }
-    }
-    cur = (buf + (key_size_bytes_ + value_size_bytes_) * (step + start));
-    start = start + (memcmp(cur, key, key_size_bytes_) < 0);
-    return buf + (key_size_bytes_ + value_size_bytes_) * (start);
-#else
-    uint64_t key_value = *(uint64_t *)(key);
-    uint64_t cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) *
-                                           (step + start));
-    if (step != len && (cur < key_value)) {
-      len -= step + 1;
-      if (len == 0) {
-        return buf + (key_size_bytes_ + value_size_bytes_) * end;
-      }
-      step = bit_ceil(len);
-      start = end - step;
-    }
-    for (step /= 2; step != 0; step /= 2) {
-      cur = *(uint64_t *)(buf + (key_size_bytes_ + value_size_bytes_) *
-                                    (step + start));
-      if (cur < key_value)
-        start += step;
-    }
-    cur = *(uint64_t *)(buf +
-                        (key_size_bytes_ + value_size_bytes_) * (step + start));
-    start = start + (cur < key_value);
-    return buf + (key_size_bytes_ + value_size_bytes_) * (start);
-#endif
-  }
-  bool check_for_key_in_cache(const char *key) {
-    uint64_t len;
-    char *cache_buffer = file_page_cache_->getLoadedPages(&len);
-    char *lower = lower_bound(cache_buffer, len, key);
-    return (lower != cache_buffer + len)
-               ? (memcmp(key, lower, key_size_bytes_) == 0)
-               : false;
-  }
-
-private:
-  int kv_size_bytes_;
-  int key_size_bytes_;
-  int value_size_bytes_;
-  FilePageBuffer *file_page_cache_;
-  bool load_ahead_;
-};
-
 class FixedSizeKVDiskSSTableIterator : public Iterator<KVSlice> {
 public:
-  FixedSizeKVDiskSSTableIterator(std::string file_path, uint64_t start_idx,
-                                 uint64_t end_idx, int cache_size_in_pages)
-      : cur_idx_(start_idx), start_idx_(start_idx), end_idx_(end_idx) {
+  FixedSizeKVDiskSSTableIterator(std::string file_path, int cache_size_in_pages)
+      : cur_idx_(0) {
     fd_ = open(file_path.c_str(), O_RDONLY);
     readHeader();
-    num_keys_ = end_idx - start_idx;
     cur_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
                                               value_size_bytes_, HEADER_SIZE, 1, false);
     peek_kv_cache_ = new FixedKSizeKVFileCache(fd_, key_size_bytes_,
@@ -161,15 +38,15 @@ public:
     delete cur_kv_cache_;
     delete peek_kv_cache_;
   }
-  bool valid() override { return cur_idx_ < end_idx_; }
+  bool valid() override { return cur_idx_ < num_keys_; }
   void next() override { cur_idx_++; }
   KVSlice peek(uint64_t pos) override {
-    assert(pos + start_idx_ < end_idx_);
-    return peek_kv_cache_->get_kv(pos + start_idx_);
+    return peek_kv_cache_->get_kv(pos);
   }
-  void seekToFirst() override { cur_idx_ = start_idx_; }
+  void seekToFirst() override { cur_idx_ = 0; }
+  void seekTo(uint64_t pos) override { cur_idx_ = pos; }
   KVSlice key() override { return cur_kv_cache_->get_kv(cur_idx_); }
-  uint64_t currentPos() override { return cur_idx_ - start_idx_; }
+  uint64_t currentPos() override { return cur_idx_; }
   uint64_t numElts() override { return num_keys_; }
   uint64_t getDiskFetches() override {
     return cur_kv_cache_->get_num_disk_fetches() +
@@ -180,15 +57,13 @@ public:
     // The cache is always configured to load lower_idx + cache pages in size.
     // We don't really use pos, upper_idx here, since we use binary search.
     // But a future variant could use exponential search starting from pos and going up or down.
-    peek_kv_cache_->get_kv(lower_idx + start_idx_);
+    peek_kv_cache_->get_kv(lower_idx);
     return peek_kv_cache_->check_for_key_in_cache(kv.data());
   }
 
 private:
   int fd_;
-  uint64_t cur_idx_; // cur_idx_ always (start_idx_, end_idx_]
-  uint64_t start_idx_;
-  uint64_t end_idx_;
+  uint64_t cur_idx_; // cur_idx_ always (0, num_keys]
   uint64_t num_keys_;    // total number of keys in this iterator.
   int key_size_bytes_;   // loaded from header
   int value_size_bytes_; // loaded from header
@@ -202,24 +77,20 @@ class FixedSizeKVDiskSSTable : public SSTable<KVSlice> {
 public:
   FixedSizeKVDiskSSTable(std::string file_path) : file_path_(file_path) {
     readHeader();
-    start_idx_ = 0;
-    end_idx_ = num_keys_;
   }
   FixedSizeKVDiskSSTable(std::string file_path, uint64_t start, uint64_t end)
       : file_path_(file_path) {
     readHeader();
     num_keys_ = end - start;
-    start_idx_ = start;
-    end_idx_ = end;
   }
   Iterator<KVSlice> *iterator() override {
-    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, 1);
+    return new FixedSizeKVDiskSSTableIterator(file_path_, 1);
   }
   Iterator<KVSlice> *iterator(int max_error_window_in_keys, bool aligned) override {
     max_error_window_in_keys = std::max(max_error_window_in_keys, PAGE_SIZE/(key_size_bytes_ + value_size_bytes_));
     int pages_to_fetch = std::ceil(((1.0 * max_error_window_in_keys * (key_size_bytes_ + value_size_bytes_))/PAGE_SIZE)); 
     if (!aligned) pages_to_fetch++;
-    return new FixedSizeKVDiskSSTableIterator(file_path_, start_idx_, end_idx_, pages_to_fetch);
+    return new FixedSizeKVDiskSSTableIterator(file_path_, pages_to_fetch);
   }
   FixedSizeKVInMemSSTable *load_sstable_in_mem() {
     FixedSizeKVInMemSSTableBuilder *builder =
@@ -237,7 +108,7 @@ public:
     return in_mem_table;
   }
   SSTable<KVSlice> *getSSTableForSubRange(uint64_t start,
-                                          uint64_t end) override {
+                                          uint64_t end) {
     return new FixedSizeKVDiskSSTable(file_path_, start, end);
   }
 
@@ -246,8 +117,6 @@ private:
   int key_size_bytes_;
   int value_size_bytes_;
   int cache_size_in_pages_;
-  uint64_t start_idx_;
-  uint64_t end_idx_;
   std::string file_path_;
   void readHeader();
 };

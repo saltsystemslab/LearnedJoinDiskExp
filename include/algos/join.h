@@ -91,24 +91,22 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       uint64_t inner_start = partition.inner.first;
       uint64_t inner_end = partition.inner.second;
 
-      auto outer_iterator = this->outer_->getSSTableForSubRange(outer_start, outer_end)->iterator();
-      auto inner_iterator = this->inner_->getSSTableForSubRange(inner_start, inner_end)->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
-      auto inner_index = this->inner_index_->getIndexForSubrange(inner_start, inner_end);
+      auto outer_iterator = this->outer_->iterator();
+      auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
+      auto inner_index = this->inner_index_; // TODO Make a Copy.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
 
-      outer_iterator->seekToFirst();
-      inner_iterator->seekToFirst();
-      uint64_t inner_num_elts = inner_iterator->numElts();
-      while (outer_iterator->valid()) {
+      outer_iterator->seekTo(outer_start);
+      inner_iterator->seekTo(inner_start);
+
+      while (outer_iterator->currentPos() < outer_end) {
         auto bounds =
           inner_index->getPositionBounds(outer_iterator->key());
-          bounds.lower = std::min(bounds.lower, inner_num_elts - 1);
           if (inner_iterator->keyIsPresent(bounds.lower, bounds.approx_pos, bounds.upper, outer_iterator->key())) {
             result_builder->add(outer_iterator->key());
           }
         outer_iterator->next();
       }
-
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
       result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
       result->output_table = result_builder->build(),
@@ -150,12 +148,14 @@ class HashJoin: public BaseMergeAndJoinOp<KVSlice> {
       uint64_t inner_start = partition.inner.first;
       uint64_t inner_end = partition.inner.second;
 
-      auto outer_iterator = this->outer_->getSSTableForSubRange(outer_start, outer_end)->iterator();
-      auto inner_iterator = this->inner_->getSSTableForSubRange(inner_start, inner_end)->iterator();
+      auto inner_iterator = this->inner_->iterator();
+      auto outer_iterator = this->outer_->iterator();
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
 
+      inner_iterator->seekTo(inner_start);
+
        std::string prev;
-       while (inner_iterator->valid()) {
+       while (inner_iterator->currentPos() < inner_end) {
          KVSlice kv = inner_iterator->key();
          std::string const key(kv.data(), kv.key_size_bytes());
          if (outer_hash_map.find(key) != outer_hash_map.end() && prev != key) {
@@ -193,18 +193,19 @@ class SortJoin: public BaseMergeAndJoinOp<T> {
       uint64_t inner_start = partition.inner.first;
       uint64_t inner_end = partition.inner.second;
 
-      auto outer_iterator = this->outer_->getSSTableForSubRange(outer_start, outer_end)->iterator();
-      auto inner_iterator = this->inner_->getSSTableForSubRange(inner_start, inner_end)->iterator();
-      auto inner_index = this->inner_index_->getIndexForSubrange(inner_start, inner_end);
+      auto outer_iterator = this->outer_->iterator();
+      auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+      outer_iterator->seekTo(outer_start);
+      inner_iterator->seekTo(inner_start);
 
-       while (outer_iterator->valid()) {
-         while (inner_iterator->valid() &&
+       while (outer_iterator->currentPos() < outer_end) {
+         while (inner_iterator->currentPos() < inner_end &&
                 (this->comparator_->compare(inner_iterator->key(), outer_iterator->key()) <
                  0)) {
            inner_iterator->next();
          }
-         if (!inner_iterator->valid()) {
+         if (!(inner_iterator->currentPos() < inner_end)) {
            break;
          }
          if (this->comparator_->compare(outer_iterator->key(), inner_iterator->key()) ==
@@ -255,22 +256,22 @@ class SortJoinExpSearch: public BaseMergeAndJoinOp<T> {
       uint64_t inner_start = partition.inner.first;
       uint64_t inner_end = partition.inner.second;
 
-      auto outer_iterator = this->outer_->getSSTableForSubRange(outer_start, outer_end)->iterator();
-      auto inner_iterator = this->inner_->getSSTableForSubRange(inner_start, inner_end)->iterator();
-      auto inner_index = this->inner_index_->getIndexForSubrange(inner_start, inner_end);
+      auto outer_iterator = this->outer_->iterator();
+      auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+      outer_iterator->seekTo(outer_start);
+      inner_iterator->seekTo(inner_start);
 
-      uint64_t inner_nelts = inner_iterator->numElts();
-      uint64_t inner_cur_pos = 0;
-      while (outer_iterator->valid()) {
+      uint64_t inner_cur_pos = inner_start;
+      while (outer_iterator->currentPos() < outer_end) {
         uint64_t cur_pos = inner_cur_pos;
         uint64_t bound = 1;
-        while (bound + cur_pos < inner_nelts &&
+        while (bound + cur_pos < inner_end &&
            this->comparator_->compare(inner_iterator->peek(cur_pos + bound),
                                outer_iterator->key()) < 0) {
           bound = bound * 2;
         }
-        uint64_t lim = std::min(inner_nelts - 1, cur_pos + bound);
+        uint64_t lim = std::min(inner_end - 1, cur_pos + bound);
         uint64_t next_pos = lower_bound(inner_iterator, cur_pos, lim, outer_iterator->key());
         inner_cur_pos = next_pos;
         if (this->comparator_->compare(outer_iterator->key(),

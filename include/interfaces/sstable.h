@@ -9,7 +9,6 @@ template <class T> class SSTable {
 public:
   virtual Iterator<T> *iterator() = 0;
   virtual Iterator<T> *iterator(int kv_buffer_size, bool aligned) {abort();};
-  virtual SSTable<T> *getSSTableForSubRange(uint64_t start, uint64_t end) = 0;
 };
 
 template <class T> class SSTableBuilder {

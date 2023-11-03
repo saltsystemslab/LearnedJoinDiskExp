@@ -24,12 +24,8 @@ namespace li_merge {
 
 class BTreeWIndex : public Index<KVSlice> {
 public:
-  BTreeWIndex(stx_btree *tree, int leaf_size_in_keys, int num_blocks,
-              uint64_t start_idx = 0, uint64_t end_idx = -1)
-      : tree_(tree), leaf_size_in_keys_(leaf_size_in_keys), num_blocks_(num_blocks),
-        start_idx_(start_idx), end_idx_(end_idx){
-
-        };
+  BTreeWIndex(stx_btree *tree, int leaf_size_in_keys, int num_blocks)
+      : tree_(tree), leaf_size_in_keys_(leaf_size_in_keys), num_blocks_(num_blocks) {}
   Bounds getPositionBounds(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
     stx_btree::iterator it = tree_->lower_bound(*key);
@@ -46,13 +42,8 @@ public:
   uint64_t sizeInBytes() override { return tree_->get_tree_size(); }
   uint64_t getMaxError() override { return leaf_size_in_keys_; }
   bool isErrorPageAligned() override { return true; }
-  Index<KVSlice> *getIndexForSubrange(uint64_t start, uint64_t end) override {
-    return new BTreeWIndex(tree_, leaf_size_in_keys_, num_blocks_, start, end);
-  }
 
 private:
-  uint64_t start_idx_;
-  uint64_t end_idx_;
   uint64_t leaf_size_in_keys_;
   uint64_t num_blocks_;
   uint64_t num_keys_in_block_;

@@ -17,12 +17,6 @@ public:
       : data_(data), key_size_bytes_(key_size_bytes),
         value_size_bytes_(value_size_bytes), num_kv_(num_kv) {}
   Iterator<KVSlice> *iterator() override;
-  SSTable<KVSlice> *getSSTableForSubRange(uint64_t start,
-                                          uint64_t end) override {
-    return new FixedSizeKVInMemSSTable(
-        data_ + start * (key_size_bytes_ + value_size_bytes_), key_size_bytes_,
-        value_size_bytes_, end - start);
-  }
 
 private:
   char *data_;
@@ -74,6 +68,7 @@ public:
     return KVSlice(get_kv_offset(pos), key_size_bytes_, value_size_bytes_);
   }
   void seekToFirst() override { cur_idx_ = 0; }
+  void seekTo(uint64_t pos) override { cur_idx_ = pos; }
   KVSlice key() override {
     return KVSlice(get_kv_offset(cur_idx_), key_size_bytes_, value_size_bytes_);
   }

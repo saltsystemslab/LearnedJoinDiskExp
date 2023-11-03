@@ -10,6 +10,7 @@ public:
   virtual void next() = 0;
   virtual T peek(uint64_t pos) = 0;
   virtual void seekToFirst() = 0;
+  virtual void seekTo(uint64_t pos) = 0;
   virtual T key() = 0;
   virtual uint64_t currentPos() = 0;
   virtual uint64_t numElts() = 0;

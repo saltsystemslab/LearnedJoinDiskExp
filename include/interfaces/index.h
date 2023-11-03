@@ -18,7 +18,6 @@ template <class T> class Index {
 public:
   virtual Bounds getPositionBounds(const T &t) = 0;
   virtual uint64_t sizeInBytes() = 0;
-  virtual Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) = 0;
   virtual uint64_t getMaxError() {abort();};
   virtual bool isErrorPageAligned() {abort();};
 };
