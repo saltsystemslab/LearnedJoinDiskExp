@@ -391,66 +391,18 @@ json run_learned_merge_threshold(json test_spec) {
 }
 
 json run_inlj(json test_spec) {
-  json result;
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
-  IndexBuilder<KVSlice> *outer_index_builder =
-      get_index_builder(test_spec["outer_table"], test_spec);
+  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
 
-  auto outer_index_build_start = std::chrono::high_resolution_clock::now();
-  Index<KVSlice> *outer_index = buildIndex(outer_table, outer_index_builder);
-  auto outer_index_build_end = std::chrono::high_resolution_clock::now();
-  auto outer_index_build_duration =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(
-          outer_index_build_end - outer_index_build_start)
-          .count();
-  result["outer_index_build_duration"] = outer_index_build_duration;
-
-  auto inner_index_build_start = std::chrono::high_resolution_clock::now();
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  auto inner_index_build_end = std::chrono::high_resolution_clock::now();
-  auto inner_index_build_duration =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(
-          inner_index_build_end - inner_index_build_start)
-          .count();
-  result["inner_index_build_duration_ns"] = inner_index_build_duration;
-
-  Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  PSSTableBuilder<KVSlice> *result_table_builder =
-      get_parallel_result_builder_for_join(test_spec);
-  int num_threads = test_spec["num_threads"];
-
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable =
-      parallel_indexed_nested_loop_join<KVSlice>(
-          num_threads, outer_table, inner_table, inner_index, comparator,
-          result_table_builder, &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["inner_index_size"] = inner_index->sizeInBytes();
-  result["outer_index_size"] = outer_index->sizeInBytes();
-  result["checksum"] = md5_checksum(resultTable);
-
-  delete inner_table;
-  delete outer_table;
-  delete inner_index_builder;
-  delete outer_index_builder;
-  delete result_table_builder;
-  delete inner_index;
-  delete outer_index;
-  delete comparator;
-
-  return result;
+  TableOp<KVSlice> *inlj = new LearnedIndexInlj<KVSlice>(outer_table, inner_table, inner_index_builder, result_table_builder);
+  TableOp<KVSlice>::TableOpResult result = inlj->profileOp();
+  result.stats["checksum"] = md5_checksum(result.output_table);
+  return result.stats;
 }
 
 SSTable<KVSlice> *load_sstable(std::string path, bool load_in_mem) {
