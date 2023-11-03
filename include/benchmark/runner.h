@@ -157,77 +157,47 @@ json run_standard_merge(json test_spec) {
 }
 
 json run_sort_join(json test_spec) {
-  json result;
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  IndexBuilder<KVSlice> *outer_index_builder =
-      get_index_builder(test_spec["outer_table"], test_spec);
   PSSTableBuilder<KVSlice> *result_table_builder =
       get_parallel_result_builder_for_join(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  int num_threads = test_spec["num_threads"];
 
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable = parallel_presort_join<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index, comparator,
-      result_table_builder, &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["checksum"] = md5_checksum(resultTable);
-  delete inner_table;
-  delete outer_table;
-  delete result_table_builder;
-  delete comparator;
-
-  return result;
+  TableOp<KVSlice> *sort_join = new SortJoin(
+      outer_table, inner_table, 
+      inner_index_builder, 
+      comparator, 
+      result_table_builder,
+      test_spec["num_threads"]);
+  TableOpResult<KVSlice> result = sort_join->profileOp();
+  result.stats["checksum"] = md5_checksum(result.output_table);
+  return result.stats;
 }
 
 json run_sort_join_exp(json test_spec) {
-  json result;
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  IndexBuilder<KVSlice> *outer_index_builder =
-      get_index_builder(test_spec["outer_table"], test_spec);
   PSSTableBuilder<KVSlice> *result_table_builder =
       get_parallel_result_builder_for_join(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  int num_threads = test_spec["num_threads"];
 
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  SSTable<KVSlice> *resultTable = parallel_presort_join_exp<KVSlice>(
-      num_threads, outer_table, inner_table, inner_index, comparator,
-      result_table_builder, &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["checksum"] = md5_checksum(resultTable);
-  delete inner_table;
-  delete outer_table;
-  delete result_table_builder;
-  delete comparator;
-
-  return result;
+  TableOp<KVSlice> *sort_join = new SortJoinExpSearch(
+      outer_table, inner_table, 
+      inner_index_builder, 
+      comparator, 
+      result_table_builder,
+      test_spec["num_threads"]);
+  TableOpResult<KVSlice> result = sort_join->profileOp();
+  result.stats["checksum"] = md5_checksum(result.output_table);
+  return result.stats;
 }
 
 json run_hash_join(json test_spec) {
@@ -240,6 +210,7 @@ json run_hash_join(json test_spec) {
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   PSSTableBuilder<KVSlice> *result_table_builder =
       get_parallel_result_builder_for_join(test_spec);
+  int num_threads = test_spec["num_threads"];
 
   TableOp<KVSlice> *hash_join = new HashJoin(
       outer_table, inner_table, 

@@ -175,163 +175,119 @@ class HashJoin: public BaseMergeAndJoinOp<KVSlice> {
     std::unordered_map<std::string, uint64_t> outer_hash_map;
 };
 
+template <class T>
+class SortJoin: public BaseMergeAndJoinOp<T> {
+  public:
+    SortJoin(
+        SSTable<T> *outer, 
+        SSTable<T> *inner, 
+        IndexBuilder<T> *inner_index_builder,
+        Comparator<T> *comparator,
+        PSSTableBuilder<T> *result_builder,
+        int num_threads):
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
+
+    void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+      uint64_t outer_start = partition.outer.first;
+      uint64_t outer_end = partition.outer.second;
+      uint64_t inner_start = partition.inner.first;
+      uint64_t inner_end = partition.inner.second;
+
+      auto outer_iterator = this->outer_->getSSTableForSubRange(outer_start, outer_end)->iterator();
+      auto inner_iterator = this->inner_->getSSTableForSubRange(inner_start, inner_end)->iterator();
+      auto inner_index = this->inner_index_->getIndexForSubrange(inner_start, inner_end);
+      auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+
+       while (outer_iterator->valid()) {
+         while (inner_iterator->valid() &&
+                (this->comparator_->compare(inner_iterator->key(), outer_iterator->key()) <
+                 0)) {
+           inner_iterator->next();
+         }
+         if (!inner_iterator->valid()) {
+           break;
+         }
+         if (this->comparator_->compare(outer_iterator->key(), inner_iterator->key()) ==
+             0) {
+           result_builder->add(inner_iterator->key());
+         }
+         outer_iterator->next();
+       }
+
+      result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->output_table = result_builder->build(),
+
+      delete outer_iterator;
+      delete inner_iterator;
+    }
+};
+
 
 template <class T>
-SSTable<T> *sort_merge_join(SSTable<T> *outer, SSTable<T> *inner,
-                                 Comparator<T> *comparator,
-                                 SSTableBuilder<T> *result_builder,
-                                 json *join_stats) {
-  auto outer_iterator = outer->iterator();
-  auto inner_iterator = inner->iterator();
-  outer_iterator->seekToFirst();
-  inner_iterator->seekToFirst();
-  while (outer_iterator->valid()) {
-    while (inner_iterator->valid() &&
-           (comparator->compare(inner_iterator->key(), outer_iterator->key()) <
-            0)) {
-      inner_iterator->next();
+class SortJoinExpSearch: public BaseMergeAndJoinOp<T> {
+  private:
+    uint64_t lower_bound(Iterator<T> *iter, uint64_t lo, uint64_t hi, T key) {
+    // Last value that is lesser than or equal to lo
+    while (lo < hi) {
+      uint64_t mid = lo + (hi - lo + 1) / 2;
+      if (this->comparator_->compare(iter->peek(mid), key) <= 0) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
     }
-    if (!inner_iterator->valid()) {
-      break;
-    }
-    if (comparator->compare(outer_iterator->key(), inner_iterator->key()) ==
-        0) {
-      result_builder->add(inner_iterator->key());
-    }
-    outer_iterator->next();
+    return lo;
   }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
-  return result_builder->build();
-}
+  public:
+    SortJoinExpSearch(
+        SSTable<T> *outer, 
+        SSTable<T> *inner, 
+        IndexBuilder<T> *inner_index_builder,
+        Comparator<T> *comparator,
+        PSSTableBuilder<T> *result_builder,
+        int num_threads):
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
 
-template <class T>
-uint64_t lower_bound(Iterator<T> *iter, Comparator<T> *c, uint64_t lo,
-                     uint64_t hi, T key) {
-  // Last value that is lesser than or equal to lo
-  while (lo < hi) {
-    uint64_t mid = lo + (hi - lo + 1) / 2;
-    if (c->compare(iter->peek(mid), key) <= 0) {
-      lo = mid;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return lo;
-}
+    void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+      uint64_t outer_start = partition.outer.first;
+      uint64_t outer_end = partition.outer.second;
+      uint64_t inner_start = partition.inner.first;
+      uint64_t inner_end = partition.inner.second;
 
-template <class T>
-SSTable<T> *sort_merge_join_exponential_search(SSTable<T> *outer, SSTable<T> *inner,
-                                     Comparator<T> *comparator,
-                                     SSTableBuilder<T> *result_builder,
-                                     json *join_stats) {
-  auto outer_iterator = outer->iterator();
-  auto inner_iterator = inner->iterator();
-  outer_iterator->seekToFirst();
-  inner_iterator->seekToFirst();
-  uint64_t inner_nelts = inner_iterator->numElts();
-  uint64_t inner_cur_pos = 0;
-  while (outer_iterator->valid()) {
-    uint64_t cur_pos = inner_cur_pos;
-    uint64_t bound = 1;
-    while (bound + cur_pos < inner_nelts &&
-           comparator->compare(inner_iterator->peek(cur_pos + bound),
+      auto outer_iterator = this->outer_->getSSTableForSubRange(outer_start, outer_end)->iterator();
+      auto inner_iterator = this->inner_->getSSTableForSubRange(inner_start, inner_end)->iterator();
+      auto inner_index = this->inner_index_->getIndexForSubrange(inner_start, inner_end);
+      auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+
+      uint64_t inner_nelts = inner_iterator->numElts();
+      uint64_t inner_cur_pos = 0;
+      while (outer_iterator->valid()) {
+        uint64_t cur_pos = inner_cur_pos;
+        uint64_t bound = 1;
+        while (bound + cur_pos < inner_nelts &&
+           this->comparator_->compare(inner_iterator->peek(cur_pos + bound),
                                outer_iterator->key()) < 0) {
-      bound = bound * 2;
-    }
-    uint64_t lim = std::min(inner_nelts - 1, cur_pos + bound);
-    uint64_t next_pos = lower_bound(inner_iterator, comparator, cur_pos, lim,
-                                    outer_iterator->key());
-    inner_cur_pos = next_pos;
-    if (comparator->compare(outer_iterator->key(),
+          bound = bound * 2;
+        }
+        uint64_t lim = std::min(inner_nelts - 1, cur_pos + bound);
+        uint64_t next_pos = lower_bound(inner_iterator, cur_pos, lim, outer_iterator->key());
+        inner_cur_pos = next_pos;
+        if (this->comparator_->compare(outer_iterator->key(),
                             inner_iterator->peek(next_pos)) == 0) {
-      result_builder->add(outer_iterator->key());
+          result_builder->add(outer_iterator->key());
+        }
+        outer_iterator->next();
+      }
+
+      result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->output_table = result_builder->build(),
+
+      delete outer_iterator;
+      delete inner_iterator;
     }
-    outer_iterator->next();
-  }
-  (*join_stats)["inner_disk_fetch"] = inner_iterator->getDiskFetches();
-  (*join_stats)["outer_disk_fetch"] = outer_iterator->getDiskFetches();
-  return result_builder->build();
-}
-
-
-template <class T>
-SSTable<T> *
-parallel_presort_join(int num_threads, SSTable<T> *outer_table,
-                      SSTable<T> *inner_table, Index<T> *inner_index,
-                      Comparator<T> *comparator,
-                      PSSTableBuilder<T> *resultBuilder, json *join_stats) {
-  auto partition = partition_sstables(num_threads, outer_table, inner_table,
-                                      inner_index, comparator);
-  std::vector<std::thread> threads;
-  std::vector<json> join_stats_per_partition(num_threads);
-  (*join_stats)["inner_disk_fetch"] = 0;
-  (*join_stats)["outer_disk_fetch"] = 0;
-  for (int i = 0; i < num_threads; i++) {
-    uint64_t outer_start = partition[i].outer.first;
-    uint64_t outer_end = partition[i].outer.second;
-    uint64_t inner_start = partition[i].inner.first;
-    uint64_t inner_end = partition[i].inner.second;
-    threads.push_back(std::thread(
-        sort_merge_join<T>,
-        outer_table->getSSTableForSubRange(outer_start, outer_end),
-        inner_table->getSSTableForSubRange(inner_start, inner_end), comparator,
-        resultBuilder->getBuilderForRange(inner_start + outer_start,
-                                          inner_end + outer_end),
-        &join_stats_per_partition[i]));
-  }
-  uint64_t inner_disk_fetch_count = 0;
-  uint64_t outer_disk_fetch_count = 0;
-  for (int i = 0; i < num_threads; i++) {
-    threads[i].join();
-    inner_disk_fetch_count +=
-        (uint64_t)join_stats_per_partition[i]["inner_disk_fetch"];
-    outer_disk_fetch_count +=
-        (uint64_t)join_stats_per_partition[i]["outer_disk_fetch"];
-  }
-  (*join_stats)["inner_disk_fetch"] = inner_disk_fetch_count;
-  (*join_stats)["outer_disk_fetch"] = outer_disk_fetch_count;
-  return resultBuilder->build();
-}
-
-template <class T>
-SSTable<T> *
-parallel_presort_join_exp(int num_threads, SSTable<T> *outer_table,
-                          SSTable<T> *inner_table, Index<T> *inner_index,
-                          Comparator<T> *comparator,
-                          PSSTableBuilder<T> *resultBuilder, json *join_stats) {
-  auto partition = partition_sstables(num_threads, outer_table, inner_table,
-                                      inner_index, comparator);
-  std::vector<std::thread> threads;
-  std::vector<json> join_stats_per_partition(num_threads);
-  (*join_stats)["inner_disk_fetch"] = 0;
-  (*join_stats)["outer_disk_fetch"] = 0;
-  for (int i = 0; i < num_threads; i++) {
-    uint64_t outer_start = partition[i].outer.first;
-    uint64_t outer_end = partition[i].outer.second;
-    uint64_t inner_start = partition[i].inner.first;
-    uint64_t inner_end = partition[i].inner.second;
-    threads.push_back(std::thread(
-        sort_merge_join_exponential_search<T>,
-        outer_table->getSSTableForSubRange(outer_start, outer_end),
-        inner_table->getSSTableForSubRange(inner_start, inner_end), comparator,
-        resultBuilder->getBuilderForRange(inner_start + outer_start,
-                                          inner_end + outer_end),
-        &join_stats_per_partition[i]));
-  }
-  uint64_t inner_disk_fetch_count = 0;
-  uint64_t outer_disk_fetch_count = 0;
-  for (int i = 0; i < num_threads; i++) {
-    threads[i].join();
-    inner_disk_fetch_count +=
-        (uint64_t)join_stats_per_partition[i]["inner_disk_fetch"];
-    outer_disk_fetch_count +=
-        (uint64_t)join_stats_per_partition[i]["outer_disk_fetch"];
-  }
-  (*join_stats)["inner_disk_fetch"] = inner_disk_fetch_count;
-  (*join_stats)["outer_disk_fetch"] = outer_disk_fetch_count;
-  return resultBuilder->build();
-}
+};
 
 } // namespace li_merge
 
