@@ -348,7 +348,7 @@ json run_inlj(json test_spec) {
       outer_table, inner_table, 
       inner_index_builder, 
       comparator, 
-      new BinarySearch,
+      new ExponentialSearch,
       result_table_builder,
       test_spec["num_threads"]);
   TableOpResult<KVSlice> result = inlj->profileOp();

@@ -98,8 +98,6 @@ private:
     return start;
   }
 
-
-
 public:
   SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound) override {
     if (bound.lower >= bound.upper) {
@@ -135,6 +133,104 @@ public:
       };
     }
   }
+};
+
+class ExponentialSearch : public SearchStrategy<KVSlice> {
+private:
+  void getBoundForward(char *buf, uint64_t sz, uint64_t key, uint64_t *bound_lo, uint64_t *bound_hi) {
+    // Last value that is lesser than or equal to lo
+    if (sz == 0) {
+      abort();
+    }
+    uint64_t bound = 1;
+    while (bound < sz) {
+      uint64_t cur = *(uint64_t *)(buf + 16 * (bound));
+      if (cur < key) {
+        bound = bound * 2;
+      } else break;
+    }
+    *bound_lo = (bound/2);
+    *bound_hi = std::min(bound + 1, sz);
+  }
+
+  // hi is inclusive, it is the index of the last key.
+  void getBoundBackward(char *buf, uint64_t hi, uint64_t key, uint64_t *bound_lo, uint64_t *bound_hi) {
+    // Last value that is lesser than or equal to lo
+    if (hi == -1) {
+      abort();
+    }
+    uint64_t bound = 1;
+    while (bound < hi) {
+      uint64_t cur = *(uint64_t *)(buf + 16 * (hi - bound));
+      if (cur >= key) {
+        bound = bound * 2;
+      } else break;
+    }
+    *bound_hi = (hi - bound/2) + 1;
+    if (bound > hi) {
+      *bound_lo = 0;
+    } else {
+      *bound_lo = (hi - (bound + 1)) + 1;
+    }
+  }
+
+public:
+  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound) override {
+    if (bound.lower >= bound.upper) {
+      return {
+        bound.lower,
+        false,
+        false
+      };
+    }
+    int kvSize = 16;
+    uint64_t key_value = *(uint64_t *)(kv.data());
+    uint64_t first_key = *(uint64_t *)(window.buf);
+    uint64_t last_key = *(uint64_t *)(window.buf + window.buf_len - kvSize);
+    // First Key is greater, no point searching.
+    if (first_key > key_value) {
+      return {
+        window.lo_idx,
+        false, // found
+        false  // continue
+      };
+
+    }
+    // Last key is less, continue search ahead.
+    if (last_key < key_value) {
+      return {
+        window.hi_idx,
+        false, // found
+        true  // continue
+      };
+    }
+
+    // We know the key is in this window. Let's start from Position.
+    // First clamp it in [lo, hi_idx-1]
+    uint64_t pos = std::clamp(bound.approx_pos, window.lo_idx, window.hi_idx-1) - window.lo_idx;
+    uint64_t pos_key = *(uint64_t *)(window.buf + pos * kvSize);
+
+    uint64_t lo;
+    uint64_t hi;
+    Window<KVSlice> bs_window;
+    if (pos_key < key_value) {
+      getBoundForward(window.buf + (pos * 16), (window.buf_len - pos*16)/16, key_value, &lo, &hi);
+      bs_window.buf = window.buf + (lo+pos) * kvSize;
+      bs_window.buf_len = (hi - lo) * (kvSize);
+      bs_window.lo_idx = window.lo_idx + lo + pos;
+      bs_window.hi_idx = window.lo_idx + hi + pos;
+    } else {
+      getBoundBackward(window.buf, pos, key_value, &lo, &hi);
+      bs_window.buf = window.buf + (lo * kvSize);
+      bs_window.buf_len = (hi - lo) * (kvSize);
+      bs_window.lo_idx = window.lo_idx + lo;
+      bs_window.hi_idx = window.lo_idx + hi;
+    }
+    return bs.search(bs_window, kv, bound);
+  }
+private:
+  BinarySearch bs;
+
 };
 
 

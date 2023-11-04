@@ -115,9 +115,23 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         }
         assert(bounds.upper > bounds.lower);
         SearchResult result;
+#if DEBUG
+        LinearSearch expected_search;
+        SearchResult expected_result;
+#endif
         do {
           auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
           result = search_strategy_->search(window, outer_iterator->key(), bounds);
+#if DEBUG
+          expected_result = expected_search.search(window, outer_iterator->key(), bounds);
+          if (result.found != expected_result.found || 
+              result.lower_bound != expected_result.lower_bound ||
+              result.shouldContinue != expected_result.shouldContinue) {
+            result = search_strategy_->search(window, outer_iterator->key(), bounds);
+            expected_result = expected_search.search(window, outer_iterator->key(), bounds);
+            abort();
+          }
+#endif
           bounds.lower = window.hi_idx; // If you search next time, search from here.
         } while (result.shouldContinue);
         if (result.found) {
