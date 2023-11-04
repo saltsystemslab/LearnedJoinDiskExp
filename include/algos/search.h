@@ -21,35 +21,41 @@ class SearchStrategy {
 class LinearSearch: public SearchStrategy<KVSlice> {
 public:
   SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound) override {
-    uint64_t i;
-    bool found = false;
-    for (i=0; i < window.buf_len; i+=16) {
-      if(memcmp(window.buf + i, kv.data(), 8) == 0) {
-        found = true;
-        break;
-      }
-    }
-    if (found) {
+    if (bound.lower >= bound.upper) {
       return {
-        window.lo_idx + i,
-        true,
-        false
-      };
-    }
-    // The last key checked is greater than the bounds, exit.
-    if(window.hi_idx  >= bound.upper) {
-      return {
-        window.lo_idx + i,
+        bound.lower,
         false,
         false
       };
-    } else {
-      return {
-        window.lo_idx + i,
-        true,
-        true
-      };
     }
+    uint64_t i;
+    bool found = false;
+    uint64_t key = *(uint64_t *)kv.data();
+    for (i=0; i < window.buf_len; i+=16) {
+      uint64_t candidate = *(uint64_t *)(window.buf + i);
+      if (candidate < key) {
+        continue;
+      }
+      if (candidate == key) {
+        return {
+          window.lo_idx + i/16,
+          true,
+          false
+        };
+      }
+      if (candidate > key) {
+        return {
+          window.lo_idx + i/16,
+          false,
+          false
+        };
+      }
+    }
+    return {
+      window.lo_idx + i/16,
+      false,
+      true
+    };
   }
 };
 
