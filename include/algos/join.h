@@ -86,7 +86,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         PSSTableBuilder<T> *result_builder,
         int num_threads):
     BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads),
-    search_strategy_(search_strategy) {}
+    search_strategy_(search_strategy), last_found_idx_(0) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
       uint64_t outer_start = partition.outer.first;
@@ -106,7 +106,14 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       while (outer_iterator->currentPos() < outer_end) {
         auto bounds =
           inner_index->getPositionBounds(outer_iterator->key());
+        // Don't go back and search in a page you already looked at for a smaller key.
+        bounds.lower = std::max(bounds.lower, last_found_idx_);
         bounds.upper = std::min(inner_end, bounds.upper);
+        if (bounds.upper <= bounds.lower) {
+          outer_iterator->next();
+          continue;
+        }
+        assert(bounds.upper > bounds.lower);
         SearchResult result;
         do {
           auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
@@ -116,6 +123,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         if (result.found) {
           result_builder->add(outer_iterator->key());
         }
+        last_found_idx_ = result.lower_bound; // Never search before this again.
         outer_iterator->next();
       }
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
@@ -125,6 +133,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       delete inner_iterator;
     }
   private:
+    uint64_t last_found_idx_;
     SearchStrategy<T> *search_strategy_;
 };
 
