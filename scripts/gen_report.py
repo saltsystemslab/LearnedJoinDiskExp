@@ -6,7 +6,63 @@ import shutil
 
 dstDir = '../LearnedMergerPaper/experiment'
 
-small_join = {
+small_join_test_cases = {
+    "URDense" : {
+        "dir": "./sponge/uniform_dense_small_join_1"
+    },
+    "URSparse" : {
+        "dir": "./sponge/uniform_sparse_small_join_1"
+    },
+    "lognormal" : {
+        "dir": "./sponge/lognormal_small_join_1"
+    },
+    "normal": {
+        "dir": "./sponge/normal_small_join_1"
+    },
+    "fb": {
+        "dir": "./sponge/fb_small_join_1"
+    },
+    "wiki": {
+        "dir": "./sponge/wiki_small_join_1"
+    }
+    # Disabled for now, these are large datasets.
+    #"books": {
+    #    "dir": "./sponge/books_small_join_small_1"
+    #}
+    #"osm": {
+    #    "dir": "./sponge/osm_small_join_small_1"
+    #},
+}
+
+small_merge_test_cases = {
+    "URDense" : {
+        "dir": "./sponge/uniform_dense_small_merge_1"
+    },
+    "URSparse" : {
+        "dir": "./sponge/uniform_sparse_small_merge_1"
+    },
+    "lognormal" : {
+        "dir": "./sponge/lognormal_small_merge_1"
+    },
+    "normal": {
+        "dir": "./sponge/normal_small_merge_1"
+    },
+    "fb": {
+        "dir": "./sponge/fb_small_merge_1"
+    },
+    "wiki": {
+        "dir": "./sponge/wiki_small_merge_1"
+    }
+    #"books": {
+    #    "dir": "./sponge/books_small_merge_1"
+    #},
+    #"osm": {
+    #    "dir": "./sponge/osm_small_merge_1"
+    #}
+}
+
+
+join_test_cases = {
     "URDense" : {
         "dir": "./sponge/uniform_dense_join_1"
     },
@@ -20,10 +76,10 @@ small_join = {
         "dir": "./sponge/normal_join_1"
     },
     "fb": {
-        "dir": "./sponge/fb_join_small_1"
+        "dir": "./sponge/fb_join_1"
     },
     "wiki": {
-        "dir": "./sponge/wiki_join_small_1"
+        "dir": "./sponge/wiki_join_1"
     }
     # Disabled for now, these are large datasets.
     #"books": {
@@ -34,31 +90,31 @@ small_join = {
     #},
 }
 
-small_merge_test_cases = {
+merge_test_cases = {
     "URDense" : {
-        "dir": "./sponge/uniform_dense_merge_small_1"
+        "dir": "./sponge/uniform_dense_merge_1"
     },
     "URSparse" : {
-        "dir": "./sponge/uniform_sparse_merge_small_1"
+        "dir": "./sponge/uniform_sparse_merge_1"
     },
     "lognormal" : {
-        "dir": "./sponge/lognormal_merge_small_1"
+        "dir": "./sponge/lognormal_merge_1"
     },
     "normal": {
-        "dir": "./sponge/normal_merge_small_1"
+        "dir": "./sponge/normal_merge_1"
     },
     "fb": {
-        "dir": "./sponge/fb_merge_small_1"
-    },
-    "osm": {
-        "dir": "./sponge/osm_merge_small_1"
+        "dir": "./sponge/fb_merge_1"
     },
     "wiki": {
-        "dir": "./sponge/wiki_merge_small_1"
-    },
-    "books": {
-        "dir": "./sponge/books_merge_small_1"
+        "dir": "./sponge/wiki_merge_1"
     }
+    #"books": {
+    #    "dir": "./sponge/books_merge_1"
+    #},
+    #"osm": {
+    #    "dir": "./sponge/osm_merge_1"
+    #}
 }
 
 
@@ -135,15 +191,16 @@ def generateReportForTestCase(test_case_name, test_dataframe, csv_dir):
             #print(f"common_key: {common_key} checksums don't match")
     print(test_case_name, "\t\t[Test Pass: ", test_case_ok, "]")
 
-def copyCsvToPaper(name, test_cases):
+def copyResultsToPaper(name, test_cases):
+    os.makedirs(os.path.join(dstDir, name), exist_ok=True)
     for test_case in test_cases:
         exp_name = os.path.basename(test_cases[test_case]['dir'])
         print(exp_name)
-        os.makedirs(os.path.join(dstDir, exp_name), exist_ok=True)
-        shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, exp_name), dirs_exist_ok=True)
+        os.makedirs(os.path.join(dstDir, name, exp_name), exist_ok=True)
+        shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, name, exp_name), dirs_exist_ok=True)
 
-generateReport('small_join', small_join)
-#generateReport('small_merge', small_merge_test_cases)
+generateReport('join_optimalIo', small_join)
+copyResultsToPaper('join_optimalIo', small_join)
 
-copyCsvToPaper('small_join', small_join)
-#copyCsvToPaper('small_merge', small_merge_test_cases)
+generateReport('merge', merge_test_cases)
+copyResultsToPaper('merge', merge_test_cases)

@@ -58,7 +58,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             }, 
             {
                 "algo_name": "sj2",
-                "algo": "sort_join",
+                "algo": "sort_join_exp",
             },
             {
                 "algo_name": "hashJoin",
@@ -68,35 +68,40 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo_name": "pgm64",
                 "algo": "inlj",
                 "index": {
-                    "type": "pgm64"
+                    "type": "pgm64",
+                    "search": "binary",
                 },
             },
             {
                 "algo_name": "pgm128",
                 "algo": "inlj",
                 "index": {
-                    "type": "pgm128"
+                    "type": "pgm128",
+                    "search": "binary",
                 },
             },
             {
                 "algo_name": "pgm256",
                 "algo": "inlj",
                 "index": {
-                    "type": "pgm256"
+                    "type": "pgm256",
+                    "search": "binary",
                 },
             },
             {
                 "algo_name": "pgm512",
                 "algo": "inlj",
                 "index": {
-                    "type": "pgm512"
+                    "type": "pgm512",
+                    "search": "binary",
                 },
             },
             {
                 "algo_name": "pgm1024",
                 "algo": "inlj",
                 "index": {
-                    "type": "pgm1024"
+                    "type": "pgm1024",
+                    "search": "binary",
                 },
             },
             {
@@ -105,6 +110,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 1,
+                    "search": "binary",
                 },
             },
             {
@@ -113,6 +119,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 2,
+                    "search": "binary",
                 },
             },
             {
@@ -121,6 +128,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 4,
+                    "search": "binary",
                 },
             },
             {
@@ -129,6 +137,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 16,
+                    "search": "binary",
                 },
             },
         ]

@@ -58,37 +58,46 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "standard_merge",
             }, 
             {
-                "algo": "learned_merge",
+                "algo": "learned_merge_threshold",
                 "index": {
-                    "type": "pgm64"
+                    "type": "pgm64",
+                    "search": "binary",
                 },
-                "algo_name": "PGM_64",
-                "threshold": 0
+                "algo_name": "PGM64",
             },
             {
                 "algo": "learned_merge_threshold",
                 "index": {
-                    "type": "pgm64"
+                    "type": "pgm256",
+                    "search": "binary",
                 },
-                "algo_name": "PGM_64",
-                "threshold": 0
+                "algo_name": "PGM256",
             },
             {
                 "algo": "learned_merge_threshold",
                 "index": {
-                    "type": "pgm256"
+                    "type": "pgm1024",
+                    "search": "binary",
                 },
-                "algo_name": "PGM_256",
-                "threshold": 0
+                "algo_name": "PGM1024",
             },
             {
                 "algo": "learned_merge_threshold",
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 1,
+                    "search": "binary",
                 },
                 "algo_name": "BTree",
-                "threshold": 0
+            },
+            {
+                "algo": "learned_merge_threshold",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 8,
+                    "search": "binary",
+                },
+                "algo_name": "BTree",
             },
         ]
     ]
