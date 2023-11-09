@@ -63,17 +63,95 @@ class StandardMerge: public BaseMergeAndJoinOp<T> {
 };
 
 template <class T>
+class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
+  public:
+    LearnedMerge1Way(
+        SSTable<T> *outer, 
+        SSTable<T> *inner, 
+        IndexBuilder<T> *inner_index_builder,
+        Comparator<T> *comparator,
+        SearchStrategy<T> *search_strategy,
+        PSSTableBuilder<T> *result_builder,
+        int num_threads):
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads),
+    search_strategy_(search_strategy) {}
+
+    void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+      uint64_t outer_start = partition.outer.first;
+      uint64_t outer_end = partition.outer.second;
+      uint64_t inner_start = partition.inner.first;
+      uint64_t inner_end = partition.inner.second;
+
+      auto outer_iter = this->outer_->iterator();
+      auto inner_iter = this->inner_->windowIterator();
+      auto inner_index = this->inner_index_; // TODO Make a Copy.
+      auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+      uint64_t next_inner_key_to_add = inner_start;
+
+      while (outer_iter->currentPos() < outer_end) {
+        auto bounds =
+          inner_index->getPositionBounds(outer_iter->key());
+        // Don't go back and search in a page you already looked at for a smaller key.
+        bounds.lower = std::max(bounds.lower, next_inner_key_to_add);
+        bounds.upper = std::min(bounds.upper, inner_end);
+
+        // The next key is greater in inner, so just copy the outer key and get out.
+        if (bounds.upper <= bounds.lower) {
+          result_builder->add(outer_iter->key());
+          outer_iter->next();
+          continue;
+        }
+        
+        // Blind Copy all keys before lower_bound
+        if (bounds.lower > next_inner_key_to_add) {
+          auto window = inner_iter->getWindow(next_inner_key_to_add, bounds.lower);
+          while (window.hi_idx < bounds.lower) {
+            result_builder->addWindow(window);
+            next_inner_key_to_add = window.hi_idx;
+            window = inner_iter->getWindow(next_inner_key_to_add, bounds.lower);
+          }
+          result_builder->addWindow(window);
+        }
+
+        SearchResult result;
+        do {
+          auto window = inner_iter->getWindow(bounds.lower, bounds.upper);
+          result = search_strategy_->search(window, outer_iter->key(), bounds);
+          // Copy all keys from [window.lo_idx, result.bounds.lower)
+          window.hi_idx = result.lower_bound;
+          result_builder->addWindow(window);
+          
+          next_inner_key_to_add = window.hi_idx;
+          bounds.lower = window.hi_idx; // If you search next time, search from here.
+        } while (result.shouldContinue);
+
+        next_inner_key_to_add = result.lower_bound; // Never search before this again.
+        result_builder->add(outer_iter->key());
+        outer_iter->next();
+      }
+
+      while (next_inner_key_to_add < inner_end) {
+        auto window = inner_iter->getWindow(next_inner_key_to_add, inner_end);
+        result_builder->addWindow(window);
+        next_inner_key_to_add = window.hi_idx;
+      }
+
+      result->stats["inner_disk_fetch"] = inner_iter->getDiskFetches();
+      result->stats["outer_disk_fetch"] = outer_iter->getDiskFetches();
+      result->output_table = result_builder->build(),
+      delete outer_iter;
+      delete inner_iter;
+    }
+  private:
+    SearchStrategy<T> *search_strategy_;
+};
+
+template <class T>
 SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
                              Index<T> *outer_index, Index<T> *inner_index,
                              Comparator<T> *comparator,
                              SSTableBuilder<T> *resultBuilder, json *merge_log);
 
-template <class T>
-SSTable<T> *
-mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Index<T> *inner_index, uint64_t threshold,
-                          Comparator<T> *comparator,
-                          SSTableBuilder<T> *resultBuilder, json *merge_log);
 
 namespace internal {
 template <class T>
@@ -140,75 +218,6 @@ SSTable<T> *mergeWithIndexes(SSTable<T> *outer_table, SSTable<T> *inner_table,
     internal::findSecondSmallest(iterators, 2, comparator, smallest,
                                  &second_smallest);
   }
-#if TRACK_STATS
-  (*merge_log)["comparison_count"] =
-      ((CountingComparator<T> *)(comparator))->getCount();
-#endif
-  (*merge_log)["inner_disk_fetch"] = inner_iter->getDiskFetches();
-  (*merge_log)["outer_disk_fetch"] = outer_iter->getDiskFetches();
-  return resultBuilder->build();
-}
-
-template <class T>
-SSTable<T> *
-mergeWithIndexesThreshold(SSTable<T> *outer_table, SSTable<T> *inner_table,
-                          Index<T> *inner_index, uint64_t threshold,
-                          Comparator<T> *comparator,
-                          SSTableBuilder<T> *resultBuilder, json *merge_log) {
-#if TRACK_STATS
-  (*merge_log)["max_index_error_correction"] = 0;
-  comparator = new CountingComparator<T>(comparator);
-#endif
-  (*merge_log)["inner_disk_fetch"] = 0;
-  (*merge_log)["outer_disk_fetch"] = 0;
-
-  Iterator<T> *inner_iter = inner_table->iterator();
-  Iterator<T> *outer_iter = outer_table->iterator();
-  inner_iter->seekToFirst();
-  outer_iter->seekToFirst();
-
-  IteratorIndexPair<T> inner = IteratorIndexPair<T>{inner_iter, inner_index};
-
-  while (outer_iter->valid()) {
-    if (!inner_iter->valid()) {
-      resultBuilder->add(outer_iter->key());
-      outer_iter->next();
-      continue;
-    }
-    uint64_t lower_bound =
-        inner_index->getPositionBounds(outer_iter->key()).lower;
-    lower_bound = std::max(lower_bound, inner_iter->currentPos());
-    uint64_t distance = lower_bound - inner_iter->currentPos();
-    // We also can do a memcmp here.
-    if (distance >= threshold) {
-      // Don't copy the bounds.lower item, it could be equal to the item we
-      // searched for.
-      while (inner_iter->valid() && inner_iter->currentPos() < lower_bound) {
-#if DEBUG
-        if (comparator->compare(inner_iter->key(), outer_iter->key()) > 0) {
-          abort();
-        }
-#endif
-        resultBuilder->add(inner_iter->key());
-        inner_iter->next();
-      }
-    }
-    // This can also be made faster, we have already loaded items here into the peek
-    // cache. That is an extra IO that can be saved.
-    while (inner_iter->valid() &&
-           comparator->compare(inner_iter->key(), outer_iter->key()) <= 0) {
-      resultBuilder->add(inner_iter->key());
-      inner_iter->next();
-    }
-    resultBuilder->add(outer_iter->key());
-    outer_iter->next();
-  }
-
-  while (inner_iter->valid()) {
-    resultBuilder->add(inner_iter->key());
-    inner_iter->next();
-  }
-
 #if TRACK_STATS
   (*merge_log)["comparison_count"] =
       ((CountingComparator<T> *)(comparator))->getCount();

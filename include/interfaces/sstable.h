@@ -14,6 +14,7 @@ public:
 template <class T> class SSTableBuilder {
 public:
   virtual void add(const T &t) = 0;
+  virtual void addWindow(const Window<T> &w) = 0;
   virtual SSTable<T> *build() = 0;
 };
 

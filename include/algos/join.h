@@ -86,7 +86,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         PSSTableBuilder<T> *result_builder,
         int num_threads):
     BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads),
-    search_strategy_(search_strategy), last_found_idx_(0) {}
+    search_strategy_(search_strategy) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
       uint64_t outer_start = partition.outer.first;
@@ -98,6 +98,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       auto inner_iterator = this->inner_->windowIterator();
       auto inner_index = this->inner_index_; // TODO Make a Copy.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+      uint64_t last_found_idx = 0;
 
       inner_iterator->setWindowSize(inner_index->getMaxError());
       outer_iterator->seekTo(outer_start);
@@ -106,7 +107,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         auto bounds =
           inner_index->getPositionBounds(outer_iterator->key());
         // Don't go back and search in a page you already looked at for a smaller key.
-        bounds.lower = std::max(bounds.lower, last_found_idx_);
+        bounds.lower = std::max(bounds.lower, last_found_idx);
         bounds.upper = std::min(inner_end, bounds.upper);
         if (bounds.upper <= bounds.lower) {
           outer_iterator->next();
@@ -136,7 +137,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         if (result.found) {
           result_builder->add(outer_iterator->key());
         }
-        last_found_idx_ = result.lower_bound; // Never search before this again.
+        last_found_idx = result.lower_bound; // Never search before this again.
         outer_iterator->next();
       }
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
@@ -146,7 +147,6 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       delete inner_iterator;
     }
   private:
-    uint64_t last_found_idx_;
     SearchStrategy<T> *search_strategy_;
 };
 

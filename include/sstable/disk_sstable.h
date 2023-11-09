@@ -262,6 +262,7 @@ public:
   }
   ~FixedSizeKVDiskSSTableBuilder() { delete[] buffer_; }
   void add(const KVSlice &kv) override;
+  void addWindow(const Window<KVSlice> &w) override;
   SSTable<KVSlice> *build() override {
     if (!built_) {
       flushBufferToDisk();
@@ -452,6 +453,23 @@ void FixedSizeKVDiskSSTableBuilder::add(const KVSlice &kvSlice) {
   memcpy(buffer_ + buffer_offset_, kvSlice.data(), kv_size_bytes_);
   buffer_offset_ += kv_size_bytes_;
   num_keys_++;
+}
+
+void FixedSizeKVDiskSSTableBuilder::addWindow(const Window<KVSlice> &w) {
+  char *buf = w.buf;
+  uint64_t bytes_to_copy = (w.hi_idx - w.lo_idx) * kv_size_bytes_;
+  while (bytes_to_copy) {
+    uint64_t buffer_space = buffer_size_ - buffer_offset_ ;
+    uint64_t len = std::min(buffer_space, bytes_to_copy); 
+    memcpy(buffer_ + buffer_offset_, buf, len); 
+    buffer_offset_ += len;
+    buf += len;
+    num_keys_ += (len) / (kv_size_bytes_);
+    if (buffer_offset_ == buffer_size_) {
+      flushBufferToDisk();
+    }
+    bytes_to_copy -= len;
+  }
 }
 
 } // namespace li_merge

@@ -253,52 +253,25 @@ json run_learned_merge(json test_spec) {
 }
 
 json run_learned_merge_threshold(json test_spec) {
-  json result;
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
-  auto index_build_start = std::chrono::high_resolution_clock::now();
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  auto index_build_end = std::chrono::high_resolution_clock::now();
-  auto index_build_duration =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(index_build_start -
-                                                           index_build_end)
-          .count();
-  result["inner_index_build_duration_ns"] = index_build_duration;
-
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  uint64_t threshold = test_spec["threshold"];
-  int num_threads = test_spec["num_threads"];
-  SSTableBuilder<KVSlice> *result_table_builder =
-      get_result_builder(test_spec);
+  PSSTableBuilder<KVSlice> *result_table_builder = get_parallel_result_builder_for_merge(test_spec);
 
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = mergeWithIndexesThreshold(
-      outer_table, inner_table, inner_index, threshold, comparator,
-      result_table_builder, &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["inner_index_size"] = inner_index->sizeInBytes();
-  result["checksum"] = md5_checksum(resultTable);
-
-  delete inner_table;
-  delete outer_table;
-  delete inner_index_builder;
-  delete result_table_builder;
-  delete inner_index;
-  delete comparator;
-
-  return result;
+  TableOp<KVSlice> *merge = new LearnedMerge1Way<KVSlice>(
+      outer_table, inner_table, 
+      inner_index_builder, 
+      comparator, 
+      get_search_strategy(test_spec),
+      result_table_builder,
+      test_spec["num_threads"]);
+  TableOpResult<KVSlice> result = merge->profileOp();
+  result.stats["checksum"] = md5_checksum(result.output_table);
+  return result.stats;
 }
 
 json run_inlj(json test_spec) {
