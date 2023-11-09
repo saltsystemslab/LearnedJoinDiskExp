@@ -18,7 +18,7 @@ local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local num_common_keys = 10000;
 
-local max_ratio = 100;
+local max_ratio = 10;
 local points = 10;
 local step = max_ratio / points;
 local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
@@ -58,7 +58,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "standard_merge",
             }, 
             {
-                "algo": "learned_merge_threshold",
+                "algo": "learned_merge",
                 "index": {
                     "type": "pgm64",
                     "search": "binary",
@@ -66,7 +66,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo_name": "PGM64",
             },
             {
-                "algo": "learned_merge_threshold",
+                "algo": "learned_merge",
                 "index": {
                     "type": "pgm256",
                     "search": "binary",
@@ -74,7 +74,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo_name": "PGM256",
             },
             {
-                "algo": "learned_merge_threshold",
+                "algo": "learned_merge",
                 "index": {
                     "type": "pgm1024",
                     "search": "binary",
@@ -82,7 +82,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo_name": "PGM1024",
             },
             {
-                "algo": "learned_merge_threshold",
+                "algo": "learned_merge",
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 1,
@@ -91,7 +91,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo_name": "BTree",
             },
             {
-                "algo": "learned_merge_threshold",
+                "algo": "learned_merge",
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 8,
