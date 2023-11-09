@@ -95,7 +95,6 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
       uint64_t inner_end = partition.inner.second;
 
       auto outer_iterator = this->outer_->iterator();
-      // auto inner_iterator = this->inner_->iterator(this->inner_index_->getMaxError(), this->inner_index_->isErrorPageAligned());
       auto inner_iterator = this->inner_->windowIterator();
       auto inner_index = this->inner_index_; // TODO Make a Copy.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
@@ -113,9 +112,9 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
           outer_iterator->next();
           continue;
         }
-        assert(bounds.upper > bounds.lower);
         SearchResult result;
 #if DEBUG
+        assert(bounds.upper > bounds.lower);
         LinearSearch expected_search;
         SearchResult expected_result;
 #endif
