@@ -36,6 +36,7 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 PSSTableBuilder<KVSlice> *get_parallel_result_builder_for_join(json test_spec);
 PSSTableBuilder<KVSlice> *get_parallel_result_builder_for_merge(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
+SearchStrategy<KVSlice> *get_search_strategy(json test_spec);
 IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
                                          json test_spec);
 KeyToPointConverter<KVSlice> *get_converter(json test_spec);
@@ -77,27 +78,6 @@ json create_input_sstable(json test_spec) {
     SSTable<KVSlice> *keys = generate_uniform_random_distribution(
         num_keys, key_size_bytes, value_size_bytes, comparator,
         result_table_builder);
-    if (test_spec.contains("common_keys_file")) {
-      SSTable<KVSlice> *common_keys =
-          load_sstable(test_spec["common_keys_file"], false);
-      // TODO(chesetti): This doesn't have to be inmem.
-      SSTableBuilder<KVSlice> *in_mem_result =
-          FixedSizeKVInMemSSTableBuilder::InMemMalloc(
-              num_keys + common_keys->iterator()->numElts(), key_size_bytes,
-              value_size_bytes, get_comparator(test_spec));
-      SSTable<KVSlice> *merged_key_list =
-          standardMerge(common_keys, keys, comparator, in_mem_result, &result);
-
-      delete result_table_builder;
-      auto iterator = merged_key_list->iterator();
-      iterator->seekToFirst();
-      result_table_builder = get_result_builder(test_spec);
-      while (iterator->valid()) {
-        result_table_builder->add(iterator->key());
-        iterator->next();
-      }
-      result_table_builder->build();
-    }
   } else if (test_spec["method"] == "sosd") {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);
@@ -123,37 +103,24 @@ json create_input_sstable(json test_spec) {
 }
 
 json run_standard_merge(json test_spec) {
-  json result;
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
   IndexBuilder<KVSlice> *inner_index_builder =
       get_index_builder(test_spec["inner_table"], test_spec);
-  Index<KVSlice> *inner_index = buildIndex(inner_table, inner_index_builder);
-  SSTableBuilder<KVSlice> *result_table_builder =
-      get_result_builder(test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  int num_threads = test_spec["num_threads"];
+  PSSTableBuilder<KVSlice> *result_table_builder = get_parallel_result_builder_for_merge(test_spec);
 
-  auto merge_start = std::chrono::high_resolution_clock::now();
-  auto resultTable = standardMerge<KVSlice>(
-      outer_table, inner_table, comparator, result_table_builder, &result);
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-
-  result["duration_ns"] = duration_ns;
-  result["duration_sec"] = duration_sec;
-  result["checksum"] = md5_checksum(resultTable);
-
-  delete inner_table;
-  delete outer_table;
-  delete result_table_builder;
-  delete comparator;
-  return result;
+  TableOp<KVSlice> *merge= new StandardMerge<KVSlice>(
+      outer_table, inner_table, 
+      inner_index_builder, 
+      comparator, 
+      result_table_builder,
+      test_spec["num_threads"]);
+  TableOpResult<KVSlice> result = merge->profileOp();
+  result.stats["checksum"] = md5_checksum(result.output_table);
+  return result.stats;
 }
 
 json run_sort_join(json test_spec) {
@@ -348,7 +315,7 @@ json run_inlj(json test_spec) {
       outer_table, inner_table, 
       inner_index_builder, 
       comparator, 
-      new ExponentialSearch,
+      get_search_strategy(test_spec),
       result_table_builder,
       test_spec["num_threads"]);
   TableOpResult<KVSlice> result = inlj->profileOp();
@@ -372,6 +339,19 @@ Comparator<KVSlice> *get_comparator(json test_spec) {
     return new KVUint64Cmp();
   } else if (key_type == "str") {
     return new KVSliceMemcmp();
+  }
+  fprintf(stderr, "Unknown Key Type in test spec");
+  abort();
+}
+
+SearchStrategy<KVSlice> *get_search_strategy(json test_spec) {
+  std::string search = test_spec["index"]["search"];
+  if (search == "linear") {
+    return new LinearSearch();
+  } else if (search == "binary") {
+    return new BinarySearch();
+  } else if (search == "exponential") {
+    return new ExponentialSearch();
   }
   fprintf(stderr, "Unknown Key Type in test spec");
   abort();
@@ -504,6 +484,8 @@ std::string md5_checksum(SSTable<KVSlice> *sstable) {
   delete checksum;
   return result;
 }
+
+
 } // namespace li_merge
 
 #endif
