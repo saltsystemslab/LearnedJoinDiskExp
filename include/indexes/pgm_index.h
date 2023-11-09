@@ -16,7 +16,7 @@ public:
       : pgm_index_(pgm_index), converter_(converter) {}
   Bounds getPositionBounds(const T &t) override {
     auto bounds = pgm_index_->search(converter_->toPoint(t));
-    return Bounds{bounds.lo, bounds.hi, bounds.pos};
+    return Bounds{bounds.lo, bounds.hi + 1, bounds.pos};
   }
   uint64_t sizeInBytes() override { return pgm_index_->size_in_bytes(); }
   uint64_t getMaxError() override { return 2 * pgm_index_->epsilon_value + 1; }
