@@ -42,7 +42,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
         key_template + algo + {
             "name": algo["algo_name"] + i,
             "common_key": i,
-            "num_threads" : 1,
+            "num_threads" : num_threads,
             "inner_table" : test_input_dir + "/inner",
             "outer_table" : test_input_dir + "/input" + i,
             "result_path": test_output_dir + "/" + algo["algo_name"] + "_" + "run_" + r + "_ratio_"+ i,

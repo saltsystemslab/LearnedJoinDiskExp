@@ -1,4 +1,5 @@
 ./scripts/benchmark.py --spec=benchmark/sosd_join.jsonnet --repeat=3 --threads=1 --sosd_source=/home/chesetti/sosd-data/fb_200M_uint64 --sosd_num_keys=1000000 --test_name=fb_join_small
+exit
 ./scripts/benchmark.py --spec=benchmark/sosd_join.jsonnet --repeat=3 --threads=1 --sosd_source=/home/chesetti/sosd-data/wiki_ts_200M_uint64 --sosd_num_keys=1000000 --test_name=wiki_join_small
 /scripts/benchmark.py --spec=benchmark/sosd_join.jsonnet --repeat=3 --threads=1 --sosd_source=/home/chesetti/sosd-data/uniform_dense_200M_uint64 --sosd_num_keys=1000000 --test_name=uniform_dense_join_small
 ./scripts/benchmark.py --spec=benchmark/sosd_join.jsonnet --repeat=3 --threads=1 --sosd_source=/home/chesetti/sosd-data/uniform_sparse_200M_uint64 --sosd_num_keys=1000000 --test_name=uniform_sparse_join_small

@@ -43,6 +43,10 @@ KeyToPointConverter<KVSlice> *get_converter(json test_spec);
 SSTable<KVSlice> *load_sstable(std::string sstable_path, bool load_in_mem);
 
 json run_test(json test_spec) {
+  if (test_spec["algo"] == "create_input") {
+    return create_input_sstable(test_spec);
+  }
+
   SSTable<KVSlice> *inner_table =
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
@@ -61,9 +65,7 @@ json run_test(json test_spec) {
   }
 
   TableOp<KVSlice> *op;
-  if (test_spec["algo"] == "create_input") {
-    return create_input_sstable(test_spec);
-  } else if (test_spec["algo"] == "standard_merge") {
+  if (test_spec["algo"] == "standard_merge") {
     op = new StandardMerge<KVSlice>(
       outer_table, inner_table, 
       inner_index_builder, 

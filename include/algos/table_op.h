@@ -40,11 +40,10 @@ public:
     std::vector<std::thread> threads;
     auto op_start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < num_threads_; i++) {
-       //threads.push_back(std::thread(&TableOp::doOpOnPartition, this, partitions[i], &partition_results_[i]));
-       doOpOnPartition(partitions[i], &partition_results_[i]);
+       threads.push_back(std::thread(&TableOp::doOpOnPartition, this, partitions[i], &partition_results_[i]));
     }
     for (int i = 0; i < num_threads_; i++) {
-      // threads[i].join();
+      threads[i].join();
     }
     mergePartitions();
     auto op_end = std::chrono::high_resolution_clock::now();
