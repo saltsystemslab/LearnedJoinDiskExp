@@ -50,7 +50,7 @@ class StandardMerge: public BaseMergeAndJoinOp<T> {
         result_builder->add(outer_iter->key());
         outer_iter->next();
       }
-      while (inner_iter->valid()) {
+      while (inner_iter->currentPos() < inner_end) {
         result_builder->add(inner_iter->key());
         inner_iter->next();
       }
@@ -87,6 +87,8 @@ class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
       auto inner_index = this->inner_index_->shallow_copy(); // TODO: Add a free_shallow_copy method.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
       uint64_t next_inner_key_to_add = inner_start;
+
+      outer_iter->seekTo(outer_start);
 
       while (outer_iter->currentPos() < outer_end) {
         auto bounds =
