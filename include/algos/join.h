@@ -96,7 +96,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
 
       auto outer_iterator = this->outer_->iterator();
       auto inner_iterator = this->inner_->windowIterator();
-      auto inner_index = this->inner_index_; // TODO Make a Copy.
+      auto inner_index = this->inner_index_->shallow_copy(); // TODO: Add a free_shallow_copy method.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
       uint64_t last_found_idx = 0;
 

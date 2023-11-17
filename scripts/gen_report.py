@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import shutil
 
-dstDir = '../LearnedMergerPaper/experiment'
+dstDir = '../LearnedMergePlots/experiment'
 
 small_join_test_cases = {
     "URDense" : {
@@ -94,17 +94,35 @@ join_ratio10= {
     "fb": {
         "dir": "./sponge/fb_join-ratio10_1"
     },
+    "fb_4": {
+        "dir": "./sponge/fb_join-ratio10_4"
+    },
 }
 
 join_search = {
     "fb": {
-        "dir": "./sponge/fb_search_1"
+        "dir": "./sponge/fb_join-search_1"
+    },
+    "fb_4": {
+        "dir": "./sponge/fb_join-search_4"
     },
 }
 
 merge_ratio10= {
     "fb": {
         "dir": "./sponge/fb_merge-ratio10_1"
+    },
+    "fb_4": {
+        "dir": "./sponge/fb_merge-ratio10_4"
+    },
+}
+
+join_onelevel = {
+    "fb": {
+        "dir": "./sponge/fb_join-onelevel_1"
+    },
+    "fb_4": {
+        "dir": "./sponge/fb_join-onelevel_4"
     },
 }
 
@@ -192,6 +210,7 @@ merge_4_test_cases = {
 
 
 def generateReport(name, test_cases):
+    os.makedirs(os.path.join(dstDir, name), exist_ok=True)
     inner_index_size = []
     inner_index_build_duration = []
     for test_case in test_cases:
@@ -272,22 +291,28 @@ def copyResultsToPaper(name, test_cases):
         os.makedirs(os.path.join(dstDir, name, exp_name), exist_ok=True)
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, name, exp_name), dirs_exist_ok=True)
 
-#generateReport('join_optimalIo', small_join)
-#copyResultsToPaper('join_optimalIo', small_join)
+generateReport('join_ratio100', join_test_cases)
+copyResultsToPaper('join_ratio100', join_test_cases)
 
-#generateReport('merge', merge_test_cases)
-#copyResultsToPaper('merge', merge_test_cases)
+generateReport('merge_ratio100', merge_test_cases)
+copyResultsToPaper('merge_ratio100', merge_test_cases)
 
 # What is the difference between generateReport and copyResultsToPaper?
 
-generateReport('join_4threads', join_4_test_cases)
-copyResultsToPaper('join_4threads', join_4_test_cases)
-
-generateReport('merge_4threads', merge_4_test_cases)
-copyResultsToPaper('merge_4threads', merge_4_test_cases)
+generateReport('join_ratio100', join_4_test_cases)
+copyResultsToPaper('join_ratio100', join_4_test_cases)
 
 generateReport('join_ratio10', join_ratio10)
 copyResultsToPaper('join_ratio10', join_ratio10)
 
 generateReport('merge_ratio10', merge_ratio10)
 copyResultsToPaper('merge_ratio10', merge_ratio10)
+
+generateReport('join_onelevel_ratio100', join_onelevel)
+copyResultsToPaper('join_onelevel_ratio100', join_onelevel)
+
+generateReport('join_search_ratio100', join_search)
+copyResultsToPaper('join_search_ratio100', join_search)
+
+generateReport('merge_4threads', merge_4_test_cases)
+copyResultsToPaper('merge_4threads', merge_4_test_cases)

@@ -14,28 +14,24 @@ template <class T, size_t Epsilon> class OneLevelPgmIndex : public Index<T> {
 public:
   OneLevelPgmIndex(pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index,
                    KeyToPointConverter<T> *converter) 
-      : pgm_index_(pgm_index), converter_(converter), cur_segment_index_(0) {
-    segments_ = new std::vector(pgm_index_->segments);
-  }
+      : pgm_index_(pgm_index), converter_(converter), cur_segment_index_(0) {}
   Bounds getPositionBounds(const T &t) override {
-    auto bounds = pgm_index_->search(converter_->toPoint(t));
-    return Bounds{bounds.lo, bounds.hi,
+    auto bounds = pgm_index_->search_from_position(converter_->toPoint(t), &cur_segment_index_);
+    return Bounds{bounds.lo, bounds.hi + 1,
                   bounds.pos};
   }
 
   uint64_t sizeInBytes() override {
-    return segments_->size() * sizeof(segments_[0]);
+    return pgm_index_->size_in_bytes();
   }
-  Index<T> *getIndexForSubrange(uint64_t start, uint64_t end) {
-    return new OneLevelPgmIndex(pgm_index_, converter_, start, end);
-  }
-  uint64_t getMaxError() override { return 2*pgm_index_->epsilon_value; }
+  uint64_t getMaxError() override { return 2*pgm_index_->epsilon_value + 1; }
   bool isErrorPageAligned() override { return false; }
+  Index<T> *shallow_copy() override {
+    return new OneLevelPgmIndex(pgm_index_, converter_);
+  }
 
 private:
   uint64_t cur_segment_index_;
-  std::vector<typename pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon, 0,
-                                     float>::Segment> *segments_;
   pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
 };

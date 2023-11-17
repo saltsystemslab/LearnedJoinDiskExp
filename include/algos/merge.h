@@ -84,7 +84,7 @@ class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
 
       auto outer_iter = this->outer_->iterator();
       auto inner_iter = this->inner_->windowIterator();
-      auto inner_index = this->inner_index_; // TODO Make a Copy.
+      auto inner_index = this->inner_index_->shallow_copy(); // TODO: Add a free_shallow_copy method.
       auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
       uint64_t next_inner_key_to_add = inner_start;
 

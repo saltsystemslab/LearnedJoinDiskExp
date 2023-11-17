@@ -204,6 +204,9 @@ IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
   } else if (index_type == "onelevel_pgm256") {
     return new OneLevelPgmIndexBuilder<KVSlice, 256>(0,
                                                      get_converter(test_spec));
+  } else if (index_type == "onelevel_pgm512") {
+    return new OneLevelPgmIndexBuilder<KVSlice, 512>(0,
+                                                     get_converter(test_spec));
   } else if (index_type == "onelevel_pgm1024") {
     return new OneLevelPgmIndexBuilder<KVSlice, 1024>(0,
                                                       get_converter(test_spec));

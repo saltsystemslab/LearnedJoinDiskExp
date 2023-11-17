@@ -20,6 +20,7 @@ public:
   virtual uint64_t sizeInBytes() = 0;
   virtual uint64_t getMaxError() {abort();};
   virtual bool isErrorPageAligned() {abort();};
+  virtual Index<T> *shallow_copy() {return this;};
 };
 
 template <class T> class IndexBuilder {
