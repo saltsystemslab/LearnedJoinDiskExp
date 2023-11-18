@@ -55,7 +55,12 @@ class StandardMerge: public BaseMergeAndJoinOp<T> {
         inner_iter->next();
       }
       result->stats["inner_disk_fetch"] = inner_iter->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iter->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iter->getTotalBytesFetched();
       result->stats["outer_disk_fetch"] = outer_iter->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iter->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iter->getTotalBytesFetched();
+
       result->output_table = result_builder->build(),
       delete outer_iter;
       delete inner_iter;
@@ -89,6 +94,7 @@ class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
       uint64_t next_inner_key_to_add = inner_start;
 
       outer_iter->seekTo(outer_start);
+      // inner_iter->setWindowSize(inner_index->getMaxError());
 
       while (outer_iter->currentPos() < outer_end) {
         auto bounds =
@@ -139,7 +145,12 @@ class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
       }
 
       result->stats["inner_disk_fetch"] = inner_iter->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iter->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iter->getTotalBytesFetched();
       result->stats["outer_disk_fetch"] = outer_iter->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iter->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iter->getTotalBytesFetched();
+
       result->output_table = result_builder->build(),
       delete outer_iter;
       delete inner_iter;

@@ -57,15 +57,31 @@ public:
 
   void mergePartitions() override {
     uint64_t inner_disk_fetch_count = 0;
+    uint64_t inner_disk_fetch_size = 0;
+    uint64_t inner_total_bytes_fetched = 0;
     uint64_t outer_disk_fetch_count = 0;
+    uint64_t outer_total_bytes_fetched = 0;
+    uint64_t outer_disk_fetch_size = 0;
     for (int i = 0; i < this->num_threads_; i++) {
         inner_disk_fetch_count +=
           (uint64_t)(this->partition_results_[i].stats["inner_disk_fetch"]);
+        inner_disk_fetch_size =
+          (uint64_t)(this->partition_results_[i].stats["inner_disk_fetch_size"]);
+        inner_total_bytes_fetched +=
+          (uint64_t)(this->partition_results_[i].stats["inner_total_bytes_fetched"]);
         outer_disk_fetch_count +=
           (uint64_t)(this->partition_results_[i].stats["outer_disk_fetch"]);
+        outer_disk_fetch_size =
+          (uint64_t)(this->partition_results_[i].stats["outer_disk_fetch_size"]);
+        outer_total_bytes_fetched +=
+          (uint64_t)(this->partition_results_[i].stats["outer_total_bytes_fetched"]);
       }
     this->stats_["inner_disk_fetch"] = inner_disk_fetch_count;
+    this->stats_["inner_disk_fetch_size"] = inner_disk_fetch_size;
+    this->stats_["inner_total_bytes_fetched"] = inner_total_bytes_fetched;
     this->stats_["outer_disk_fetch"] = outer_disk_fetch_count;
+    this->stats_["outer_disk_fetch_size"] = outer_disk_fetch_size;
+    this->stats_["outer_total_bytes_fetched"] = outer_total_bytes_fetched;
     this->output_table_ = this->result_builder_->build();
   }
 protected:
@@ -141,7 +157,11 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         outer_iterator->next();
       }
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iterator->getTotalBytesFetched();
       result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iterator->getTotalBytesFetched();
       result->output_table = result_builder->build(),
       delete outer_iterator;
       delete inner_iterator;
@@ -201,7 +221,11 @@ class HashJoin: public BaseMergeAndJoinOp<KVSlice> {
          inner_iterator->next();
        }
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iterator->getTotalBytesFetched();
       result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iterator->getTotalBytesFetched();
       result->output_table = result_builder->build();
   }
 
@@ -250,7 +274,11 @@ class SortJoin: public BaseMergeAndJoinOp<T> {
        }
 
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iterator->getTotalBytesFetched();
       result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iterator->getTotalBytesFetched();
       result->output_table = result_builder->build(),
 
       delete outer_iterator;
@@ -259,8 +287,9 @@ class SortJoin: public BaseMergeAndJoinOp<T> {
 };
 
 
+// OUT OF DATE: DO NOT USE. DOESN'T USE WINDOWED ITERATOR.
 template <class T>
-class SortJoinExpSearch: public BaseMergeAndJoinOp<T> {
+class SortJoinBinSearch: public BaseMergeAndJoinOp<T> {
   private:
     uint64_t lower_bound(Iterator<T> *iter, uint64_t lo, uint64_t hi, T key) {
     // Last value that is lesser than or equal to lo
@@ -275,7 +304,7 @@ class SortJoinExpSearch: public BaseMergeAndJoinOp<T> {
     return lo;
   }
   public:
-    SortJoinExpSearch(
+    SortJoinBinSearch(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
         IndexBuilder<T> *inner_index_builder,
@@ -316,7 +345,11 @@ class SortJoinExpSearch: public BaseMergeAndJoinOp<T> {
       }
 
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iterator->getTotalBytesFetched();
       result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iterator->getTotalBytesFetched();
       result->output_table = result_builder->build(),
 
       delete outer_iterator;

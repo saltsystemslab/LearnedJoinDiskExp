@@ -63,6 +63,7 @@ public:
     buf_first_idx_ = 0;
     buf_len_ = 0;
     disk_fetches_ = 0;
+    total_bytes_fetched_ = 0;
   }
   ~DiskSSTablePageCache() {
     close(fd_);
@@ -94,6 +95,7 @@ public:
         buf_capacity_, 
         metadata_.getHeaderSize() + lo_idx * metadata_.getKVSize()
     );
+    total_bytes_fetched_ += buf_len_;
     is_buf_loaded_ = true;
     buf_first_idx_  = lo_idx;
   }
@@ -117,6 +119,14 @@ public:
     return disk_fetches_;
   }
 
+  uint64_t getDiskFetchSize() {
+    return buf_capacity_;
+  }
+
+  uint64_t getTotalBytesFetched() {
+    return total_bytes_fetched_;
+  }
+
 private:
   DiskSSTableMetadata metadata_;
   int fd_;
@@ -127,6 +137,7 @@ private:
   bool is_buf_loaded_;
   uint64_t buf_first_idx_;
   uint64_t disk_fetches_;
+  uint64_t total_bytes_fetched_;
 };
 
 class DiskSSTableWindowIterator : public WindowIterator<KVSlice> {
@@ -145,6 +156,12 @@ public:
   }
   uint64_t getDiskFetches() override {
     return cache_->getDiskFetches();
+  }
+  uint64_t getDiskFetchSize() override {
+    return cache_->getDiskFetchSize();
+  }
+  uint64_t getTotalBytesFetched() override {
+    return cache_->getTotalBytesFetched();
   }
 
 private:
@@ -189,6 +206,14 @@ public:
   uint64_t getDiskFetches() override {
     return cur_kv_cache_->getDiskFetches() +
            peek_kv_cache_->getDiskFetches();
+  }
+  uint64_t getTotalBytesFetched() override {
+    return cur_kv_cache_->getTotalBytesFetched() +
+           peek_kv_cache_->getTotalBytesFetched();
+  }
+
+  uint64_t getDiskFetchSize() override {
+    return cur_kv_cache_->getDiskFetchSize(); // Both peek and cur will have same fetch size.
   }
 
 private:
@@ -270,6 +295,7 @@ public:
       close(fd_);
       built_ = true;
     }
+    // fprintf(stderr, "[%ld %ld]\n", file_start_offset_, file_start_offset_ + file_cur_offset_);
     return new FixedSizeKVDiskSSTable(file_path_);
   }
 

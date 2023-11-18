@@ -16,6 +16,8 @@ public:
   virtual uint64_t numElts() = 0;
   // STATS.
   virtual uint64_t getDiskFetches() { return 0; };
+  virtual uint64_t getDiskFetchSize() { return 0; };
+  virtual uint64_t getTotalBytesFetched() { return 0; };
 };
 
 template <class T>
@@ -34,6 +36,8 @@ template <class T> class WindowIterator {
     // Guaranteed to return lo_idx. Max keys returned will contain hi_idx (could be lesser).
     virtual Window<T> getWindow(uint64_t lo_idx, uint64_t hi_idx) = 0;
     virtual uint64_t getDiskFetches() = 0;
+    virtual uint64_t getDiskFetchSize() { return 0; };
+    virtual uint64_t getTotalBytesFetched() { return 0; };
 };
 } // namespace li_merge
 
