@@ -16,10 +16,9 @@ local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
-local num_common_keys = 10000;
 
 local max_ratio = 100;
-local points = 10;
+local points = 5;
 local step = max_ratio / points;
 local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
 
@@ -43,7 +42,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
         key_template + algo + {
             "name": algo["algo_name"] + i,
             "common_key": i,
-            "num_threads" : num_threads,
+            "num_threads" : 1,
             "inner_table" : test_input_dir + "/inner",
             "outer_table" : test_input_dir + "/input" + i,
             "result_path": test_output_dir + "/" + algo["algo_name"] + "_" + "run_" + r + "_ratio_"+ i,
@@ -54,42 +53,26 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
         for i in ratios
         for algo in [
             {
-                "algo_name": "standard_merge",
-                "algo": "standard_merge",
-            }, 
-            {
-                "algo": "learned_merge",
+                "algo_name": "pgm64",
+                "algo": "inlj",
                 "index": {
-                    "type": "pgm256",
-                    "search": "binary",
+                    "type": "pgm64"
                 },
-                "algo_name": "PGM256",
             },
             {
-                "algo": "learned_merge",
+                "algo_name": "pgm128",
+                "algo": "inlj",
                 "index": {
-                    "type": "pgm1024",
-                    "search": "binary",
+                    "type": "pgm128"
                 },
-                "algo_name": "PGM1024",
             },
             {
-                "algo": "learned_merge",
+                "algo_name": "btree256",
+                "algo": "inlj",
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 1,
-                    "search": "binary",
                 },
-                "algo_name": "BTree256",
-            },
-            {
-                "algo": "learned_merge",
-                "index": {
-                    "type": "btree",
-                    "leaf_size_in_pages": 8,
-                    "search": "binary",
-                },
-                "algo_name": "BTree2048",
             },
         ]
     ]
