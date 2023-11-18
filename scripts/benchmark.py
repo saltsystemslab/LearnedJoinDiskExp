@@ -118,8 +118,10 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
 
         print(config_dir)
         print(configs)
+        i = 0
         for config in configs:
-            result_json = run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
+            i = i + 1
+            result_json = run([runner_bin, os.path.join(config_dir, config)], prefix="Running [%d/%d] %s" % (i, len(configs), config))
             if delete_result_path:
                os.remove(result_json['spec']['result_path'])
             test_result_file = result_json
@@ -134,7 +136,7 @@ def run(command, force_dry_run=False, prefix=''):
     command = ['numactl', '-N', '1', '-m', '1'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
-    print(' '.join(command))
+    print(prefix, ' '.join(command))
     process= subprocess.run(command, capture_output=True, text=True)
     if process.returncode == 0:
         result_json = json.loads(process.stdout)
