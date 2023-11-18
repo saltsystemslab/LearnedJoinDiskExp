@@ -1,6 +1,7 @@
 #ifndef LEARNEDINDEXMERGE_DISK_SSTABLE_H
 #define LEARNEDINDEXMERGE_DISK_SSTABLE_H
 
+#include <atomic>
 #include "in_mem_sstable.h"
 #include "iterator.h"
 #include "key_value_slice.h"
@@ -387,7 +388,7 @@ private:
   std::string file_path_;
   int key_size_bytes_;
   int value_size_bytes_;
-  uint64_t num_keys_;
+  std::atomic_uint64_t num_keys_;
   bool built_;
 };
 
