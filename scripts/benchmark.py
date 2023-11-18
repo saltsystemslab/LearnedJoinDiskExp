@@ -107,18 +107,14 @@ def generate_configs(config_list, output_dir):
             outfile.write(config_json)
 
 def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False):
-    for repeat in range(total_repeat):
         configs = os.listdir(config_dir)
         if shuffle:
             random.shuffle(configs)
         else:
             configs = sorted(configs)
 
-        if total_repeat > 1:
-            run_result_dir = os.path.join(result_dir, f'run{repeat}')
-            os.makedirs(run_result_dir, exist_ok=True)
-        else:
-            run_result_dir = result_dir
+        run_result_dir = os.path.join(result_dir, f'run')
+        os.makedirs(run_result_dir, exist_ok=True)
 
         print(config_dir)
         print(configs)

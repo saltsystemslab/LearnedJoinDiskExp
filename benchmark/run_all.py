@@ -7,7 +7,7 @@ merge_args = [benchmark_script, "--spec=benchmark/sosd_merge.jsonnet", "--repeat
 datasets = {
     "wiki": {
         "source": "/home/chesetti/sosd-data/wiki_ts_200M_uint64",
-        "num_keys": 200000000
+        "num_keys": 2000000
     },
     "fb": {
         "source": "/home/chesetti/sosd-data/fb_200M_uint64",
@@ -39,7 +39,7 @@ datasets = {
     }
 }
 
-threads = [1, 4]
+threads = [32]
 for name, dataset in datasets.items():
     for thread in threads:
         args = join_args
@@ -47,7 +47,7 @@ for name, dataset in datasets.items():
         args.append(f"--test_name=join_{name}")
         args.append(f'--sosd_source={dataset["source"]}')
         args.append(f'--sosd_num_keys={dataset["num_keys"]}')
-        subprocess.run(args)
+        #subprocess.run(args)
 
         args = merge_args
         args.append(f"--threads={thread}")
@@ -55,5 +55,4 @@ for name, dataset in datasets.items():
         args.append(f'--sosd_source={dataset["source"]}')
         args.append(f'--sosd_num_keys={dataset["num_keys"]}')
         subprocess.run(args)
-        break
     break

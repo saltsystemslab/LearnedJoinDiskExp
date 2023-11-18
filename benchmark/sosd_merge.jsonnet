@@ -41,7 +41,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
         ],
     tests: [
         key_template + algo + {
-            "name": algo["algo_name"] + i,
+            "name": algo["algo_name"] + i + "run_" + r,
             "common_key": i,
             "num_threads" : num_threads,
             "inner_table" : test_input_dir + "/inner",

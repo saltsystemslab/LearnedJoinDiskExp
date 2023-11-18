@@ -87,8 +87,8 @@ json run_test(json test_spec) {
       comparator, 
       result_table_builder,
       num_threads);
-  } else if (test_spec["algo"] == "sort_join_exp") {
-    op = new SortJoinExpSearch<KVSlice>(
+  } else if (test_spec["algo"] == "sort_join_bin") {
+    op = new SortJoinBinSearch<KVSlice>(
       outer_table, inner_table, 
       inner_index_builder, 
       comparator, 
