@@ -4,210 +4,7 @@ import json
 import pandas as pd
 import shutil
 
-dstDir = '../LearnedMergePlots/experiment'
-
-small_join_test_cases = {
-    "URDense" : {
-        "dir": "./sponge/uniform_dense_small_join_1"
-    },
-    "URSparse" : {
-        "dir": "./sponge/uniform_sparse_small_join_1"
-    },
-    "lognormal" : {
-        "dir": "./sponge/lognormal_small_join_1"
-    },
-    "normal": {
-        "dir": "./sponge/normal_small_join_1"
-    },
-    "fb": {
-        "dir": "./sponge/fb_small_join_1"
-    },
-    "wiki": {
-        "dir": "./sponge/wiki_small_join_1"
-    }
-    # Disabled for now, these are large datasets.
-    #"books": {
-    #    "dir": "./sponge/books_small_join_small_1"
-    #}
-    #"osm": {
-    #    "dir": "./sponge/osm_small_join_small_1"
-    #},
-}
-
-small_merge_test_cases = {
-    "URDense" : {
-        "dir": "./sponge/uniform_dense_small_merge_1"
-    },
-    "URSparse" : {
-        "dir": "./sponge/uniform_sparse_small_merge_1"
-    },
-    "lognormal" : {
-        "dir": "./sponge/lognormal_small_merge_1"
-    },
-    "normal": {
-        "dir": "./sponge/normal_small_merge_1"
-    },
-    "fb": {
-        "dir": "./sponge/fb_small_merge_1"
-    },
-    "wiki": {
-        "dir": "./sponge/wiki_small_merge_1"
-    }
-    #"books": {
-    #    "dir": "./sponge/books_small_merge_1"
-    #},
-    #"osm": {
-    #    "dir": "./sponge/osm_small_merge_1"
-    #}
-}
-
-
-join_test_cases = {
-    "URDense" : {
-        "dir": "./sponge/uniform_dense_join_1"
-    },
-    "URSparse" : {
-        "dir": "./sponge/uniform_sparse_join_1"
-    },
-    "lognormal" : {
-        "dir": "./sponge/lognormal_join_1"
-    },
-    "normal": {
-        "dir": "./sponge/normal_join_1"
-    },
-    "fb": {
-        "dir": "./sponge/fb_join_1"
-    },
-    "wiki": {
-        "dir": "./sponge/wiki_join_1"
-    }
-    # Disabled for now, these are large datasets.
-    #"books": {
-    #    "dir": "./sponge/books_join_small_1"
-    #}
-    #"osm": {
-    #    "dir": "./sponge/osm_join_small_1"
-    #},
-}
-
-join_ratio10= {
-    "fb": {
-        "dir": "./sponge/fb_join-ratio10_1"
-    },
-    "fb_4": {
-        "dir": "./sponge/fb_join-ratio10_4"
-    },
-}
-
-join_search = {
-    "fb": {
-        "dir": "./sponge/fb_join-search_1"
-    },
-    "fb_4": {
-        "dir": "./sponge/fb_join-search_4"
-    },
-}
-
-merge_ratio10= {
-    "fb": {
-        "dir": "./sponge/fb_merge-ratio10_1"
-    },
-    "fb_4": {
-        "dir": "./sponge/fb_merge-ratio10_4"
-    },
-}
-
-join_onelevel = {
-    "fb": {
-        "dir": "./sponge/fb_join-onelevel_1"
-    },
-    "fb_4": {
-        "dir": "./sponge/fb_join-onelevel_4"
-    },
-}
-
-merge_test_cases = {
-    "URDense" : {
-        "dir": "./sponge/uniform_dense_merge_1"
-    },
-    "URSparse" : {
-        "dir": "./sponge/uniform_sparse_merge_1"
-    },
-    "lognormal" : {
-        "dir": "./sponge/lognormal_merge_1"
-    },
-    "normal": {
-        "dir": "./sponge/normal_merge_1"
-    },
-    "fb": {
-        "dir": "./sponge/fb_merge_1"
-    },
-    "wiki": {
-        "dir": "./sponge/wiki_merge_1"
-    }
-    #"books": {
-    #    "dir": "./sponge/books_merge_1"
-    #},
-    #"osm": {
-    #    "dir": "./sponge/osm_merge_1"
-    #}
-}
-
-join_4_test_cases = {
-    "URDense" : {
-        "dir": "./sponge/uniform_dense_join_4"
-    },
-    "URSparse" : {
-        "dir": "./sponge/uniform_sparse_join_4"
-    },
-    "lognormal" : {
-        "dir": "./sponge/lognormal_join_4"
-    },
-    "normal": {
-        "dir": "./sponge/normal_join_4"
-    },
-    "fb": {
-        "dir": "./sponge/fb_join_4"
-    },
-    "wiki": {
-        "dir": "./sponge/wiki_join_4"
-    }
-    # Disabled for now, these are large datasets.
-    #"books": {
-    #    "dir": "./sponge/books_join_small_4"
-    #}
-    #"osm": {
-    #    "dir": "./sponge/osm_join_small_4"
-    #},
-}
-
-merge_4_test_cases = {
-    "URDense" : {
-        "dir": "./sponge/uniform_dense_merge_4"
-    },
-    "URSparse" : {
-        "dir": "./sponge/uniform_sparse_merge_4"
-    },
-    "lognormal" : {
-        "dir": "./sponge/lognormal_merge_4"
-    },
-    "normal": {
-        "dir": "./sponge/normal_merge_4"
-    },
-    "fb": {
-        "dir": "./sponge/fb_merge_4"
-    },
-    "wiki": {
-        "dir": "./sponge/wiki_merge_4"
-    }
-    #"books": {
-    #    "dir": "./sponge/books_merge_4"
-    #},
-    #"osm": {
-    #    "dir": "./sponge/osm_merge_4"
-    #}
-}
-
+dstDir = '../LearnedMergePlots/experiment-nov11'
 
 def generateReport(name, test_cases):
     os.makedirs(os.path.join(dstDir, name), exist_ok=True)
@@ -233,12 +30,53 @@ def getInnerIndexSizeForTestCase(test_dataframe):
         data[index] = inner_index_size[index].mean()
     return data
 
+def parseIndexName(name):
+    index = name
+    epsilon = 0
+    if name=="btree1024":
+        index="BTree"
+        epsilon=1024
+    if name=="btree2048":
+        index="BTree"
+        epsilon=2048
+    if name=="btree256":
+        index="BTree"
+        epsilon=256
+    if name=="pgm1024":
+        index="PGM"
+        epsilon=2049
+    if name=="pgm512":
+        index="PGM"
+        epsilon=1025
+    if name=="pgm128":
+        index="PGM"
+        epsilon=257
+    return {"name": index, "epsilon": epsilon}
+
+def getInnerIndexSizeByEpsilonForTestCase(test_dataframe):
+    inner_index_size = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_size', aggfunc='median')
+    data = []
+    for index in inner_index_size:
+        index_dict = parseIndexName(index)
+        index_dict['memory'] = inner_index_size[index].mean() / (1024.0 * 1024.0)
+        data.append(index_dict)
+    return pd.DataFrame(data).pivot(index='epsilon', columns='name',values='memory')
+
 def getInnerIndexBuildDurationForTestCase(test_dataframe):
     inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
     data = {}
     for index in inner_index_build_duration:
         data[index] = inner_index_build_duration[index].mean()
     return data
+
+def getInnerIndexBuildDurationByEpsilonForTestCase(test_dataframe):
+    inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
+    data = []
+    for index in inner_index_build_duration:
+        index_dict = parseIndexName(index)
+        index_dict['build_duration'] = (inner_index_build_duration[index].mean() / 1000000000.0)
+        data.append(index_dict)
+    return pd.DataFrame(data).pivot(index='epsilon', columns='name',values='build_duration')
 
 def buildDataFrame(results_dir):
     runs = [os.path.join(results_dir, run) for run in os.listdir(results_dir)]
@@ -256,9 +94,21 @@ def buildDataFrame(results_dir):
 
 def generateReportForTestCase(test_case_name, test_dataframe, csv_dir):
     overall_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.duration_ns', aggfunc='median')
+    columnList = list(overall_duration.columns)
+    if "sj" in columnList:
+        for column in columnList:
+            overall_duration[column + "-sj-rel"] = (overall_duration["sj"] - overall_duration[column]) / overall_duration["sj"]
+    if "standard_merge" in columnList:
+        for column in columnList:
+            overall_duration[column + "-sm-rel"] = (overall_duration["standard_merge"] - overall_duration[column]) / overall_duration["standard_merge"]
     overall_duration.to_csv(os.path.join(csv_dir, 'duration_sec.csv'))
     inner_index_disk_fetch = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_disk_fetch', aggfunc='median')
     inner_index_disk_fetch.to_csv(os.path.join(csv_dir, 'inner_disk_fetch.csv'))
+    if 'result.inner_total_bytes_fetched' in test_dataframe.columns:
+        inner_index_total_disk_fetch = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_total_bytes_fetched', aggfunc='median')
+        inner_index_total_disk_fetch.to_csv(os.path.join(csv_dir, 'inner_total_disk_fetch.csv'))
+    getInnerIndexBuildDurationByEpsilonForTestCase(test_dataframe).to_csv(os.path.join(csv_dir, 'index_build_duration_by_epsilon.csv'))
+    getInnerIndexSizeByEpsilonForTestCase(test_dataframe).to_csv(os.path.join(csv_dir, 'index_build_size_by_epsilon.csv'))
 
     inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
     data = {}
@@ -291,28 +141,17 @@ def copyResultsToPaper(name, test_cases):
         os.makedirs(os.path.join(dstDir, name, exp_name), exist_ok=True)
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, name, exp_name), dirs_exist_ok=True)
 
-generateReport('join_ratio100', join_test_cases)
-copyResultsToPaper('join_ratio100', join_test_cases)
+srcDir = './sponge'
+datasets = ["udense", "usparse", "normal", "fb", "wiki", "books"]
+ops = ["join", "merge"]
+threads = ["1", "4"] #, "4", "16", "32"]
 
-generateReport('merge_ratio100', merge_test_cases)
-copyResultsToPaper('merge_ratio100', merge_test_cases)
-
-# What is the difference between generateReport and copyResultsToPaper?
-
-generateReport('join_ratio100', join_4_test_cases)
-copyResultsToPaper('join_ratio100', join_4_test_cases)
-
-generateReport('join_ratio10', join_ratio10)
-copyResultsToPaper('join_ratio10', join_ratio10)
-
-generateReport('merge_ratio10', merge_ratio10)
-copyResultsToPaper('merge_ratio10', merge_ratio10)
-
-generateReport('join_onelevel_ratio100', join_onelevel)
-copyResultsToPaper('join_onelevel_ratio100', join_onelevel)
-
-generateReport('join_search_ratio100', join_search)
-copyResultsToPaper('join_search_ratio100', join_search)
-
-generateReport('merge_4threads', merge_4_test_cases)
-copyResultsToPaper('merge_4threads', merge_4_test_cases)
+for op in ops:
+    for thread in threads:
+        tests = {}
+        for dataset in datasets:
+            test_case_dir = os.path.join(srcDir, "_".join([op, dataset, thread]))
+            tests[dataset] = {"dir": test_case_dir}
+        test_set_name = "_".join([op, thread])
+        generateReport(test_set_name, tests)
+        copyResultsToPaper(test_set_name, tests)

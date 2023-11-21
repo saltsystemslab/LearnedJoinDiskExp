@@ -96,7 +96,6 @@ def setup_experiment_directories():
         'output_config_dir': output_config_dir,
         'input_result_dir': input_result_dir,
         'output_result_dir': output_result_dir
-
     }
 
 def generate_configs(config_list, output_dir):
