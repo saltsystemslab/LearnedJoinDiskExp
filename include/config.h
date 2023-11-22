@@ -1,6 +1,6 @@
 #ifndef LEARNEDINDEXMERGE_CONFIG
 #define LEARNEDINDEXMERGE_CONFIG
 
-typedef double POINT_FLOAT_TYPE;
+typedef uint64_t POINT_FLOAT_TYPE;
 
 #endif

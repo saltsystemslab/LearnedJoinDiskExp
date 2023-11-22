@@ -15,6 +15,7 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 find_package(OpenSSL REQUIRED)
+find_package(OpenMP REQUIRED)
 
 include_directories(
   include/
@@ -42,7 +43,8 @@ if (STRING_KEYS)
 endif()
 
 add_executable(benchmark_runner src/test_runner.cpp)
-target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})
+#target_link_libraries(benchmark_runner PUBLIC OpenMP::OpenMP_CXX)
+target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY} PUBLIC OpenMP::OpenMP_CXX)
 
 enable_testing()
 add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
