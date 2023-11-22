@@ -142,9 +142,9 @@ def copyResultsToPaper(name, test_cases):
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, name, exp_name), dirs_exist_ok=True)
 
 srcDir = './sponge'
-datasets = ["udense", "usparse", "normal", "fb", "wiki", "books"]
-ops = ["join", "merge"]
-threads = ["1", "4"] #, "4", "16", "32"]
+datasets = ["udense", "usparse", "normal", "lognormal", "fb", "wiki", "books"]
+ops = ["join"]
+threads = ["1", "4"]# "16", "32"]
 
 for op in ops:
     for thread in threads:
