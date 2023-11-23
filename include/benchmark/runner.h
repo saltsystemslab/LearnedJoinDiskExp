@@ -234,7 +234,7 @@ Index<KVSlice> *get_index(std::string table_path,
   } else if (index_type == "btree") {
     uint64_t suffix = test_spec["index"]["leaf_size_in_pages"];
     suffix *= 256;
-    return new BTreeWIndex(table_path + "_btree" + std::to_string(suffix), test_spec["index"]["leaf_size_in_pages"]);
+    return new BTreeWIndex(table_path + "_btree" + std::to_string(suffix), suffix);
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();

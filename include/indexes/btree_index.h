@@ -76,7 +76,6 @@ public:
   BTreeWIndex(std::string datafile, int leaf_size_in_keys)
       : leaf_size_in_keys_(leaf_size_in_keys) {
         std::vector<std::pair<uint64_t, uint64_t>> elts = loadElts(datafile);
-        fprintf(stderr, "numElts:%ld\n", elts.size());
         tree_ = new stx_btree(); 
         tree_->bulk_load(elts.begin(), elts.end());
         num_blocks_ = elts.size();
