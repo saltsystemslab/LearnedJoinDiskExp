@@ -24,31 +24,13 @@ public:
     BaseMergeAndJoinOp(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
-        IndexBuilder<T> *inner_index_builder,
+        Index<T> *inner_index,
         Comparator<T> *comparator,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
      TableOp<T>(outer, inner, result_builder, num_threads),
      comparator_(comparator),
-     inner_index_builder_(inner_index_builder) {}
-
-  void preOp() override {
-      // Build Inner Index. You will always need this to partition.
-      Iterator<T> *inner_iter = this->inner_->iterator();
-      auto inner_index_build_begin = std::chrono::high_resolution_clock::now();
-      while (inner_iter->valid()) {
-        inner_index_builder_->add(inner_iter->key());
-        inner_iter->next();
-      }
-      inner_index_ = this->inner_index_builder_->build();
-      auto inner_index_build_end = std::chrono::high_resolution_clock::now();
-      auto inner_index_build_duration_ns =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            inner_index_build_end - inner_index_build_begin).count();
-      this->stats_["inner_index_build_duration_ns"] = inner_index_build_duration_ns;
-      this->stats_["inner_index_size"] = inner_index_->sizeInBytes();
-      delete inner_iter;
-  }
+     inner_index_(inner_index) {}
 
   std::vector<Partition> getPartitions() override {
     return partition_sstables(this->num_threads_, this->outer_, this->inner_,
@@ -85,7 +67,6 @@ public:
     this->output_table_ = this->result_builder_->build();
   }
 protected:
-    IndexBuilder<T> *inner_index_builder_;
     Index<T> *inner_index_;
     Comparator<T> *comparator_;
 };
@@ -96,12 +77,12 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
     LearnedIndexInlj(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
-        IndexBuilder<T> *inner_index_builder,
+        Index<T> *inner_index,
         Comparator<T> *comparator,
         SearchStrategy<T> *search_strategy,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads),
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index, comparator, result_builder, num_threads),
     search_strategy_(search_strategy) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
@@ -176,11 +157,11 @@ class HashJoin: public BaseMergeAndJoinOp<KVSlice> {
     HashJoin(
         SSTable<KVSlice> *outer, 
         SSTable<KVSlice> *inner, 
-        IndexBuilder<KVSlice> *inner_index_builder,
+        Index<KVSlice> *inner_index,
         Comparator<KVSlice> *comparator,
         PSSTableBuilder<KVSlice> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<KVSlice>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
+    BaseMergeAndJoinOp<KVSlice>(outer, inner, inner_index, comparator, result_builder, num_threads) {}
 
   void preOp() override {
     BaseMergeAndJoinOp<KVSlice>::preOp();
@@ -239,11 +220,11 @@ class SortJoin: public BaseMergeAndJoinOp<T> {
     SortJoin(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
-        IndexBuilder<T> *inner_index_builder,
+        Index<T> *inner_index,
         Comparator<T> *comparator,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index, comparator, result_builder, num_threads) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
       uint64_t outer_start = partition.outer.first;
@@ -307,11 +288,11 @@ class SortJoinBinSearch: public BaseMergeAndJoinOp<T> {
     SortJoinBinSearch(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
-        IndexBuilder<T> *inner_index_builder,
+        Index<T> *inner_index,
         Comparator<T> *comparator,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index, comparator, result_builder, num_threads) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
       uint64_t outer_start = partition.outer.first;

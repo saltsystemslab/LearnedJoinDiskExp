@@ -22,11 +22,11 @@ class StandardMerge: public BaseMergeAndJoinOp<T> {
     StandardMerge(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
-        IndexBuilder<T> *inner_index_builder,
+        Index<T> *inner_index,
         Comparator<T> *comparator,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads) {}
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index, comparator, result_builder, num_threads) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
       uint64_t outer_start = partition.outer.first;
@@ -73,12 +73,12 @@ class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
     LearnedMerge1Way(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
-        IndexBuilder<T> *inner_index_builder,
+        Index<T> *inner_index,
         Comparator<T> *comparator,
         SearchStrategy<T> *search_strategy,
         PSSTableBuilder<T> *result_builder,
         int num_threads):
-    BaseMergeAndJoinOp<T>(outer, inner, inner_index_builder, comparator, result_builder, num_threads),
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index, comparator, result_builder, num_threads),
     search_strategy_(search_strategy) {}
 
     void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {

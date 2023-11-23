@@ -5,6 +5,7 @@
 #include "index.h"
 #include "key_value_slice.h"
 #include "stx/btree_map.h"
+#include <fstream>
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -22,10 +23,64 @@ typedef stx::btree_map<uint64_t, uint64_t, std::less<uint64_t>,
 
 namespace li_merge {
 
+template<typename T>
+static size_t write_member(const T &x, std::ostream &out) {
+    out.write((char *) &x, sizeof(T));
+    return sizeof(T);
+}
+
+template<typename T>
+static void read_member(T &x, std::istream &in) {
+    in.read((char *) &x, sizeof(T));
+}
+
+template<typename C>
+static size_t write_container(const C &container, std::ostream &out) {
+    using value_type = typename C::value_type;
+    size_t written_bytes = write_member(container.size(), out);
+    for (auto &x: container) {
+        out.write((char *) &x, sizeof(value_type));
+        written_bytes += sizeof(value_type);
+    }
+    return written_bytes;
+}
+
+template<typename C>
+static void read_container(C &container, std::istream &in) {
+    using value_type = typename C::value_type;
+    typename C::size_type size;
+    read_member(size, in);
+    container.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+        value_type s;
+        in.read((char *) &s, sizeof(value_type));
+        container.push_back(s);
+    }
+}
+
+std::vector<std::pair<uint64_t, uint64_t>> loadElts(std::string datafile) {
+  std::vector<std::pair<uint64_t, uint64_t>> container;
+  std::ifstream inputFile(datafile);
+  read_container(container, inputFile);
+  return container;
+} 
+void storeElts(std::vector<std::pair<uint64_t, uint64_t>> &data, std::string datafile) {
+  std::ofstream outputFile(datafile);
+  write_container(data, outputFile);
+} 
+
 class BTreeWIndex : public Index<KVSlice> {
 public:
   BTreeWIndex(stx_btree *tree, int leaf_size_in_keys, int num_blocks)
       : tree_(tree), leaf_size_in_keys_(leaf_size_in_keys), num_blocks_(num_blocks) {}
+  BTreeWIndex(std::string datafile, int leaf_size_in_keys)
+      : leaf_size_in_keys_(leaf_size_in_keys) {
+        std::vector<std::pair<uint64_t, uint64_t>> elts = loadElts(datafile);
+        fprintf(stderr, "numElts:%ld\n", elts.size());
+        tree_ = new stx_btree(); 
+        tree_->bulk_load(elts.begin(), elts.end());
+        num_blocks_ = elts.size();
+      }
   Bounds getPositionBounds(const KVSlice &t) override {
     uint64_t *key = (uint64_t *)(t.data());
     stx_btree::iterator it = tree_->lower_bound(*key);
@@ -53,7 +108,8 @@ private:
 
 class BTreeIndexBuilder : public IndexBuilder<KVSlice> {
 public:
-  BTreeIndexBuilder(int leaf_size_in_pages, int key_size_bytes, int value_size_bytes) : num_elts_(0), block_id(0) { 
+  BTreeIndexBuilder(int leaf_size_in_pages, int key_size_bytes, int value_size_bytes, std::string filename) : 
+    num_elts_(0), block_id(0), filename_(filename) { 
     tree_ = new stx_btree(); 
     // TODO(chesetti): Use PAGE_SIZE HERE.
     num_items_block_ = (leaf_size_in_pages * 4096) / (key_size_bytes + value_size_bytes);
@@ -70,6 +126,7 @@ public:
 #endif
   }
   Index<KVSlice> *build() override {
+    storeElts(elts_, filename_);
     tree_->bulk_load(elts_.begin(), elts_.end());
     return new BTreeWIndex(tree_, num_items_block_, block_id);
   }
@@ -85,6 +142,7 @@ private:
   std::vector<uint64_t> keys_;
   stx_btree *tree_;
   int num_items_block_;
+  std::string filename_;
 };
 
 } // namespace li_merge

@@ -5,6 +5,7 @@
 #include "key_to_point.h"
 #include "key_value_slice.h"
 #include "pgm/pgm_index.hpp"
+#include "pgm/pgm_index_variants.hpp"
 #include <algorithm>
 #include <vector>
 
@@ -14,6 +15,10 @@ public:
   PgmIndex(pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index,
            KeyToPointConverter<T> *converter)
       : pgm_index_(pgm_index), converter_(converter) {}
+  PgmIndex(std::string filename, KeyToPointConverter<T> *converter): converter_(converter) {
+    fprintf(stderr, "%s\n", filename.c_str());
+    pgm_index_ = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(filename);
+  }
   Bounds getPositionBounds(const T &t) override {
     auto bounds = pgm_index_->search(converter_->toPoint(t));
     return Bounds{bounds.lo, bounds.hi + 1, bounds.pos};
@@ -33,14 +38,19 @@ public:
       : converter_(converter) {
     x_points_.reserve(approx_num_keys);
   }
+  PgmIndexBuilder(uint64_t approx_num_keys, KeyToPointConverter<T> *converter, std::string filename)
+      : converter_(converter), filename_(filename) {
+    x_points_.reserve(approx_num_keys);
+  }
   void add(const T &t) override { x_points_.push_back(converter_->toPoint(t)); }
   Index<KVSlice> *build() override {
     return new PgmIndex<T, Epsilon>(
-        new pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_), converter_);
+        new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_.begin(), x_points_.end(), filename_), converter_);
   }
 private:
   std::vector<POINT_FLOAT_TYPE> x_points_;
   KeyToPointConverter<T> *converter_;
+  std::string filename_;
 };
 } // namespace li_merge
 

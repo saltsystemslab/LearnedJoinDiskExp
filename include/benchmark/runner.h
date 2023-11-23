@@ -37,7 +37,7 @@ PSSTableBuilder<KVSlice> *get_parallel_result_builder_for_join(json test_spec);
 PSSTableBuilder<KVSlice> *get_parallel_result_builder_for_merge(json test_spec);
 Comparator<KVSlice> *get_comparator(json test_spec);
 SearchStrategy<KVSlice> *get_search_strategy(json test_spec);
-IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
+Index<KVSlice> *get_index(std::string table_path,
                                          json test_spec);
 KeyToPointConverter<KVSlice> *get_converter(json test_spec);
 SSTable<KVSlice> *load_sstable(std::string sstable_path, bool load_in_mem);
@@ -51,8 +51,8 @@ json run_test(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  IndexBuilder<KVSlice> *inner_index_builder =
-      get_index_builder(test_spec["inner_table"], test_spec);
+  Index<KVSlice> *inner_index =
+      get_index(test_spec["inner_table"], test_spec);
   Comparator<KVSlice> *comparator = get_comparator(test_spec);
   int num_threads = test_spec["num_threads"];
   // TODO: Make this a function map.
@@ -68,14 +68,14 @@ json run_test(json test_spec) {
   if (test_spec["algo"] == "standard_merge") {
     op = new StandardMerge<KVSlice>(
       outer_table, inner_table, 
-      inner_index_builder, 
+      inner_index, 
       comparator, 
       result_table_builder,
       num_threads);
   } else if (test_spec["algo"] == "learned_merge") {
     op = new LearnedMerge1Way<KVSlice>(
       outer_table, inner_table, 
-      inner_index_builder, 
+      inner_index, 
       comparator, 
       get_search_strategy(test_spec),
       result_table_builder,
@@ -83,37 +83,65 @@ json run_test(json test_spec) {
   } else if (test_spec["algo"] == "sort_join") {
     op = new SortJoin<KVSlice>(
       outer_table, inner_table, 
-      inner_index_builder, 
+      inner_index, 
       comparator, 
       result_table_builder,
       num_threads);
   } else if (test_spec["algo"] == "sort_join_bin") {
     op = new SortJoinBinSearch<KVSlice>(
       outer_table, inner_table, 
-      inner_index_builder, 
+      inner_index, 
       comparator, 
       result_table_builder,
       num_threads);
   } else if (test_spec["algo"] == "hash_join") {
     op = new HashJoin(
       outer_table, inner_table, 
-      inner_index_builder, 
+      inner_index, 
       comparator, 
       result_table_builder,
       num_threads);
   } else if (test_spec["algo"] == "inlj") {
     op = new LearnedIndexInlj<KVSlice>(
       outer_table, inner_table, 
-      inner_index_builder, 
+      inner_index, 
       comparator, 
       get_search_strategy(test_spec),
       result_table_builder,
       num_threads);
   }
   TableOpResult<KVSlice> result = op->profileOp();
-  result.stats["checksum"] = md5_checksum(result.output_table);
+  result.stats["checksum"] =  md5_checksum(result.output_table);
   return result.stats;
 }
+
+void create_pgm_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *converter, std::string tableName, json test_spec) {
+    auto pgm256 = new PgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_pgm256");
+    auto pgm1024 = new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm512");
+    auto pgm2048 = new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm1024");
+
+    auto btree256 = new BTreeIndexBuilder(1, test_spec["key_size"], test_spec["value_size"], tableName + "_btree256");
+    auto btree1024 = new BTreeIndexBuilder(4, test_spec["key_size"], test_spec["value_size"], tableName + "_btree1024");
+    auto btree2048 = new BTreeIndexBuilder(8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2048");
+
+    auto iter = table->iterator();
+    while (iter->valid()) {
+      pgm256->add(iter->key());
+      pgm1024->add(iter->key());
+      pgm2048->add(iter->key());
+      btree256->add(iter->key());
+      btree1024->add(iter->key());
+      btree2048->add(iter->key());
+      iter->next();
+    }
+    pgm256->build();
+    pgm1024->build();
+    pgm2048->build();
+    btree256->build();
+    btree1024->build();
+    btree2048->build();
+}
+
 
 json create_input_sstable(json test_spec) {
   json result;
@@ -134,9 +162,13 @@ json create_input_sstable(json test_spec) {
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
     std::set<uint64_t> common_keys; // UNUSED.
-    generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
+    SSTable<KVSlice> *table = generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
                            get_result_builder(test_spec));
+    // Create indexes for the input tables.
+    if (num_keys_in_dataset == num_keys) {
+      create_pgm_indexes(table, get_converter(test_spec), result_path, test_spec);
+    }
     close(fd);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
@@ -187,54 +219,22 @@ SearchStrategy<KVSlice> *get_search_strategy(json test_spec) {
   abort();
 }
 
-IndexBuilder<KVSlice> *get_index_builder(std::string table_path,
+Index<KVSlice> *get_index(std::string table_path,
                                          json test_spec) {
   if (!test_spec.contains("index")) {
-    return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
+    return new PgmIndex<KVSlice, 256>(table_path + "_pgm256", get_converter(test_spec));
   }
   std::string index_type = test_spec["index"]["type"];
-  if (index_type == "onelevel_pgm8") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 8>(0, get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm64") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
-                                                    get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm128") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 128>(0,
-                                                     get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm256") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 256>(0,
-                                                     get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm512") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 512>(0,
-                                                     get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm1024") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 1024>(0,
-                                                      get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm16") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 16>(0,
-                                                    get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm64") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 64>(0,
-                                                    get_converter(test_spec));
-  } else if (index_type == "onelevel_pgm256") {
-    return new OneLevelPgmIndexBuilder<KVSlice, 256>(0,
-                                                     get_converter(test_spec));
-  } else if (index_type == "pgm8") {
-    return new PgmIndexBuilder<KVSlice, 8>(0, get_converter(test_spec));
-  } else if (index_type == "pgm16") {
-    return new PgmIndexBuilder<KVSlice, 16>(0, get_converter(test_spec));
-  } else if (index_type == "pgm64") {
-    return new PgmIndexBuilder<KVSlice, 64>(0, get_converter(test_spec));
-  } else if (index_type == "pgm128") {
-    return new PgmIndexBuilder<KVSlice, 128>(0, get_converter(test_spec));
-  } else if (index_type == "pgm256") {
-    return new PgmIndexBuilder<KVSlice, 256>(0, get_converter(test_spec));
+  if (index_type == "pgm128") {
+    return new PgmIndex<KVSlice, 128>(table_path + "_pgm256", get_converter(test_spec));
   } else if (index_type == "pgm512") {
-    return new PgmIndexBuilder<KVSlice, 512>(0, get_converter(test_spec));
+    return new PgmIndex<KVSlice, 256>(table_path + "_pgm1024", get_converter(test_spec));
   } else if (index_type == "pgm1024") {
-    return new PgmIndexBuilder<KVSlice, 1024>(0, get_converter(test_spec));
+    return new PgmIndex<KVSlice, 1024>(table_path + "_pgm2048", get_converter(test_spec));
   } else if (index_type == "btree") {
-    return new BTreeIndexBuilder(test_spec["index"]["leaf_size_in_pages"], test_spec["key_size"], test_spec["value_size"]);
+    uint64_t suffix = test_spec["index"]["leaf_size_in_pages"];
+    suffix *= 256;
+    return new BTreeWIndex(table_path + "_btree" + std::to_string(suffix), test_spec["index"]["leaf_size_in_pages"]);
   }
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();

@@ -20,7 +20,7 @@ struct TableOpResult {
 template <class T>
 class TableOp {
 public:
-  virtual void preOp() = 0;
+  virtual void preOp() {};
   virtual std::vector<Partition> getPartitions() = 0;
   virtual void doOpOnPartition(Partition partition, TableOpResult<T> *result) = 0;
   virtual void mergePartitions() = 0;
