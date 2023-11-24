@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import random
+import shutil
 import pandas as pd
 from absl import app
 from absl import flags
@@ -21,6 +22,7 @@ flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
+flags.DEFINE_bool("clear_inputs", False, "")
 
 flags.DEFINE_string("test_name", "unknown", "Test Case Name.")
 flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
@@ -38,6 +40,7 @@ def main(argv):
 
     # Generate the experiment json config.
     # This config has definitions to generate input files, and test configurations.
+    print(FLAGS.spec)
     exp['config'] = json.loads(_jsonnet.evaluate_file(
         FLAGS.spec, ext_vars = {
             "TEST_OUTPUT_DIR": exp['output_dir'],
@@ -57,6 +60,9 @@ def main(argv):
     generate_configs(exp['config']['tests'], exp['output_config_dir'])
     run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False)
     run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True)
+    if FLAGS.clear_inputs:
+        print("Deleting")
+        shutil.rmtree(exp['input_dir'], ignore_errors=True)
 
 def build_runner(build_dir, force_track_stats=False):
     track_stats='-DTRACK_STATS=ON' if (FLAGS.track_stats or force_track_stats) else '-DTRACK_STATS=OFF'
@@ -74,9 +80,9 @@ def setup_experiment_directories():
     experiment_dir = os.path.join(FLAGS.test_dir, FLAGS.test_name + "_"+str(FLAGS.threads))
     input_dir = os.path.join(experiment_dir, "inputs")
     output_dir = os.path.join(experiment_dir, "outputs")
-    input_config_dir = os.path.join(input_dir, "configs")
-    output_config_dir = os.path.join(output_dir, "configs")
-    input_result_dir = os.path.join(input_dir, "results")
+    input_config_dir = os.path.join(experiment_dir, "input_configs")
+    output_config_dir = os.path.join(experiment_dir, "output_configs")
+    input_result_dir = os.path.join(experiment_dir, "input_results")
     output_result_dir = os.path.join(output_dir, "results")
     csv_dir = os.path.join(experiment_dir, "csv")
     os.makedirs(experiment_dir, exist_ok=True)
@@ -127,6 +133,7 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
             with open(os.path.join(run_result_dir, config), "w") as outfile:
                 result_json = json.dumps(result_json, indent=4)
                 outfile.write(result_json)
+
 
 
 def run(command, force_dry_run=False, prefix=''):

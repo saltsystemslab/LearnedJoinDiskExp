@@ -115,38 +115,50 @@ json run_test(json test_spec) {
   return result.stats;
 }
 
-void create_pgm_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *converter, std::string tableName, json test_spec) {
+json create_index(std::string name, Iterator<KVSlice> *iter, IndexBuilder<KVSlice> *builder) {
+  auto index_build_start = std::chrono::high_resolution_clock::now();
+  iter->seekToFirst();
+  while (iter->valid()) {
+    builder->add(iter->key());
+    iter->next();
+  }
+  auto index = builder->build();
+  auto index_build_end = std::chrono::high_resolution_clock::now();
+  json result;
+  result["index_name"] = name;
+  result["index_size"] = index->sizeInBytes();
+  result["index_build_duration"] = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         index_build_end - index_build_start).count();
+  return result;
+}
+
+json create_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *converter, std::string tableName, json test_spec) {
     auto pgm256 = new PgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_pgm256");
     auto pgm1024 = new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm1024");
     auto pgm2048 = new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm2048");
-    auto pgm4096 = new PgmIndexBuilder<KVSlice, 2048>(0, converter, tableName + "_pgm4096");
-
     auto btree256 = new BTreeIndexBuilder(1, test_spec["key_size"], test_spec["value_size"], tableName + "_btree256");
     auto btree1024 = new BTreeIndexBuilder(4, test_spec["key_size"], test_spec["value_size"], tableName + "_btree1024");
     auto btree2048 = new BTreeIndexBuilder(8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2048");
-    auto btree4096 = new BTreeIndexBuilder(16, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2096");
 
-    auto iter = table->iterator();
-    while (iter->valid()) {
-      pgm256->add(iter->key());
-      pgm1024->add(iter->key());
-      pgm2048->add(iter->key());
-      pgm4096->add(iter->key());
-      btree256->add(iter->key());
-      btree1024->add(iter->key());
-      btree2048->add(iter->key());
-      btree4096->add(iter->key());
-      iter->next();
-    }
-    pgm256->build();
-    pgm1024->build();
-    pgm2048->build();
-    pgm4096->build();
-    btree256->build();
-    btree1024->build();
-    btree2048->build();
-    btree4096->build();
+    json index_stats = json::array();
+
+    index_stats.push_back(create_index("pgm256", table->iterator(), pgm256));
+    index_stats.push_back(create_index("pgm1024", table->iterator(), pgm1024));
+    index_stats.push_back(create_index("pgm2048", table->iterator(), pgm2048));
+    index_stats.push_back(create_index("btree256", table->iterator(), btree256));
+    index_stats.push_back(create_index("btree1024", table->iterator(), btree1024));
+    index_stats.push_back(create_index("btree2048", table->iterator(), btree2048));
+
+    pgm256->backToFile();
+    pgm1024->backToFile();
+    pgm2048->backToFile();
+    btree256->backToFile();
+    btree1024->backToFile();
+    btree2048->backToFile();
+
+    return index_stats;
 }
+
 
 
 json create_input_sstable(json test_spec) {
@@ -173,7 +185,7 @@ json create_input_sstable(json test_spec) {
                            get_result_builder(test_spec));
     // Create indexes for the input tables.
     if (num_keys_in_dataset == num_keys) {
-      create_pgm_indexes(table, get_converter(test_spec), result_path, test_spec);
+      result["index_stats"] = create_indexes(table, get_converter(test_spec), result_path, test_spec);
     }
     close(fd);
   } else {

@@ -44,7 +44,7 @@ endif()
 
 add_executable(benchmark_runner src/test_runner.cpp)
 #target_link_libraries(benchmark_runner PUBLIC OpenMP::OpenMP_CXX)
-target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY} PUBLIC OpenMP::OpenMP_CXX)
+target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})
 
 enable_testing()
 add_executable(in_mem_sstable_test test/in_mem_sstable_test.cpp)
