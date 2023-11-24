@@ -21,6 +21,7 @@ local max_ratio = 100;
 local points = 10;
 local step = max_ratio / points;
 local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
+local ratios = [10, 50, 100];
 
 {
     inputs : 
@@ -88,10 +89,6 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "leaf_size_in_pages": 1,
                     "search": "binary",
                 },
-            },
-            {
-                "algo_name": "hashJoin",
-                "algo": "hash_join",
             },
             {
                 "algo_name": "btree1024",

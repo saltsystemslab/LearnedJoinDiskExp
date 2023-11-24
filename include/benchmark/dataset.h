@@ -77,11 +77,17 @@ SSTable<KVSlice> *generate_from_datafile(
   if (!use_all) {
     std::set<uint64_t> selected_keys= select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
     char kv_buf[key_size_bytes + value_size_bytes];
+    char prev_buf[key_size_bytes + value_size_bytes];
+    memset(prev_buf, -1, key_size_bytes + value_size_bytes);
     for (auto key_idx : selected_keys) {
       KVSlice k = sosd_keys.get_kv(key_idx);
       memcpy(kv_buf, k.data(), key_size_bytes);
       fix_value(kv_buf, key_size_bytes, value_size_bytes);
-      builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
+      // Remove duplicate keys.
+      if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) != 0) {
+        builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
+      }
+      memcpy(prev_buf, kv_buf, key_size_bytes+value_size_bytes);
     }
   } else {
     char kv_buf[key_size_bytes + value_size_bytes];

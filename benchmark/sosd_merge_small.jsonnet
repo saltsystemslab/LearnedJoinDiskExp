@@ -16,11 +16,9 @@ local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
+local num_common_keys = 10000;
 
-local max_ratio = 100;
-local points = 10;
-local step = max_ratio / points;
-local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
+local ratios = [10, 50, 100];
 
 {
     inputs : 
@@ -53,63 +51,59 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
         for i in ratios
         for algo in [
             {
-                "algo_name": "sj",
-                "algo": "sort_join",
+                "algo_name": "standard_merge",
+                "algo": "standard_merge",
             }, 
             {
-                "algo_name": "pgm256",
-                "algo": "inlj",
+                "algo": "learned_merge",
                 "index": {
                     "type": "pgm256",
                     "search": "binary",
                 },
+                "algo_name": "pgm256",
             },
             {
-                "algo_name": "pgm1024",
-                "algo": "inlj",
+                "algo": "learned_merge",
                 "index": {
                     "type": "pgm1024",
                     "search": "binary",
                 },
+                "algo_name": "pgm1024",
             },
             {
-                "algo_name": "pgm2048",
-                "algo": "inlj",
+                "algo": "learned_merge",
                 "index": {
                     "type": "pgm2048",
                     "search": "binary",
                 },
+                "algo_name": "pgm2048",
             },
             {
-                "algo_name": "btree256",
-                "algo": "inlj",
+                "algo": "learned_merge",
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 1,
                     "search": "binary",
                 },
+                "algo_name": "btree256",
             },
             {
-                "algo_name": "hashJoin",
-                "algo": "hash_join",
-            },
-            {
-                "algo_name": "btree1024",
-                "algo": "inlj",
+                "algo": "learned_merge",
                 "index": {
                     "type": "btree",
                     "leaf_size_in_pages": 4,
                     "search": "binary",
                 },
+                "algo_name": "btree1024",
             },
             {
-                "algo_name": "btree2048",
-                "algo": "inlj",
+                "algo": "learned_merge",
                 "index": {
                     "type": "btree",
-                    "leaf_size_in_pages":8, 
+                    "leaf_size_in_pages": 8,
                     "search": "binary",
                 },
+                "algo_name": "btree2048",
             },
         ]
     ]

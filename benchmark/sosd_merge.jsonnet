@@ -63,7 +63,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "type": "pgm256",
                     "search": "binary",
                 },
-                "algo_name": "PGM256",
+                "algo_name": "pgm256",
             },
             {
                 "algo": "learned_merge",
@@ -71,7 +71,15 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "type": "pgm1024",
                     "search": "binary",
                 },
-                "algo_name": "PGM1024",
+                "algo_name": "pgm1024",
+            },
+            {
+                "algo": "learned_merge",
+                "index": {
+                    "type": "pgm2048",
+                    "search": "binary",
+                },
+                "algo_name": "pgm2048",
             },
             {
                 "algo": "learned_merge",
@@ -80,7 +88,16 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "leaf_size_in_pages": 1,
                     "search": "binary",
                 },
-                "algo_name": "BTree256",
+                "algo_name": "btree256",
+            },
+            {
+                "algo": "learned_merge",
+                "index": {
+                    "type": "btree",
+                    "leaf_size_in_pages": 4,
+                    "search": "binary",
+                },
+                "algo_name": "btree1024",
             },
             {
                 "algo": "learned_merge",
@@ -89,7 +106,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                     "leaf_size_in_pages": 8,
                     "search": "binary",
                 },
-                "algo_name": "BTree2048",
+                "algo_name": "btree2048",
             },
         ]
     ]

@@ -111,35 +111,41 @@ json run_test(json test_spec) {
       num_threads);
   }
   TableOpResult<KVSlice> result = op->profileOp();
-  result.stats["checksum"] =  md5_checksum(result.output_table);
+  result.stats["checksum"] =  0; // md5_checksum(result.output_table);
   return result.stats;
 }
 
 void create_pgm_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *converter, std::string tableName, json test_spec) {
     auto pgm256 = new PgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_pgm256");
-    auto pgm1024 = new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm512");
-    auto pgm2048 = new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm1024");
+    auto pgm1024 = new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm1024");
+    auto pgm2048 = new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm2048");
+    auto pgm4096 = new PgmIndexBuilder<KVSlice, 2048>(0, converter, tableName + "_pgm4096");
 
     auto btree256 = new BTreeIndexBuilder(1, test_spec["key_size"], test_spec["value_size"], tableName + "_btree256");
     auto btree1024 = new BTreeIndexBuilder(4, test_spec["key_size"], test_spec["value_size"], tableName + "_btree1024");
     auto btree2048 = new BTreeIndexBuilder(8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2048");
+    auto btree4096 = new BTreeIndexBuilder(16, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2096");
 
     auto iter = table->iterator();
     while (iter->valid()) {
       pgm256->add(iter->key());
       pgm1024->add(iter->key());
       pgm2048->add(iter->key());
+      pgm4096->add(iter->key());
       btree256->add(iter->key());
       btree1024->add(iter->key());
       btree2048->add(iter->key());
+      btree4096->add(iter->key());
       iter->next();
     }
     pgm256->build();
     pgm1024->build();
     pgm2048->build();
+    pgm4096->build();
     btree256->build();
     btree1024->build();
     btree2048->build();
+    btree4096->build();
 }
 
 
@@ -225,12 +231,14 @@ Index<KVSlice> *get_index(std::string table_path,
     return new PgmIndex<KVSlice, 256>(table_path + "_pgm256", get_converter(test_spec));
   }
   std::string index_type = test_spec["index"]["type"];
-  if (index_type == "pgm128") {
+  if (index_type == "pgm256") {
     return new PgmIndex<KVSlice, 128>(table_path + "_pgm256", get_converter(test_spec));
-  } else if (index_type == "pgm512") {
-    return new PgmIndex<KVSlice, 256>(table_path + "_pgm1024", get_converter(test_spec));
   } else if (index_type == "pgm1024") {
+    return new PgmIndex<KVSlice, 512>(table_path + "_pgm1024", get_converter(test_spec));
+  } else if (index_type == "pgm2048") {
     return new PgmIndex<KVSlice, 1024>(table_path + "_pgm2048", get_converter(test_spec));
+  } else if (index_type == "pgm4096") {
+    return new PgmIndex<KVSlice, 2048>(table_path + "_pgm4096", get_converter(test_spec));
   } else if (index_type == "btree") {
     uint64_t suffix = test_spec["index"]["leaf_size_in_pages"];
     suffix *= 256;

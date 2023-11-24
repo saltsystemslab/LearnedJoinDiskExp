@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import shutil
 
-dstDir = '../LearnedMergePlots/experiment-nov11'
+dstDir = '../LearnedMergePlots/experiment-nov23'
 
 def generateReport(name, test_cases):
     os.makedirs(os.path.join(dstDir, name), exist_ok=True)
@@ -17,11 +17,11 @@ def generateReport(name, test_cases):
         csv_dir = os.path.join(test_dir, 'csv')
         os.makedirs(csv_dir, exist_ok=True)
         df = buildDataFrame(results_dir)
-        inner_index_size.append(getInnerIndexSizeForTestCase(df))
-        inner_index_build_duration.append(getInnerIndexBuildDurationForTestCase(df))
+        #inner_index_size.append(getInnerIndexSizeForTestCase(df))
+        #inner_index_build_duration.append(getInnerIndexBuildDurationForTestCase(df))
         generateReportForTestCase(test_case, df, csv_dir)
-    pd.DataFrame.from_records(inner_index_size, index=test_cases.keys()).to_csv(os.path.join(dstDir, name,  'innerIndexSize.csv'))
-    pd.DataFrame.from_records(inner_index_build_duration, index = test_cases.keys()).to_csv(os.path.join(dstDir, name, 'innerIndexBuildDuration.csv'))
+    #pd.DataFrame.from_records(inner_index_size, index=test_cases.keys()).to_csv(os.path.join(dstDir, name,  'innerIndexSize.csv'))
+    #pd.DataFrame.from_records(inner_index_build_duration, index = test_cases.keys()).to_csv(os.path.join(dstDir, name, 'innerIndexBuildDuration.csv'))
     
 def getInnerIndexSizeForTestCase(test_dataframe):
     inner_index_size = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_size', aggfunc='median')
@@ -42,15 +42,15 @@ def parseIndexName(name):
     if name=="btree256":
         index="BTree"
         epsilon=256
+    if name=="pgm2048":
+        index="PGM"
+        epsilon=2048
     if name=="pgm1024":
         index="PGM"
-        epsilon=2049
-    if name=="pgm512":
+        epsilon=1024
+    if name=="pgm256":
         index="PGM"
-        epsilon=1025
-    if name=="pgm128":
-        index="PGM"
-        epsilon=257
+        epsilon=256
     return {"name": index, "epsilon": epsilon}
 
 def getInnerIndexSizeByEpsilonForTestCase(test_dataframe):
@@ -95,22 +95,26 @@ def buildDataFrame(results_dir):
 def generateReportForTestCase(test_case_name, test_dataframe, csv_dir):
     overall_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.duration_ns', aggfunc='median')
     columnList = list(overall_duration.columns)
+    # Compute relative baselines
     if "sj" in columnList:
         for column in columnList:
             overall_duration[column + "-sj-rel"] = (overall_duration["sj"] - overall_duration[column]) / overall_duration["sj"]
     if "standard_merge" in columnList:
         for column in columnList:
             overall_duration[column + "-sm-rel"] = (overall_duration["standard_merge"] - overall_duration[column]) / overall_duration["standard_merge"]
+
+    # Raw numbers
     overall_duration.to_csv(os.path.join(csv_dir, 'duration_sec.csv'))
     inner_index_disk_fetch = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_disk_fetch', aggfunc='median')
     inner_index_disk_fetch.to_csv(os.path.join(csv_dir, 'inner_disk_fetch.csv'))
     if 'result.inner_total_bytes_fetched' in test_dataframe.columns:
         inner_index_total_disk_fetch = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_total_bytes_fetched', aggfunc='median')
         inner_index_total_disk_fetch.to_csv(os.path.join(csv_dir, 'inner_total_disk_fetch.csv'))
-    getInnerIndexBuildDurationByEpsilonForTestCase(test_dataframe).to_csv(os.path.join(csv_dir, 'index_build_duration_by_epsilon.csv'))
-    getInnerIndexSizeByEpsilonForTestCase(test_dataframe).to_csv(os.path.join(csv_dir, 'index_build_size_by_epsilon.csv'))
-
-    inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
+    #getInnerIndexBuildDurationByEpsilonForTestCase(test_dataframe).to_csv(os.path.join(csv_dir, 'index_build_duration_by_epsilon.csv'))
+    #getInnerIndexSizeByEpsilonForTestCase(test_dataframe).to_csv(os.path.join(csv_dir, 'index_build_size_by_epsilon.csv'))
+    # Relative to the same epsilon. Smaller is better.
+    #inner_index_build_duration = test_dataframe.pivot_table(index='spec.common_key', columns='spec.algo_name', values='result.inner_index_build_duration_ns', aggfunc='median')
+    '''
     data = {}
     data['indexes'] = []
     data['build_duration'] = []
@@ -132,6 +136,7 @@ def generateReportForTestCase(test_case_name, test_dataframe, csv_dir):
             pass
             #print(f"common_key: {common_key} checksums don't match")
     print(test_case_name, "\t\t[Test Pass: ", test_case_ok, "]")
+    '''
 
 def copyResultsToPaper(name, test_cases):
     os.makedirs(os.path.join(dstDir, name), exist_ok=True)
@@ -142,9 +147,9 @@ def copyResultsToPaper(name, test_cases):
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, name, exp_name), dirs_exist_ok=True)
 
 srcDir = './sponge'
-datasets = ["udense", "usparse", "normal", "lognormal", "fb", "wiki", "books"]
-ops = ["join"]
-threads = ["1", "4"]# "16", "32"]
+datasets = ["uniform_dense", "uniform_sparse", "normal", "lognormal", "fb", "wiki", "books", "osm"]
+ops = ["join", "merge"]
+threads = ["1"]
 
 for op in ops:
     for thread in threads:
