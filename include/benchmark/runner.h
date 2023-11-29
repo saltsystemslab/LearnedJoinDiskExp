@@ -177,9 +177,24 @@ json create_input_sstable(json test_spec) {
 
   SSTable<KVSlice> *table;
   if (test_spec["method"] == "string") {
+    // Inner table creates index, so we use it as a source.
+    // This it keep 100% selectivity.
+    if (test_spec["create_indexes"] == true) {
     table = generate_uniform_random_distribution(
         num_keys, key_size_bytes, value_size_bytes, comparator,
         result_table_builder);
+    } else {
+      std::string source = test_spec["source"];
+      SSTable<KVSlice> *table = load_sstable(source, false);
+      auto iter = table->iterator()->numElts();
+      int fd = open(source.c_str(), O_RDONLY);
+      // First 8 bytes are count, this is same for our SSTable and SOSD.
+      uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
+      std::set<uint64_t> common_keys; // UNUSED.
+      table = generate_from_datafile(fd, 16 /* We use a 16 byte header*/, key_size_bytes, value_size_bytes,
+                           num_keys_in_dataset, num_keys, common_keys,
+                           get_result_builder(test_spec));
+    }
   } else if (test_spec["method"] == "sosd") {
     std::string source = test_spec["source"];
     int fd = open(source.c_str(), O_RDONLY);

@@ -9,7 +9,6 @@ local input_template = key_template + {
     "algo": "create_input",
     "method": "string",
     "write_result_to_disk": true, // Can be false.
-    "source": std.extVar("TEST_DATASET_SOURCE")
 };
 local test_output_dir = std.extVar("TEST_OUTPUT_DIR");
 local test_input_dir = std.extVar("TEST_INPUT_DIR");
@@ -20,7 +19,7 @@ local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local max_ratio = 100;
 local points = 10;
 local step = max_ratio / points;
-local ratios = [];
+local ratios = [10, 50, 100];
 {
     inputs : 
         [input_template + {
@@ -37,6 +36,7 @@ local ratios = [];
             "name": name,
             "result_path": test_input_dir + "/" + name,
             "create_indexes": false,
+            "source": test_input_dir + "/inner",
             }  for i in ratios
         ],
     tests: [
