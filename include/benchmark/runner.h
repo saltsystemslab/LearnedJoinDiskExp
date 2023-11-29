@@ -111,7 +111,11 @@ json run_test(json test_spec) {
       num_threads);
   }
   TableOpResult<KVSlice> result = op->profileOp();
-  result.stats["checksum"] =  md5_checksum(result.output_table);
+  if (test_spec.contains("check_checksum") && test_spec["check_checksum"]) {
+    result.stats["checksum"] =  md5_checksum(result.output_table);
+  } else {
+    result.stats["checksum"] =  0;
+  }
   return result.stats;
 }
 

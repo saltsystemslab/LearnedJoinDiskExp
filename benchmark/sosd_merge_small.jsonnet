@@ -18,7 +18,7 @@ local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local num_common_keys = 10000;
 
-local ratios = [10, 50, 100];
+local ratios = [1, 2, 5, 10, 50, 100];
 
 {
     inputs : 
