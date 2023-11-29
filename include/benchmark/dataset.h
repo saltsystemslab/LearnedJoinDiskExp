@@ -76,13 +76,19 @@ SSTable<KVSlice> *generate_from_datafile(
                                   header_size, 1, false);
   if (!use_all) {
     std::set<uint64_t> selected_keys= select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
+    char magic_key[key_size_bytes + value_size_bytes];
     char kv_buf[key_size_bytes + value_size_bytes];
     char prev_buf[key_size_bytes + value_size_bytes];
     memset(prev_buf, -1, key_size_bytes + value_size_bytes);
+    memset(magic_key, -1, key_size_bytes + value_size_bytes);
     for (auto key_idx : selected_keys) {
       KVSlice k = sosd_keys.get_kv(key_idx);
       memcpy(kv_buf, k.data(), key_size_bytes);
       fix_value(kv_buf, key_size_bytes, value_size_bytes);
+      // Don't add ffffffff. PGM doesn't seem to handle it well, or needs to be handled specifically.
+      if (memcmp(kv_buf, magic_key, key_size_bytes + value_size_bytes) == 0) {
+        break;
+      }
       // Remove duplicate keys.
       if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) != 0) {
         builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));

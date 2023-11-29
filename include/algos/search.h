@@ -63,14 +63,19 @@ public:
 // TODO(chesetti): Templatize, right now hardcoded for 8 + 8 64 byte keys.
 class BinarySearch : public SearchStrategy<KVSlice> {
 private:
+	int countLeadingZeros(uint64_t number) {
+    if (number == 0) return sizeof(number)*8;
+    return __builtin_clzll(number);
+	}
+
   inline size_t bit_floor(size_t i) {
     constexpr int num_bits = sizeof(i) * 8;
-    return size_t(1) << (num_bits - std::countl_zero(i) - 1);
+    return size_t(1) << (num_bits - countLeadingZeros(i) - 1);
   }
 
   inline size_t bit_ceil(size_t i) {
     constexpr int num_bits = sizeof(i) * 8;
-    return size_t(1) << (num_bits - std::countl_zero(i - 1));
+    return size_t(1) << (num_bits - countLeadingZeros(i - 1));
   }
 
   uint64_t find_lower_bound(char *buf, uint64_t len_in_bytes, uint64_t key_value) {
