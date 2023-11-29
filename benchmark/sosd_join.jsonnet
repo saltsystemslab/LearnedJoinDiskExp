@@ -29,6 +29,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             "name": name,
             "num_keys": num_keys_in_inner,
             "result_path": test_input_dir + "/inner",
+            "create_indexes": true,
         }] +
         [
             input_template + {
@@ -36,6 +37,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             "num_keys": std.ceil(num_keys_in_inner/i),
             "name": name,
             "result_path": test_input_dir + "/" + name,
+            "create_indexes": false,
             }  for i in ratios
         ],
     tests: [

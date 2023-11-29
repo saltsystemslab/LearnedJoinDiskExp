@@ -171,8 +171,9 @@ json create_input_sstable(json test_spec) {
   SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
   auto merge_start = std::chrono::high_resolution_clock::now();
 
+  SSTable<KVSlice> *table;
   if (test_spec["method"] == "uniform_dist") {
-    SSTable<KVSlice> *keys = generate_uniform_random_distribution(
+    table = generate_uniform_random_distribution(
         num_keys, key_size_bytes, value_size_bytes, comparator,
         result_table_builder);
   } else if (test_spec["method"] == "sosd") {
@@ -180,17 +181,17 @@ json create_input_sstable(json test_spec) {
     int fd = open(source.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
     std::set<uint64_t> common_keys; // UNUSED.
-    SSTable<KVSlice> *table = generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
+    table = generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
                            num_keys_in_dataset, num_keys, common_keys,
                            get_result_builder(test_spec));
     // Create indexes for the input tables.
-    if (num_keys_in_dataset == num_keys) {
-      result["index_stats"] = create_indexes(table, get_converter(test_spec), result_path, test_spec);
-    }
     close(fd);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
     abort();
+  }
+  if (test_spec["create_indexes"]) {
+    result["index_stats"] = create_indexes(table, get_converter(test_spec), result_path, test_spec);
   }
   auto merge_end = std::chrono::high_resolution_clock::now();
   auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(

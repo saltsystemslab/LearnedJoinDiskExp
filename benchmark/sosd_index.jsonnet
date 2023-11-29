@@ -29,6 +29,7 @@ local ratios = []; //std.map(function(x) std.ceil(step * x), std.range(1, points
             "name": name,
             "num_keys": num_keys_in_inner,
             "result_path": test_input_dir + "/inner",
+            "create_indexes": true,
         }],
     tests: []
 }
