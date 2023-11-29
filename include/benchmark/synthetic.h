@@ -19,10 +19,13 @@ create_uniform_random_distribution_buffer(uint64_t num_keys, int key_size_bytes,
                                           Comparator<KVSlice> *comparator) {
   uint64_t buf_size = num_keys * (key_size_bytes + value_size_bytes);
   char *data = new char[buf_size];
-  RAND_bytes((unsigned char *)data, buf_size);
-  for (int i = 0; i < num_keys; i++) {
-    fix_value(data + i * (key_size_bytes + value_size_bytes), key_size_bytes,
-              value_size_bytes);
+  for (uint64_t i=0; i<buf_size; i += 4096) {
+    RAND_bytes((unsigned char *)data + i, 4096);
+  }
+  char *ptr = data;
+  for (uint64_t i = 0; i < num_keys; i++) {
+    fix_value(ptr, key_size_bytes, value_size_bytes);
+    ptr += (key_size_bytes + value_size_bytes);
   }
   return data;
 }

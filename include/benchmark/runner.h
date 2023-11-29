@@ -176,7 +176,7 @@ json create_input_sstable(json test_spec) {
   auto merge_start = std::chrono::high_resolution_clock::now();
 
   SSTable<KVSlice> *table;
-  if (test_spec["method"] == "uniform_dist") {
+  if (test_spec["method"] == "string") {
     table = generate_uniform_random_distribution(
         num_keys, key_size_bytes, value_size_bytes, comparator,
         result_table_builder);
