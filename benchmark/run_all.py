@@ -34,7 +34,7 @@ datasets = {
 threads = [1, 4, 8]
 for thread in threads:
     for name, dataset in datasets.items():
-        merge_args = [benchmark_script, "--spec=benchmark/sosd_merge.jsonnet"] + default_args
+        merge_args = [benchmark_script, "--spec=benchmark/sosd_merge_small.jsonnet"] + default_args
         args = merge_args
         args.append(f"--threads={thread}")
         args.append(f"--repeat=2")
