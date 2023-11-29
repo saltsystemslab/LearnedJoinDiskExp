@@ -19,6 +19,7 @@ flags.DEFINE_bool("check_results", True, "Verify that all the outputs are same."
 flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmark stats.")
 flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
+flags.DEFINE_bool("use_numactl", True, "")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
@@ -139,7 +140,8 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
 def run(command, force_dry_run=False, prefix=''):
     if FLAGS.regen_report:
         return
-    command = ['numactl', '-N', '1', '-m', '1'] + command
+    if FLAGS.use_numactl:
+        command = ['numactl', '-N', '1', '-m', '1'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
     print(prefix, ' '.join(command))
