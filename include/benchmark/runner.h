@@ -140,9 +140,9 @@ json create_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *conve
     auto pgm256 = new PgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_pgm256");
     auto pgm1024 = new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm1024");
     auto pgm2048 = new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm2048");
-    auto btree256 = new BTreeIndexBuilder(1, test_spec["key_size"], test_spec["value_size"], tableName + "_btree256");
-    auto btree1024 = new BTreeIndexBuilder(4, test_spec["key_size"], test_spec["value_size"], tableName + "_btree1024");
-    auto btree2048 = new BTreeIndexBuilder(8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2048");
+    auto btree256 = new BTreeIndexBuilder(1 * (uint64_t)test_spec["key_size"]/8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree256");
+    auto btree1024 = new BTreeIndexBuilder(4 * (uint64_t)test_spec["key_size"]/8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree1024");
+    auto btree2048 = new BTreeIndexBuilder(8 * (uint64_t)test_spec["key_size"]/8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2048");
 
     json index_stats = json::array();
 
@@ -273,7 +273,7 @@ Index<KVSlice> *get_index(std::string table_path,
     return new PgmIndex<KVSlice, 2048>(table_path + "_pgm4096", get_converter(test_spec));
   } else if (index_type == "btree") {
     uint64_t suffix = test_spec["index"]["leaf_size_in_pages"];
-    suffix *= 256;
+    suffix *= (4096 / ((uint64_t)test_spec["key_size"] + (uint64_t) test_spec["value_size"]));
     return new BTreeWIndex(table_path + "_btree" + std::to_string(suffix), suffix);
   }
   fprintf(stderr, "Unknown Index Type in test spec");

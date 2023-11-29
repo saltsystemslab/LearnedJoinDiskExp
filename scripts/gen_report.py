@@ -147,7 +147,8 @@ def copyResultsToPaper(name, test_cases):
         shutil.copytree(os.path.join(test_cases[test_case]['dir'], 'csv'), os.path.join(dstDir, name, exp_name), dirs_exist_ok=True)
 
 srcDir = './sponge'
-datasets = ["uniform_dense", "uniform_sparse", "normal", "lognormal", "fb", "wiki", "books", "osm"]
+#datasets = ["uniform_dense", "uniform_sparse", "normal", "lognormal", "fb", "wiki", "books", "osm"]
+datasets = ['str']
 ops = ["join", "merge"]
 threads = ["1"]
 

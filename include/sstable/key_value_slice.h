@@ -51,8 +51,10 @@ public:
         r = -1;
       else if (a.key_size_bytes() > b.key_size_bytes())
         r = +1;
+      else
+        return 0;
     }
-    return r;
+    return r > 0 ? 1:-1;
   }
 };
 

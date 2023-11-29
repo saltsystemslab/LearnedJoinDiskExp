@@ -18,7 +18,7 @@ struct KeyStruct {
 struct KeyStructComp {
   bool operator()(const KeyStruct& a, const KeyStruct& b) const {
         // Define your comparison logic here
-        return memcmp(a.buf, b.buf, KEY_SIZE);
+        return memcmp(a.buf, b.buf, KEY_SIZE) < 0;
     }
 };
 typedef KeyStruct KEY_TYPE;
@@ -150,7 +150,9 @@ public:
     // Copy the keys over.
     KeyStruct k;
     memcpy(k.buf, t.data(), KEY_SIZE);
-    elts_.push_back(std::pair(k, block_id++));
+    if (num_elts_ > 0 && num_elts_ % num_items_block_ == 0) {
+      elts_.push_back(std::pair(k, block_id++));
+    }
 #else
     uint64_t *key = (uint64_t *)(t.data());
     if (num_elts_ > 0 && num_elts_ % num_items_block_ == 0) {

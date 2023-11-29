@@ -118,14 +118,14 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
 #endif
         do {
           auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
-          result = search_strategy_->search(window, outer_iterator->key(), bounds);
+          result = search_strategy_->search(window, outer_iterator->key(), bounds, this->comparator_);
 #if DEBUG
-          expected_result = expected_search.search(window, outer_iterator->key(), bounds);
+          expected_result = expected_search.search(window, outer_iterator->key(), bounds, this->comparator_);
           if (result.found != expected_result.found || 
               result.lower_bound != expected_result.lower_bound ||
               result.shouldContinue != expected_result.shouldContinue) {
-            result = search_strategy_->search(window, outer_iterator->key(), bounds);
-            expected_result = expected_search.search(window, outer_iterator->key(), bounds);
+            result = search_strategy_->search(window, outer_iterator->key(), bounds, this->comparator_);
+            expected_result = expected_search.search(window, outer_iterator->key(), bounds, this->comparator_);
             abort();
           }
 #endif
@@ -133,6 +133,8 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         } while (result.shouldContinue);
         if (result.found) {
           result_builder->add(outer_iterator->key());
+        }  else {
+          abort();
         }
         last_found_idx = result.lower_bound; // Never search before this again.
         outer_iterator->next();

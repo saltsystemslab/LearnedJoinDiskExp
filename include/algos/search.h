@@ -15,13 +15,13 @@ struct SearchResult {
 template <class T>
 class SearchStrategy {
   public:
-    virtual SearchResult search(Window<T> window, T Key, Bounds bound) = 0;
+    virtual SearchResult search(Window<T> window, T Key, Bounds bound, Comparator<T> *c) = 0;
 };
 
 // TODO(chesetti): Templatize. Right now hardcoded to 64 byte integer keys.
 class LinearSearch: public SearchStrategy<KVSlice> {
 public:
-  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound) override {
+  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound, Comparator<KVSlice> *c) override {
     if (bound.lower >= bound.upper) {
       return {
         bound.lower,
@@ -31,29 +31,29 @@ public:
     }
     uint64_t i;
     bool found = false;
-    uint64_t key = *(uint64_t *)kv.data();
-    for (i=0; i < window.buf_len; i+=16) {
-      uint64_t candidate = *(uint64_t *)(window.buf + i);
-      if (candidate < key) {
+    for (i=0; i < window.buf_len; i+=kv.total_size_bytes()) {
+      KVSlice candidate(window.buf + i, kv.key_size_bytes(), kv.value_size_bytes());
+      int compResult = c->compare(candidate, kv);
+      if (compResult < 0) {
         continue;
       }
-      if (candidate == key) {
+      if (compResult == 0) {
         return {
-          window.lo_idx + i/16,
+          window.lo_idx + i/kv.total_size_bytes(),
           true,
           false
         };
       }
-      if (candidate > key) {
+      if (compResult > 0) {
         return {
-          window.lo_idx + i/16,
+          window.lo_idx + i/kv.total_size_bytes(),
           false,
           false
         };
       }
     }
     return {
-      window.lo_idx + i/16,
+      window.lo_idx + i/kv.total_size_bytes(),
       false,
       true
     };
@@ -78,14 +78,14 @@ private:
     return size_t(1) << (num_bits - countLeadingZeros(i - 1));
   }
 
-  uint64_t find_lower_bound(char *buf, uint64_t len_in_bytes, uint64_t key_value) {
+  uint64_t find_lower_bound(char *buf, uint64_t len_in_bytes, KVSlice kv, Comparator<KVSlice> *c) {
     uint64_t start = 0;
-    int kvSize = 16;
+    int kvSize = kv.total_size_bytes();
     uint64_t end = (len_in_bytes) / (kvSize);
     uint64_t len = end - start;
     uint64_t step = bit_floor(len);
-    uint64_t cur = *(uint64_t *)(buf + (kvSize) * (step + start));
-    if (step != len && (cur < key_value)) {
+    KVSlice cur1(buf + (kvSize) * (step + start), kv.key_size_bytes(), kv.value_size_bytes());
+    if (step != len && (c->compare(cur1, kv) < 0)) {
       len -= step + 1;
       if (len == 0) {
         return 0;
@@ -94,17 +94,17 @@ private:
       start = end - step;
     }
     for (step /= 2; step != 0; step /= 2) {
-      cur = *(uint64_t *)(buf + (kvSize) * (step + start));
-      if (cur < key_value)
+      KVSlice cur(buf + (kvSize) * (step + start), kv.key_size_bytes(), kv.value_size_bytes());
+      if (c->compare(cur, kv) < 0)
         start += step;
     }
-    cur = *(uint64_t *)(buf + (kvSize) * (step + start));
-    start = start + (cur < key_value);
+    KVSlice cur(buf + (kvSize) * (step + start), kv.key_size_bytes(), kv.value_size_bytes());
+    start = start + (c->compare(cur, kv) < 0 ? 1: 0);
     return start;
   }
 
 public:
-  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound) override {
+  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound, Comparator<KVSlice> *c) override {
     if (bound.lower >= bound.upper) {
       return {
         bound.lower,
@@ -112,19 +112,18 @@ public:
         false
       };
     }
-    int kvSize = 16;
-    uint64_t key_value = *(uint64_t *)(kv.data());
-    uint64_t last_key = *(uint64_t *)(window.buf + window.buf_len - kvSize);
-    if (last_key < key_value) {
+    int kvSize = kv.total_size_bytes();
+    KVSlice last_key(window.buf + window.buf_len - kvSize, kv.key_size_bytes(), kv.value_size_bytes());
+    if (c->compare(last_key, kv) < 0) {
       return {
         window.hi_idx,
         false, // found
         true  // continue
       };
     }
-    uint64_t lower_bound = find_lower_bound(window.buf, window.buf_len, key_value);
-    uint64_t lower_bound_key = *(uint64_t *)(window.buf + lower_bound * kvSize);
-    if (lower_bound_key == key_value) {
+    uint64_t lower_bound = find_lower_bound(window.buf, window.buf_len, kv, c);
+    KVSlice lowerBoundKey(window.buf + lower_bound * kvSize, kv.key_size_bytes(), kv.value_size_bytes());
+    if (c->compare(lowerBoundKey, kv) == 0) {
       return {
         window.lo_idx + lower_bound,
         true, // found
@@ -180,7 +179,7 @@ private:
   }
 
 public:
-  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound) override {
+  SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound, Comparator<KVSlice> *c) override {
     if (bound.lower >= bound.upper) {
       return {
         bound.lower,
@@ -231,7 +230,7 @@ public:
       bs_window.lo_idx = window.lo_idx + lo;
       bs_window.hi_idx = window.lo_idx + hi;
     }
-    return bs.search(bs_window, kv, bound);
+    return bs.search(bs_window, kv, bound, c);
   }
 private:
   BinarySearch bs;
