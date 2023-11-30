@@ -72,9 +72,9 @@ protected:
 };
 
 template <class T>
-class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
+class LearnedSortJoin: public BaseMergeAndJoinOp<T> {
   public:
-    LearnedIndexInlj(
+    LearnedSortJoin(
         SSTable<T> *outer, 
         SSTable<T> *inner, 
         Index<T> *inner_index,
@@ -111,25 +111,70 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
           continue;
         }
         SearchResult result;
-#if DEBUG
-        assert(bounds.upper > bounds.lower);
-        LinearSearch expected_search;
-        SearchResult expected_result;
-#endif
         do {
           auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
           result = search_strategy_->search(window, outer_iterator->key(), bounds, this->comparator_);
-#if DEBUG
-          expected_result = expected_search.search(window, outer_iterator->key(), bounds, this->comparator_);
-          if (result.found != expected_result.found || 
-              result.lower_bound != expected_result.lower_bound ||
-              result.shouldContinue != expected_result.shouldContinue) {
-            result = search_strategy_->search(window, outer_iterator->key(), bounds, this->comparator_);
-            expected_result = expected_search.search(window, outer_iterator->key(), bounds, this->comparator_);
-            abort();
-          }
-#endif
           bounds.lower = window.hi_idx; // If you search next time, search from here.
+          if (bounds.lower == inner_end) break; // If no more items to read, break.
+        } while (result.shouldContinue);
+        if (result.found) {
+          result_builder->add(outer_iterator->key());
+        }  
+        last_found_idx = result.lower_bound; // Never search before this again.
+        outer_iterator->next();
+      }
+      result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
+      result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+      result->stats["inner_total_bytes_fetched"] = inner_iterator->getTotalBytesFetched();
+      result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
+      result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
+      result->stats["outer_total_bytes_fetched"] = outer_iterator->getTotalBytesFetched();
+      result->output_table = result_builder->build(),
+      delete outer_iterator;
+      delete inner_iterator;
+    }
+  private:
+    SearchStrategy<T> *search_strategy_;
+};
+
+template <class T>
+class Inlj: public BaseMergeAndJoinOp<T> {
+  public:
+    Inlj(
+        SSTable<T> *outer, 
+        SSTable<T> *inner, 
+        Index<T> *inner_index,
+        Comparator<T> *comparator,
+        SearchStrategy<T> *search_strategy,
+        PSSTableBuilder<T> *result_builder,
+        int num_threads):
+    BaseMergeAndJoinOp<T>(outer, inner, inner_index, comparator, result_builder, num_threads),
+    search_strategy_(search_strategy) {}
+
+    void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+      uint64_t outer_start = partition.outer.first;
+      uint64_t outer_end = partition.outer.second;
+      uint64_t inner_start = partition.inner.first;
+      uint64_t inner_end = partition.inner.second;
+
+      auto outer_iterator = this->outer_->iterator();
+      auto inner_iterator = this->inner_->windowIterator();
+      auto inner_index = this->inner_index_->shallow_copy(); // TODO: Add a free_shallow_copy method.
+      auto result_builder = this->result_builder_->getBuilderForRange(inner_start + outer_start, inner_end + outer_end);
+      uint64_t last_found_idx = 0;
+
+      inner_iterator->setWindowSize(inner_index->getMaxError());
+      outer_iterator->seekTo(outer_start);
+
+      while (outer_iterator->currentPos() < outer_end) {
+        auto bounds =
+          inner_index->getPositionBounds(outer_iterator->key());
+        SearchResult result;
+        do {
+          auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
+          result = search_strategy_->search(window, outer_iterator->key(), bounds, this->comparator_);
+          bounds.lower = window.hi_idx; // If you search next time, search from here.
+          if (bounds.lower == inner_end) break; // If no more items to read, break.
         } while (result.shouldContinue);
         if (result.found) {
           result_builder->add(outer_iterator->key());

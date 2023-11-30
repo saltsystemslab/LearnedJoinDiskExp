@@ -19,6 +19,8 @@ with open(f1_path, "rb") as f1, open(f2_path, "rb") as f2:
         "key_size": struct.unpack('I', f2.read(4))[0],
         "value_size": struct.unpack('I', f2.read(4))[0],
     }
+    print(f1_header)
+    print(f2_header)
     if f1_header != f2_header:
         print("Headers not equal", f1, f2)
     num_keys = f1_header["num_keys"]

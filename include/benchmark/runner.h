@@ -101,8 +101,16 @@ json run_test(json test_spec) {
       comparator, 
       result_table_builder,
       num_threads);
+  } else if (test_spec["algo"] == "lsj") {
+    op = new LearnedSortJoin<KVSlice>(
+      outer_table, inner_table, 
+      inner_index, 
+      comparator, 
+      get_search_strategy(test_spec),
+      result_table_builder,
+      num_threads);
   } else if (test_spec["algo"] == "inlj") {
-    op = new LearnedIndexInlj<KVSlice>(
+    op = new Inlj<KVSlice>(
       outer_table, inner_table, 
       inner_index, 
       comparator, 
