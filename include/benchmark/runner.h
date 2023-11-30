@@ -140,6 +140,9 @@ json create_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *conve
     auto pgm256 = new PgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_pgm256");
     auto pgm1024 = new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm1024");
     auto pgm2048 = new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm2048");
+    auto flatpgm256 = new OneLevelPgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_flatpgm256");
+    auto flatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_flatpgm1024");
+    auto flatpgm2048 = new OneLevelPgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_flatpgm2048");
     auto btree256 = new BTreeIndexBuilder(1 * (uint64_t)test_spec["key_size"]/8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree256");
     auto btree1024 = new BTreeIndexBuilder(4 * (uint64_t)test_spec["key_size"]/8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree1024");
     auto btree2048 = new BTreeIndexBuilder(8 * (uint64_t)test_spec["key_size"]/8, test_spec["key_size"], test_spec["value_size"], tableName + "_btree2048");
@@ -149,6 +152,9 @@ json create_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *conve
     index_stats.push_back(create_index("pgm256", table->iterator(), pgm256));
     index_stats.push_back(create_index("pgm1024", table->iterator(), pgm1024));
     index_stats.push_back(create_index("pgm2048", table->iterator(), pgm2048));
+    index_stats.push_back(create_index("flatpgm256", table->iterator(), flatpgm256));
+    index_stats.push_back(create_index("flatpgm1024", table->iterator(), flatpgm1024));
+    index_stats.push_back(create_index("flatpgm2048", table->iterator(), flatpgm2048));
     index_stats.push_back(create_index("btree256", table->iterator(), btree256));
     index_stats.push_back(create_index("btree1024", table->iterator(), btree1024));
     index_stats.push_back(create_index("btree2048", table->iterator(), btree2048));
@@ -156,6 +162,9 @@ json create_indexes(SSTable<KVSlice> *table, KeyToPointConverter<KVSlice> *conve
     pgm256->backToFile();
     pgm1024->backToFile();
     pgm2048->backToFile();
+    flatpgm256->backToFile();
+    flatpgm1024->backToFile();
+    flatpgm2048->backToFile();
     btree256->backToFile();
     btree1024->backToFile();
     btree2048->backToFile();
@@ -269,8 +278,12 @@ Index<KVSlice> *get_index(std::string table_path,
     return new PgmIndex<KVSlice, 512>(table_path + "_pgm1024", get_converter(test_spec));
   } else if (index_type == "pgm2048") {
     return new PgmIndex<KVSlice, 1024>(table_path + "_pgm2048", get_converter(test_spec));
-  } else if (index_type == "pgm4096") {
-    return new PgmIndex<KVSlice, 2048>(table_path + "_pgm4096", get_converter(test_spec));
+  } else if (index_type == "flatpgm256") {
+    return new OneLevelPgmIndex<KVSlice, 128>(table_path + "_flatpgm256", get_converter(test_spec));
+  } else if (index_type == "flatpgm1024") {
+    return new OneLevelPgmIndex<KVSlice, 512>(table_path + "_flatpgm1024", get_converter(test_spec));
+  } else if (index_type == "flatpgm2048") {
+    return new OneLevelPgmIndex<KVSlice, 1024>(table_path + "_flatpgm2048", get_converter(test_spec));
   } else if (index_type == "btree") {
     uint64_t suffix = test_spec["index"]["leaf_size_in_pages"];
     suffix *= (4096 / ((uint64_t)test_spec["key_size"] + (uint64_t) test_spec["value_size"]));

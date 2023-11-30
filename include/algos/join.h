@@ -133,9 +133,7 @@ class LearnedIndexInlj: public BaseMergeAndJoinOp<T> {
         } while (result.shouldContinue);
         if (result.found) {
           result_builder->add(outer_iterator->key());
-        }  else {
-          abort();
-        }
+        }  
         last_found_idx = result.lower_bound; // Never search before this again.
         outer_iterator->next();
       }
@@ -252,8 +250,8 @@ class SortJoin: public BaseMergeAndJoinOp<T> {
          if (this->comparator_->compare(outer_iterator->key(), inner_iterator->key()) ==
              0) {
            result_builder->add(inner_iterator->key());
-         }
-         outer_iterator->next();
+         } 
+        outer_iterator->next();
        }
 
       result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
