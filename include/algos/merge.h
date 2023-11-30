@@ -124,7 +124,7 @@ class LearnedMerge1Way: public BaseMergeAndJoinOp<T> {
         SearchResult result;
         do {
           auto window = inner_iter->getWindow(bounds.lower, bounds.upper);
-          result = search_strategy_->search(window, outer_iter->key(), bounds);
+          result = search_strategy_->search(window, outer_iter->key(), bounds, this->comparator_);
           // Copy all keys from [window.lo_idx, result.bounds.lower)
           window.hi_idx = result.lower_bound;
           result_builder->addWindow(window);

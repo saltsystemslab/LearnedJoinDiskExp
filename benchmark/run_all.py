@@ -34,7 +34,19 @@ datasets = {
 threads = [1, 4, 8]
 for thread in threads:
     for name, dataset in datasets.items():
-        merge_args = [benchmark_script, "--spec=benchmark/sosd_merge_small.jsonnet"] + default_args
+        join_args = [benchmark_script, "--spec=benchmark/sosd_join_small.jsonnet"] + default_args
+        args = join_args
+        args.append(f"--threads={thread}")
+        args.append(f"--repeat=1")
+        args.append(f"--nouse_numactl")
+        args.append(f"--test_name=join_{name}")
+        args.append(f'--sosd_source={dataset["source"]}')
+        args.append(f'--sosd_num_keys={dataset["num_keys"]}')
+        args.append(f'--clear_inputs=False')
+        subprocess.run(args)
+        exit()
+
+        merge_args = [benchmark_script, "--spec=benchmark/sosd_merge.jsonnet"] + default_args
         args = merge_args
         args.append(f"--threads={thread}")
         args.append(f"--repeat=2")
@@ -44,15 +56,6 @@ for thread in threads:
         args.append(f'--clear_inputs=True')
         subprocess.run(args)
 
-        join_args = [benchmark_script, "--spec=benchmark/sosd_join_small.jsonnet"] + default_args
-        args = join_args
-        args.append(f"--threads={thread}")
-        args.append(f"--repeat=2")
-        args.append(f"--nouse_numactl")
-        args.append(f"--test_name=join_{name}")
-        args.append(f'--sosd_source={dataset["source"]}')
-        args.append(f'--sosd_num_keys={dataset["num_keys"]}')
-        args.append(f'--clear_inputs=True')
 
 
 # Datasets with 800M items. Single Thread. Run 1 time. 10,20....100

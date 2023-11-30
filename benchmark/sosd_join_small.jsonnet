@@ -20,7 +20,7 @@ local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local max_ratio = 100;
 local points = 10;
 local step = max_ratio / points;
-local ratios = [1, 2, 5, 10, 50, 100];
+local ratios = [5, 10, 50, 100];
 
 {
     inputs : 
@@ -29,6 +29,7 @@ local ratios = [1, 2, 5, 10, 50, 100];
             "name": name,
             "num_keys": num_keys_in_inner,
             "result_path": test_input_dir + "/inner",
+            "create_indexes": true,
         }] +
         [
             input_template + {
@@ -36,6 +37,7 @@ local ratios = [1, 2, 5, 10, 50, 100];
             "num_keys": std.ceil(num_keys_in_inner/i),
             "name": name,
             "result_path": test_input_dir + "/" + name,
+            "create_indexes": false,
             }  for i in ratios
         ],
     tests: [
@@ -48,6 +50,7 @@ local ratios = [1, 2, 5, 10, 50, 100];
             "result_path": test_output_dir + "/" + algo["algo_name"] + "_" + "run_" + r + "_ratio_"+ i,
             "load_sstable_in_mem": false,
             "write_result_to_disk": true,
+            "check_checksum": true
         }   
         for r in std.range(0, repeats)
         for i in ratios
@@ -65,6 +68,14 @@ local ratios = [1, 2, 5, 10, 50, 100];
                 },
             },
             {
+                "algo_name": "flatpgm256",
+                "algo": "inlj",
+                "index": {
+                    "type": "flatpgm256",
+                    "search": "binary",
+                },
+            },
+            {
                 "algo_name": "pgm1024",
                 "algo": "inlj",
                 "index": {
@@ -73,10 +84,26 @@ local ratios = [1, 2, 5, 10, 50, 100];
                 },
             },
             {
+                "algo_name": "flatpgm1024",
+                "algo": "inlj",
+                "index": {
+                    "type": "flatpgm1024",
+                    "search": "binary",
+                },
+            },
+            {
                 "algo_name": "pgm2048",
                 "algo": "inlj",
                 "index": {
                     "type": "pgm2048",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "flatpgm2048",
+                "algo": "inlj",
+                "index": {
+                    "type": "flatpgm2048",
                     "search": "binary",
                 },
             },

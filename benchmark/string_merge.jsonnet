@@ -1,15 +1,14 @@
-local key_size = 8;
-local value_size = 8;
+local key_size = 16;
+local value_size = 16;
 local key_template = {
-    "key_type": "uint64", // Can also be str
+    "key_type": "str", // Can also be str
     "key_size": key_size,
     "value_size": value_size
 };
 local input_template = key_template + {
     "algo": "create_input",
-    "method": "sosd",
+    "method": "string",
     "write_result_to_disk": true, // Can be false.
-    "source": std.extVar("TEST_DATASET_SOURCE")
 };
 local test_output_dir = std.extVar("TEST_OUTPUT_DIR");
 local test_input_dir = std.extVar("TEST_INPUT_DIR");
@@ -18,10 +17,7 @@ local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local num_common_keys = 10000;
 
-local max_ratio = 100;
-local points = 10;
-local step = max_ratio / points;
-local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
+local ratios = [1, 5, 10, 50, 100];
 
 {
     inputs : 
@@ -39,6 +35,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
             "name": name,
             "result_path": test_input_dir + "/" + name,
             "create_indexes": false,
+            "source": test_input_dir + "/inner",
             }  for i in ratios
         ],
     tests: [
@@ -87,7 +84,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "learned_merge",
                 "index": {
                     "type": "btree",
-                    "leaf_size_in_pages": 1,
+                    "leaf_size_in_pages": 2,
                     "search": "binary",
                 },
                 "algo_name": "btree256",
@@ -96,7 +93,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "learned_merge",
                 "index": {
                     "type": "btree",
-                    "leaf_size_in_pages": 4,
+                    "leaf_size_in_pages": 8,
                     "search": "binary",
                 },
                 "algo_name": "btree1024",
@@ -105,7 +102,7 @@ local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
                 "algo": "learned_merge",
                 "index": {
                     "type": "btree",
-                    "leaf_size_in_pages": 8,
+                    "leaf_size_in_pages": 16,
                     "search": "binary",
                 },
                 "algo_name": "btree2048",
