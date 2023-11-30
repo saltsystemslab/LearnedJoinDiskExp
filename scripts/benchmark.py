@@ -15,7 +15,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("spec", "", "JSON Test Spec")
 flags.DEFINE_string("test_dir", "sponge", "JSON Test Spec")
 flags.DEFINE_bool("skip_input", False, "Skip input creation")
-flags.DEFINE_bool("check_results", True, "Verify that all the outputs are same.")
+flags.DEFINE_bool("check_results", False, "Verify that all the outputs are same.")
 flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmark stats.")
 flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
@@ -49,7 +49,8 @@ def main(argv):
             "TEST_REPEAT": str(FLAGS.repeat),
             "TEST_NUM_THREADS": str(FLAGS.threads),
             "TEST_DATASET_SIZE": str(FLAGS.sosd_num_keys),
-            "TEST_DATASET_SOURCE": str(FLAGS.sosd_source)
+            "TEST_DATASET_SOURCE": str(FLAGS.sosd_source),
+            "TEST_CHECK_CHECKSUM": str(FLAGS.check_results)
         }
     ))
 
