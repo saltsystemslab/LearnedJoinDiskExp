@@ -18,7 +18,6 @@ class SearchStrategy {
     virtual SearchResult search(Window<T> window, T Key, Bounds bound, Comparator<T> *c) = 0;
 };
 
-// TODO(chesetti): Templatize. Right now hardcoded to 64 byte integer keys.
 class LinearSearch: public SearchStrategy<KVSlice> {
 public:
   SearchResult search(Window<KVSlice> window, KVSlice kv, Bounds bound, Comparator<KVSlice> *c) override {
@@ -60,7 +59,6 @@ public:
   }
 };
 
-// TODO(chesetti): Templatize, right now hardcoded for 8 + 8 64 byte keys.
 class BinarySearch : public SearchStrategy<KVSlice> {
 private:
 	int countLeadingZeros(uint64_t number) {
