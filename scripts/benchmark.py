@@ -8,6 +8,7 @@ import pandas as pd
 from absl import app
 from absl import flags
 import filecmp
+import asyncio
 import _jsonnet
 
 FLAGS = flags.FLAGS
