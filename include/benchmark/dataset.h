@@ -2,9 +2,9 @@
 #define LEARNEDINDEXMERGE_MERGE_SOSD_DATASET_H
 
 #include "disk_sstable.h"
+#include "file_page_cache.h"
 #include "key_value_slice.h"
 #include "sstable.h"
-#include "file_page_cache.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <openssl/rand.h>
@@ -79,13 +79,15 @@ SSTable<KVSlice> *generate_from_datafile(
   char prev_buf[key_size_bytes + value_size_bytes];
   memset(prev_buf, -1, key_size_bytes + value_size_bytes);
   if (!use_all) {
-    std::set<uint64_t> selected_keys= select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
+    std::set<uint64_t> selected_keys =
+        select_keys_uniform(num_keys_to_extract, num_keys, common_keys);
     char kv_buf[key_size_bytes + value_size_bytes];
     for (auto key_idx : selected_keys) {
       KVSlice k = sosd_keys.get_kv(key_idx);
       memcpy(kv_buf, k.data(), key_size_bytes);
       fix_value(kv_buf, key_size_bytes, value_size_bytes);
-      // Don't add ffffffff. PGM doesn't seem to handle it well, or needs to be handled specifically.
+      // Don't add ffffffff. PGM doesn't seem to handle it well, or needs to be
+      // handled specifically.
       if (memcmp(kv_buf, magic_key, key_size_bytes + value_size_bytes) == 0) {
         break;
       }
@@ -93,15 +95,16 @@ SSTable<KVSlice> *generate_from_datafile(
       if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) != 0) {
         builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
       }
-      memcpy(prev_buf, kv_buf, key_size_bytes+value_size_bytes);
+      memcpy(prev_buf, kv_buf, key_size_bytes + value_size_bytes);
     }
   } else {
     char kv_buf[key_size_bytes + value_size_bytes];
-    for (uint64_t i=0; i < num_keys; i++) {
+    for (uint64_t i = 0; i < num_keys; i++) {
       KVSlice k = sosd_keys.get_kv(i);
       memcpy(kv_buf, k.data(), key_size_bytes);
       fix_value(kv_buf, key_size_bytes, value_size_bytes);
-      // Don't add ffffffff. PGM doesn't seem to handle it well, or needs to be handled specifically.
+      // Don't add ffffffff. PGM doesn't seem to handle it well, or needs to be
+      // handled specifically.
       if (memcmp(kv_buf, magic_key, key_size_bytes + value_size_bytes) == 0) {
         break;
       }
@@ -109,7 +112,7 @@ SSTable<KVSlice> *generate_from_datafile(
       if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) != 0) {
         builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
       }
-      memcpy(prev_buf, kv_buf, key_size_bytes+value_size_bytes);
+      memcpy(prev_buf, kv_buf, key_size_bytes + value_size_bytes);
     }
   }
   return builder->build();

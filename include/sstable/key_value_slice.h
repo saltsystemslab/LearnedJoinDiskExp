@@ -54,7 +54,7 @@ public:
       else
         return 0;
     }
-    return r > 0 ? 1:-1;
+    return r > 0 ? 1 : -1;
   }
 };
 

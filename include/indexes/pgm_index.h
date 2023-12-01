@@ -15,7 +15,8 @@ public:
   PgmIndex(pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index,
            KeyToPointConverter<T> *converter)
       : pgm_index_(pgm_index), converter_(converter) {}
-  PgmIndex(std::string filename, KeyToPointConverter<T> *converter): converter_(converter) {
+  PgmIndex(std::string filename, KeyToPointConverter<T> *converter)
+      : converter_(converter) {
     fprintf(stderr, "%s\n", filename.c_str());
     pgm_index_ = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(filename);
   }
@@ -30,6 +31,7 @@ public:
   uint64_t sizeInBytes() override { return pgm_index_->size_in_bytes(); }
   uint64_t getMaxError() override { return 2 * pgm_index_->epsilon_value + 1; }
   bool isErrorPageAligned() override { return false; }
+
 private:
   pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
@@ -42,7 +44,8 @@ public:
       : converter_(converter) {
     x_points_.reserve(approx_num_keys);
   }
-  PgmIndexBuilder(uint64_t approx_num_keys, KeyToPointConverter<T> *converter, std::string filename)
+  PgmIndexBuilder(uint64_t approx_num_keys, KeyToPointConverter<T> *converter,
+                  std::string filename)
       : converter_(converter), filename_(filename) {
     x_points_.reserve(approx_num_keys);
   }
@@ -53,9 +56,11 @@ public:
   }
   // TODO: Overrride this and make take a string.
   void backToFile() {
-    new PgmIndex<T, Epsilon>(
-        new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_.begin(), x_points_.end(), filename_), converter_);
+    new PgmIndex<T, Epsilon>(new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(
+                                 x_points_.begin(), x_points_.end(), filename_),
+                             converter_);
   }
+
 private:
   std::vector<POINT_FLOAT_TYPE> x_points_;
   KeyToPointConverter<T> *converter_;

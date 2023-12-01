@@ -20,8 +20,7 @@ public:
   virtual uint64_t getTotalBytesFetched() { return 0; };
 };
 
-template <class T>
-struct Window {
+template <class T> struct Window {
   uint64_t lo_idx;
   uint64_t hi_idx;
   char *buf;
@@ -30,14 +29,15 @@ struct Window {
 };
 
 template <class T> class WindowIterator {
-  public:
-    // Hint as to how big the size of the inner buffer should be.
-    virtual void setWindowSize(uint64_t num_keys) = 0;
-    // Guaranteed to return lo_idx. Max keys returned will contain hi_idx (could be lesser).
-    virtual Window<T> getWindow(uint64_t lo_idx, uint64_t hi_idx) = 0;
-    virtual uint64_t getDiskFetches() = 0;
-    virtual uint64_t getDiskFetchSize() { return 0; };
-    virtual uint64_t getTotalBytesFetched() { return 0; };
+public:
+  // Hint as to how big the size of the inner buffer should be.
+  virtual void setWindowSize(uint64_t num_keys) = 0;
+  // Guaranteed to return lo_idx. Max keys returned will contain hi_idx (could
+  // be lesser).
+  virtual Window<T> getWindow(uint64_t lo_idx, uint64_t hi_idx) = 0;
+  virtual uint64_t getDiskFetches() = 0;
+  virtual uint64_t getDiskFetchSize() { return 0; };
+  virtual uint64_t getTotalBytesFetched() { return 0; };
 };
 } // namespace li_merge
 

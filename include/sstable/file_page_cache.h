@@ -19,21 +19,17 @@ public:
   virtual uint64_t get_num_disk_fetches() = 0;
 };
 
-
-class FileNPageBuffer : public FilePageBuffer{
+class FileNPageBuffer : public FilePageBuffer {
 public:
-  FileNPageBuffer(int fd, uint64_t start_offset, int buffer_size, bool always_load_ahead)
-      : fd_(fd), 
-      start_offset_(start_offset), 
-      buffer_size_(buffer_size),
-      is_buffer_loaded_(false),
-      buffer_(new char[buffer_size * PAGE_SIZE]), 
-      num_disk_fetches_(0),
-      always_load_ahead_(always_load_ahead) {
-        if (buffer_size_ == 0) {
-          abort();
-        }
-      }
+  FileNPageBuffer(int fd, uint64_t start_offset, int buffer_size,
+                  bool always_load_ahead)
+      : fd_(fd), start_offset_(start_offset), buffer_size_(buffer_size),
+        is_buffer_loaded_(false), buffer_(new char[buffer_size * PAGE_SIZE]),
+        num_disk_fetches_(0), always_load_ahead_(always_load_ahead) {
+    if (buffer_size_ == 0) {
+      abort();
+    }
+  }
   ~FileNPageBuffer() { delete[] buffer_; }
   char *get_page(uint64_t page_idx) override {
     if (is_buffer_loaded_) {
@@ -50,7 +46,7 @@ public:
     // comparators.
     int bytes_read;
     bytes_read = pread(fd_, buffer_, buffer_size_ * PAGE_SIZE,
-                           start_offset_ + page_idx * PAGE_SIZE);
+                       start_offset_ + page_idx * PAGE_SIZE);
     if (bytes_read < buffer_size_ * PAGE_SIZE) {
       int bytes_to_fill = (buffer_size_ * PAGE_SIZE) - bytes_read;
       memset(buffer_ + bytes_read, -1, bytes_to_fill);
@@ -89,36 +85,37 @@ namespace li_merge {
 class FixedKSizeKVFileCache {
 public:
   FixedKSizeKVFileCache(int fd, int key_size_bytes, int value_size_bytes,
-                        uint64_t file_start_offset, int cache_size_in_pages, bool load_ahead)
-      : file_page_cache_(new FileNPageBuffer(fd, file_start_offset, cache_size_in_pages, load_ahead)),
+                        uint64_t file_start_offset, int cache_size_in_pages,
+                        bool load_ahead)
+      : file_page_cache_(new FileNPageBuffer(fd, file_start_offset,
+                                             cache_size_in_pages, load_ahead)),
         key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),
         kv_size_bytes_(key_size_bytes + value_size_bytes) {}
   KVSlice get_kv(uint64_t kv_idx) {
     uint64_t page_idx = (kv_idx * kv_size_bytes_) / PAGE_SIZE;
     uint64_t page_offset = (kv_idx * kv_size_bytes_) % PAGE_SIZE;
     char *page_data = file_page_cache_->get_page(page_idx);
-    return KVSlice(page_data + page_offset, key_size_bytes_,
-                   value_size_bytes_);
+    return KVSlice(page_data + page_offset, key_size_bytes_, value_size_bytes_);
   }
   uint64_t get_num_disk_fetches() {
     return file_page_cache_->get_num_disk_fetches();
   }
 
-	int countLeadingZeros(size_t number) {
+  int countLeadingZeros(size_t number) {
     int count = 0;
     int numBits = sizeof(number) * 8; // Assuming 32-bit integers
 
     for (int i = 0; i < numBits; ++i) {
-        if ((number & (size_t(1) << (numBits - 1))) == 0) {
-            count++;
-        } else {
-            break;
-        }
-        number <<= 1;
+      if ((number & (size_t(1) << (numBits - 1))) == 0) {
+        count++;
+      } else {
+        break;
+      }
+      number <<= 1;
     }
 
     return count;
-	}
+  }
 
   /* Adapting Branchless Binary search from
    * https://github.com/skarupke/branchless_binary_search */
@@ -197,6 +194,6 @@ private:
   bool load_ahead_;
 };
 
-}
+} // namespace li_merge
 
 #endif

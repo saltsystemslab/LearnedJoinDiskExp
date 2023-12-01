@@ -44,7 +44,7 @@ public:
   }
   ~FixedSizeKVInMemSSTableBuilder() { delete[] last_key_buf_; }
   void add(const KVSlice &kv) override;
-  void addWindow(const Window<KVSlice> &w) override {abort();};
+  void addWindow(const Window<KVSlice> &w) override { abort(); };
   SSTable<KVSlice> *build() override;
 
 private:

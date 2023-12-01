@@ -5,8 +5,8 @@
 #include "index.h"
 #include "key_value_slice.h"
 #include "stx/btree_map.h"
-#include <fstream>
 #include <algorithm>
+#include <fstream>
 #include <map>
 #include <vector>
 
@@ -16,20 +16,19 @@ struct KeyStruct {
   char buf[KEY_SIZE];
 };
 struct KeyStructComp {
-  bool operator()(const KeyStruct& a, const KeyStruct& b) const {
-        // Define your comparison logic here
-        return memcmp(a.buf, b.buf, KEY_SIZE) < 0;
-    }
+  bool operator()(const KeyStruct &a, const KeyStruct &b) const {
+    // Define your comparison logic here
+    return memcmp(a.buf, b.buf, KEY_SIZE) < 0;
+  }
 };
 typedef KeyStruct KEY_TYPE;
 struct traits_inner : stx::btree_default_map_traits<KEY_TYPE, uint64_t> {
   static const bool selfverify = false;
   static const bool debug = false;
-  static const int leafslots = 256; 
+  static const int leafslots = 256;
   static const int innerslots = 256;
 };
-typedef stx::btree_map<KEY_TYPE, uint64_t, KeyStructComp,
-                            traits_inner>
+typedef stx::btree_map<KEY_TYPE, uint64_t, KeyStructComp, traits_inner>
     stx_btree;
 
 #else
@@ -41,46 +40,44 @@ struct traits_inner : stx::btree_default_map_traits<uint64_t, uint64_t> {
   static const int innerslots = 4096 / (sizeof(uint64_t) + sizeof(uint64_t));
 };
 typedef uint64_t KEY_TYPE;
-typedef stx::btree_map<KEY_TYPE, uint64_t, std::less<KEY_TYPE>,
-                            traits_inner>
+typedef stx::btree_map<KEY_TYPE, uint64_t, std::less<KEY_TYPE>, traits_inner>
     stx_btree;
 #endif
 
 namespace li_merge {
 
-template<typename T>
+template <typename T>
 static size_t write_member(const T &x, std::ostream &out) {
-    out.write((char *) &x, sizeof(T));
-    return sizeof(T);
+  out.write((char *)&x, sizeof(T));
+  return sizeof(T);
 }
 
-template<typename T>
-static void read_member(T &x, std::istream &in) {
-    in.read((char *) &x, sizeof(T));
+template <typename T> static void read_member(T &x, std::istream &in) {
+  in.read((char *)&x, sizeof(T));
 }
 
-template<typename C>
+template <typename C>
 static size_t write_container(const C &container, std::ostream &out) {
-    using value_type = typename C::value_type;
-    size_t written_bytes = write_member(container.size(), out);
-    for (auto &x: container) {
-        out.write((char *) &x, sizeof(value_type));
-        written_bytes += sizeof(value_type);
-    }
-    return written_bytes;
+  using value_type = typename C::value_type;
+  size_t written_bytes = write_member(container.size(), out);
+  for (auto &x : container) {
+    out.write((char *)&x, sizeof(value_type));
+    written_bytes += sizeof(value_type);
+  }
+  return written_bytes;
 }
 
-template<typename C>
+template <typename C>
 static void read_container(C &container, std::istream &in) {
-    using value_type = typename C::value_type;
-    typename C::size_type size;
-    read_member(size, in);
-    container.reserve(size);
-    for (size_t i = 0; i < size; ++i) {
-        value_type s;
-        in.read((char *) &s, sizeof(value_type));
-        container.push_back(s);
-    }
+  using value_type = typename C::value_type;
+  typename C::size_type size;
+  read_member(size, in);
+  container.reserve(size);
+  for (size_t i = 0; i < size; ++i) {
+    value_type s;
+    in.read((char *)&s, sizeof(value_type));
+    container.push_back(s);
+  }
 }
 
 std::vector<std::pair<KEY_TYPE, uint64_t>> loadElts(std::string datafile) {
@@ -88,32 +85,34 @@ std::vector<std::pair<KEY_TYPE, uint64_t>> loadElts(std::string datafile) {
   std::ifstream inputFile(datafile);
   read_container(container, inputFile);
   return container;
-} 
-void storeElts(std::vector<std::pair<KEY_TYPE, uint64_t>> &data, std::string datafile) {
+}
+void storeElts(std::vector<std::pair<KEY_TYPE, uint64_t>> &data,
+               std::string datafile) {
   std::ofstream outputFile(datafile);
   write_container(data, outputFile);
-} 
+}
 
 class BTreeWIndex : public Index<KVSlice> {
 public:
   BTreeWIndex(stx_btree *tree, int leaf_size_in_keys, int num_blocks)
-      : tree_(tree), leaf_size_in_keys_(leaf_size_in_keys), num_blocks_(num_blocks) {}
+      : tree_(tree), leaf_size_in_keys_(leaf_size_in_keys),
+        num_blocks_(num_blocks) {}
   BTreeWIndex(std::string datafile, int leaf_size_in_keys)
       : leaf_size_in_keys_(leaf_size_in_keys) {
-        std::vector<std::pair<KEY_TYPE, uint64_t>> elts = loadElts(datafile);
-        tree_ = new stx_btree(); 
-        tree_->bulk_load(elts.begin(), elts.end());
-        num_blocks_ = elts.size();
-      }
+    std::vector<std::pair<KEY_TYPE, uint64_t>> elts = loadElts(datafile);
+    tree_ = new stx_btree();
+    tree_->bulk_load(elts.begin(), elts.end());
+    num_blocks_ = elts.size();
+  }
   Bounds getPositionBoundsRA(const KVSlice &t) override {
-    #ifdef STRING_KEYS
+#ifdef STRING_KEYS
     KeyStruct k;
     memcpy(k.buf, t.data(), 16);
     stx_btree::iterator it = tree_->lower_bound(k);
-    #else
+#else
     uint64_t *key = (uint64_t *)(t.data());
     stx_btree::iterator it = tree_->lower_bound(*key);
-    #endif
+#endif
     int block_id;
     if (it != tree_->end()) {
       block_id = it.data();
@@ -125,14 +124,14 @@ public:
   }
 
   Bounds getPositionBounds(const KVSlice &t) override {
-    #ifdef STRING_KEYS
+#ifdef STRING_KEYS
     KeyStruct k;
     memcpy(k.buf, t.data(), 16);
     stx_btree::iterator it = tree_->lower_bound(k);
-    #else
+#else
     uint64_t *key = (uint64_t *)(t.data());
     stx_btree::iterator it = tree_->lower_bound(*key);
-    #endif
+#endif
     int block_id;
     if (it != tree_->end()) {
       block_id = it.data();
@@ -157,11 +156,13 @@ private:
 
 class BTreeIndexBuilder : public IndexBuilder<KVSlice> {
 public:
-  BTreeIndexBuilder(int leaf_size_in_pages, int key_size_bytes, int value_size_bytes, std::string filename) : 
-    num_elts_(0), block_id(0), filename_(filename) { 
-    tree_ = new stx_btree(); 
+  BTreeIndexBuilder(int leaf_size_in_pages, int key_size_bytes,
+                    int value_size_bytes, std::string filename)
+      : num_elts_(0), block_id(0), filename_(filename) {
+    tree_ = new stx_btree();
     // TODO(chesetti): Use PAGE_SIZE HERE.
-    num_items_block_ = (leaf_size_in_pages * 4096) / (key_size_bytes + value_size_bytes);
+    num_items_block_ =
+        (leaf_size_in_pages * 4096) / (key_size_bytes + value_size_bytes);
   }
   void add(const KVSlice &t) override {
     num_elts_++;
@@ -183,9 +184,7 @@ public:
     tree_->bulk_load(elts_.begin(), elts_.end());
     return new BTreeWIndex(tree_, num_items_block_, block_id);
   }
-  void backToFile() {
-    storeElts(elts_, filename_);
-  }
+  void backToFile() { storeElts(elts_, filename_); }
 
 private:
   uint64_t num_elts_;
