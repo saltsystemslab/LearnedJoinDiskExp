@@ -20,7 +20,6 @@ local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local max_ratio = 100;
 local points = 10;
 local step = max_ratio / points;
-// local ratios = [1, 5, 10, 50, 100, 500, 1000];
 local ratios = [1, 10, 100, 1000];
 {
     inputs : 
@@ -60,33 +59,19 @@ local ratios = [1, 10, 100, 1000];
                 "algo": "sort_join",
             }, 
             {
-                "algo_name": "hj",
-                "algo": "hash_join",
-            }, 
-            {
-                "algo_name": "inljBtree256",
-                "algo": "inlj",
+                "algo_name": "flatpgm256",
+                "algo": "lsj",
                 "index": {
-                    "type": "btree",
-                    "search": "binary",
-                    "leaf_size_in_pages": 1,
-                },
-            },
-            {
-                "algo_name": "inljPgm256",
-                "algo": "inlj",
-                "index": {
-                    "type": "pgm256",
+                    "type": "flatpgm256",
                     "search": "binary",
                 },
             },
             {
-                "algo_name": "inljBtree2048",
-                "algo": "inlj",
+                "algo_name": "flatpgm1024",
+                "algo": "lsj",
                 "index": {
-                    "type": "btree",
+                    "type": "flatpgm1024",
                     "search": "binary",
-                    "leaf_size_in_pages": 8,
                 },
             },
             {
@@ -98,20 +83,19 @@ local ratios = [1, 10, 100, 1000];
                 },
             },
             {
-                "algo_name": "flatpgm256",
+                "algo_name": "flatpgm4096",
                 "algo": "lsj",
                 "index": {
-                    "type": "flatpgm256",
+                    "type": "flatpgm4096",
                     "search": "binary",
                 },
             },
             {
-                "algo_name": "btree2048",
+                "algo_name": "flatpgm8192",
                 "algo": "lsj",
                 "index": {
-                    "type": "btree",
+                    "type": "flatpgm8192",
                     "search": "binary",
-                    "leaf_size_in_pages": 8,
                 },
             },
         ]

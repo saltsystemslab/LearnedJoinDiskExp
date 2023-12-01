@@ -67,42 +67,10 @@ local ratios = [1, 5, 10, 50, 100, 500, 1000];
                 },
             },
             {
-                "algo_name": "pgm1024",
-                "algo": "inlj",
-                "index": {
-                    "type": "pgm1024",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "pgm2048",
-                "algo": "inlj",
-                "index": {
-                    "type": "pgm2048",
-                    "search": "binary",
-                },
-            },
-            {
                 "algo_name": "flatpgm256",
                 "algo": "inlj",
                 "index": {
                     "type": "flatpgm256",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "flatpgm1024",
-                "algo": "inlj",
-                "index": {
-                    "type": "flatpgm1024",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "flatpgm2048",
-                "algo": "inlj",
-                "index": {
-                    "type": "flatpgm2048",
                     "search": "binary",
                 },
             },

@@ -25,9 +25,8 @@ flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("clean", False, "")
-flags.DEFINE_bool("skip_input_creation", False, "")
 flags.DEFINE_bool("clear_inputs", False, "")
-flags.DEFINE_bool("workers", 1, "")
+flags.DEFINE_integer("workers", 1, "")
 
 flags.DEFINE_string("test_name", "unknown", "Test Case Name.")
 flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
@@ -60,7 +59,7 @@ def main(argv):
     # Generate all the JSON configs.
     generate_configs(exp['config']['inputs'], exp['input_config_dir'])
     generate_configs(exp['config']['tests'], exp['output_config_dir'])
-    if not FLAGS.skip_input_creation:
+    if not FLAGS.skip_input:
         asyncio.run(run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False))
     asyncio.run(run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True, num_workers=FLAGS.workers))
     if FLAGS.clear_inputs:
@@ -155,6 +154,7 @@ async def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_re
         os.makedirs(run_result_dir, exist_ok=True)
 
         tasks = []
+        print(num_workers)
         for i in range(num_workers):
             task = asyncio.create_task(worker(queue, runner_bin, config_dir, run_result_dir, delete_result_path))
             tasks.append(task)
