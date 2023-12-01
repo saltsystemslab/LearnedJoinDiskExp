@@ -17,6 +17,7 @@ struct Bounds {
 template <class T> class Index {
 public:
   virtual Bounds getPositionBounds(const T &t) = 0;
+  virtual Bounds getPositionBoundsRA(const T &t) = 0;
   virtual uint64_t sizeInBytes() = 0;
   virtual uint64_t getMaxError() {abort();};
   virtual bool isErrorPageAligned() {abort();};

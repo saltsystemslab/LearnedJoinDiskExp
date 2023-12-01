@@ -12,12 +12,17 @@
 namespace li_merge {
 template <class T, size_t Epsilon> class OneLevelPgmIndex : public Index<T> {
 public:
-  OneLevelPgmIndex(pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index,
+  OneLevelPgmIndex(pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index,
                    KeyToPointConverter<T> *converter) 
       : pgm_index_(pgm_index), converter_(converter), cur_segment_index_(0) {}
   OneLevelPgmIndex(std::string filename, KeyToPointConverter<T> *converter): converter_(converter) {
     fprintf(stderr, "%s\n", filename.c_str());
-    pgm_index_ = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(filename);
+    pgm_index_ = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon, 0>(filename);
+  }
+  Bounds getPositionBoundsRA(const T &t) override {
+    auto bounds = pgm_index_->search(converter_->toPoint(t));
+    return Bounds{bounds.lo, bounds.hi + 1,
+                  bounds.pos};
   }
   Bounds getPositionBounds(const T &t) override {
     auto bounds = pgm_index_->linearSearch(converter_->toPoint(t), &cur_segment_index_);
@@ -35,7 +40,7 @@ public:
 
 private:
   uint64_t cur_segment_index_;
-  pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
+  pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
 };
 
@@ -57,13 +62,13 @@ public:
   }
   Index<KVSlice> *build() override {
     return new OneLevelPgmIndex<T, Epsilon>(
-        new pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_),
+        new pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_),
         converter_);
   }
   // TODO: Overrride this and make take a string.
   void backToFile() {
     new OneLevelPgmIndex<T, Epsilon>(
-        new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_.begin(), x_points_.end(), filename_), converter_);
+        new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon, 0>(x_points_.begin(), x_points_.end(), filename_), converter_);
   }
 
 private:

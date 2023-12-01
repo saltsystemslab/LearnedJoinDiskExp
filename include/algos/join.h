@@ -168,7 +168,7 @@ class Inlj: public BaseMergeAndJoinOp<T> {
 
       while (outer_iterator->currentPos() < outer_end) {
         auto bounds =
-          inner_index->getPositionBounds(outer_iterator->key());
+          inner_index->getPositionBoundsRA(outer_iterator->key());
         SearchResult result;
         do {
           auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);

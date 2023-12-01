@@ -105,6 +105,25 @@ public:
         tree_->bulk_load(elts.begin(), elts.end());
         num_blocks_ = elts.size();
       }
+  Bounds getPositionBoundsRA(const KVSlice &t) override {
+    #ifdef STRING_KEYS
+    KeyStruct k;
+    memcpy(k.buf, t.data(), 16);
+    stx_btree::iterator it = tree_->lower_bound(k);
+    #else
+    uint64_t *key = (uint64_t *)(t.data());
+    stx_btree::iterator it = tree_->lower_bound(*key);
+    #endif
+    int block_id;
+    if (it != tree_->end()) {
+      block_id = it.data();
+    } else {
+      block_id = num_blocks_;
+    }
+    uint64_t pos = block_id * leaf_size_in_keys_;
+    return Bounds{pos, pos + leaf_size_in_keys_, pos};
+  }
+
   Bounds getPositionBounds(const KVSlice &t) override {
     #ifdef STRING_KEYS
     KeyStruct k;

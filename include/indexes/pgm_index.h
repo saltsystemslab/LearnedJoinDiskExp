@@ -19,6 +19,10 @@ public:
     fprintf(stderr, "%s\n", filename.c_str());
     pgm_index_ = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(filename);
   }
+  Bounds getPositionBoundsRA(const T &t) override {
+    auto bounds = pgm_index_->search(converter_->toPoint(t));
+    return Bounds{bounds.lo, bounds.hi + 1, bounds.pos};
+  }
   Bounds getPositionBounds(const T &t) override {
     auto bounds = pgm_index_->search(converter_->toPoint(t));
     return Bounds{bounds.lo, bounds.hi + 1, bounds.pos};
@@ -45,7 +49,7 @@ public:
   void add(const T &t) override { x_points_.push_back(converter_->toPoint(t)); }
   Index<KVSlice> *build() override {
     return new PgmIndex<T, Epsilon>(
-        new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_.begin(), x_points_.end(), filename_), converter_);
+        new pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_), converter_);
   }
   // TODO: Overrride this and make take a string.
   void backToFile() {

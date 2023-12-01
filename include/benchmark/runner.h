@@ -128,12 +128,15 @@ json run_test(json test_spec) {
 }
 
 json create_index(std::string name, Iterator<KVSlice> *iter, IndexBuilder<KVSlice> *builder) {
-  auto index_build_start = std::chrono::high_resolution_clock::now();
+  auto index_load_start = std::chrono::high_resolution_clock::now();
   iter->seekToFirst();
   while (iter->valid()) {
     builder->add(iter->key());
     iter->next();
   }
+  auto index_load_end = std::chrono::high_resolution_clock::now();
+
+  auto index_build_start = std::chrono::high_resolution_clock::now();
   auto index = builder->build();
   auto index_build_end = std::chrono::high_resolution_clock::now();
   json result;
@@ -141,6 +144,8 @@ json create_index(std::string name, Iterator<KVSlice> *iter, IndexBuilder<KVSlic
   result["index_size"] = index->sizeInBytes();
   result["index_build_duration"] = std::chrono::duration_cast<std::chrono::nanoseconds>(
                          index_build_end - index_build_start).count();
+  result["index_load_duration"] = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         index_load_end - index_load_start).count();
   return result;
 }
 

@@ -20,7 +20,7 @@ local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local max_ratio = 100;
 local points = 10;
 local step = max_ratio / points;
-local ratios = [1, 5, 10, 50, 100, 500, 1000];
+local ratios = [1, 10, 100, 1000];
 {
     inputs : 
         [input_template + {
@@ -55,11 +55,23 @@ local ratios = [1, 5, 10, 50, 100, 500, 1000];
         for i in ratios
         for algo in [
             {
-                "algo_name": "sj",
-                "algo": "sort_join",
-            }, 
+                "algo_name": "lsj_pgm256",
+                "algo": "lsj",
+                "index": {
+                    "type": "pgm256",
+                    "search": "binary",
+                },
+            },
             {
-                "algo_name": "pgm256",
+                "algo_name": "lsj_flatpgm256",
+                "algo": "lsj",
+                "index": {
+                    "type": "flatpgm256",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "inlj_pgm256",
                 "algo": "inlj",
                 "index": {
                     "type": "pgm256",
@@ -67,10 +79,42 @@ local ratios = [1, 5, 10, 50, 100, 500, 1000];
                 },
             },
             {
-                "algo_name": "flatpgm256",
+                "algo_name": "inlj_flatpgm256",
                 "algo": "inlj",
                 "index": {
                     "type": "flatpgm256",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "lsj_pgm2048",
+                "algo": "lsj",
+                "index": {
+                    "type": "pgm2048",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "lsj_flatpgm2048",
+                "algo": "lsj",
+                "index": {
+                    "type": "flatpgm2048",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "inlj_pgm2048",
+                "algo": "inlj",
+                "index": {
+                    "type": "pgm2048",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "inlj_flatpgm2048",
+                "algo": "inlj",
+                "index": {
+                    "type": "flatpgm2048",
                     "search": "binary",
                 },
             },
