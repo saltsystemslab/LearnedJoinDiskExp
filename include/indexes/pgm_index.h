@@ -30,6 +30,7 @@ public:
 
   Bounds getPositionBoundsRA(const T &t) override {
     auto bounds = pgm_index_->search(converter_->toPoint(t));
+    // fprintf(stderr, "[%ld %ld]\n", bounds.lo * sample_freq_, (bounds.hi + 1) * sample_freq_);
     return Bounds{
       bounds.lo * sample_freq_, 
       (bounds.hi + 1) * sample_freq_, 
@@ -45,7 +46,7 @@ public:
     };
   }
   uint64_t sizeInBytes() override { return pgm_index_->size_in_bytes(); }
-  uint64_t getMaxError() override { return 2 * pgm_index_->epsilon_value + 1; }
+  uint64_t getMaxError() override { return (2 * pgm_index_->epsilon_value + 1) * sample_freq_; }
   bool isErrorPageAligned() override { return false; }
 
 private:

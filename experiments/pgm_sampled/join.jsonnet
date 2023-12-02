@@ -55,11 +55,28 @@ local ratios = [1, 10, 100, 1000];
         for i in ratios
         for algo in [
             {
-                "algo_name": "flatpgm2048",
+                "algo_name": "pgm256",
                 "algo": "inlj",
                 "index": {
-                    "type": "flatpgm2048",
+                    "type": "pgm256",
                     "search": "binary",
+                },
+            },
+            {
+                "algo_name": "sampledpgm256",
+                "algo": "inlj",
+                "index": {
+                    "type": "sampledpgm256",
+                    "search": "binary",
+                },
+            },
+            {
+                "algo_name": "btree256",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "search": "binary",
+                    "leaf_size_in_pages": 1,
                 },
             },
             {
@@ -71,11 +88,20 @@ local ratios = [1, 10, 100, 1000];
                 },
             },
             {
-                "algo_name": "sampledpgm",
+                "algo_name": "sampledpgm2048",
                 "algo": "inlj",
                 "index": {
-                    "type": "sampledpgm",
+                    "type": "sampledpgm2048",
                     "search": "binary",
+                },
+            },
+            {
+                "algo_name": "btree2048",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "search": "binary",
+                    "leaf_size_in_pages": 8,
                 },
             },
         ]
