@@ -129,12 +129,14 @@ json create_index(std::string name, Iterator<KVSlice> *iter,
 json create_indexes(SSTable<KVSlice> *table,
                     KeyToPointConverter<KVSlice> *converter,
                     std::string tableName, json test_spec) {
+  auto sampledPgm = 
+    new PgmIndexBuilder<KVSlice, 16>(0, 128, converter, tableName + "_sampledPgm");
   auto pgm256 =
-      new PgmIndexBuilder<KVSlice, 128>(0, converter, tableName + "_pgm256");
+      new PgmIndexBuilder<KVSlice, 128>(0, 1, converter, tableName + "_pgm256");
   auto pgm1024 =
-      new PgmIndexBuilder<KVSlice, 512>(0, converter, tableName + "_pgm1024");
+      new PgmIndexBuilder<KVSlice, 512>(0, 1, converter, tableName + "_pgm1024");
   auto pgm2048 =
-      new PgmIndexBuilder<KVSlice, 1024>(0, converter, tableName + "_pgm2048");
+      new PgmIndexBuilder<KVSlice, 1024>(0, 1, converter, tableName + "_pgm2048");
   auto flatpgm256 = new OneLevelPgmIndexBuilder<KVSlice, 128>(
       0, converter, tableName + "_flatpgm256");
   auto flatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 512>(
@@ -157,6 +159,7 @@ json create_indexes(SSTable<KVSlice> *table,
 
   json index_stats = json::array();
 
+  index_stats.push_back(create_index("sampledPgm", table->iterator(), sampledPgm));
   index_stats.push_back(create_index("pgm256", table->iterator(), pgm256));
   index_stats.push_back(create_index("pgm1024", table->iterator(), pgm1024));
   index_stats.push_back(create_index("pgm2048", table->iterator(), pgm2048));
@@ -176,6 +179,7 @@ json create_indexes(SSTable<KVSlice> *table,
   index_stats.push_back(
       create_index("btree2048", table->iterator(), btree2048));
 
+  sampledPgm->backToFile();
   pgm256->backToFile();
   pgm1024->backToFile();
   pgm2048->backToFile();
@@ -288,18 +292,21 @@ SearchStrategy<KVSlice> *get_search_strategy(json test_spec) {
 Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   if (!test_spec.contains("index")) {
     return new PgmIndex<KVSlice, 256>(table_path + "_pgm256",
-                                      get_converter(test_spec));
+                                      get_converter(test_spec), 1);
   }
   std::string index_type = test_spec["index"]["type"];
-  if (index_type == "pgm256") {
+  if (index_type == "sampledpgm") {
+    return new PgmIndex<KVSlice, 16>(table_path + "_sampledPgm",
+                                      get_converter(test_spec), 128);
+  } else if (index_type == "pgm256") {
     return new PgmIndex<KVSlice, 128>(table_path + "_pgm256",
-                                      get_converter(test_spec));
+                                      get_converter(test_spec), 1);
   } else if (index_type == "pgm1024") {
     return new PgmIndex<KVSlice, 512>(table_path + "_pgm1024",
-                                      get_converter(test_spec));
+                                      get_converter(test_spec), 1);
   } else if (index_type == "pgm2048") {
     return new PgmIndex<KVSlice, 1024>(table_path + "_pgm2048",
-                                       get_converter(test_spec));
+                                       get_converter(test_spec), 1);
   } else if (index_type == "flatpgm256") {
     return new OneLevelPgmIndex<KVSlice, 128>(table_path + "_flatpgm256",
                                               get_converter(test_spec));

@@ -11,8 +11,8 @@
 #include <thread>
 #include <unordered_set>
 // TODO(chesetti): Must be last for some reason. Fix.
-#include "table_op.h"
 #include <nlohmann/json.hpp>
+#include "table_op.h"
 
 using json = nlohmann::json;
 
