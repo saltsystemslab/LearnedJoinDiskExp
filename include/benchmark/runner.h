@@ -96,6 +96,7 @@ json run_test(json test_spec) {
   } else {
     result.stats["checksum"] = 0;
   }
+  result.stats["num_output_keys"] = result.output_table->iterator()->numElts();
   return result.stats;
 }
 
