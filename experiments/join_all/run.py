@@ -21,13 +21,13 @@ datasets = {
 
 def main(argv):
     benchmark_script = "./scripts/benchmark.py"
-    test_config = "--spec=./experiments/epsilon_vs_duration/join.jsonnet"
+    test_config = "--spec=./experiments/join_all/join.jsonnet"
     for name, dataset in datasets.items():
-        for thread in [2, 4]:
+        for thread in [1]:
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
             args.append(f"--repeat={FLAGS.repeat}")
-            args.append(f"--test_dir=sponge/eps_study")
+            args.append(f"--test_dir=sponge/join_all")
             args.append(f"--test_name={name}")
             args.append(f'--clear_inputs={FLAGS.clear_inputs}')
             args.append(f'--check_results={FLAGS.check_checksum}')
