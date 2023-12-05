@@ -17,10 +17,6 @@ local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 
-local max_ratio = 100;
-local points = 10;
-local step = max_ratio / points;
-// local ratios = [1, 5, 10, 50, 100, 500, 1000];
 local ratios = [1, 10, 100, 1000];
 {
     inputs : 
@@ -73,6 +69,24 @@ local ratios = [1, 10, 100, 1000];
                 },
             },
             {
+                "algo_name": "inljBtree1024",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "search": "binary",
+                    "leaf_size_in_pages": 4,
+                },
+            },
+            {
+                "algo_name": "inljBtree4096",
+                "algo": "inlj",
+                "index": {
+                    "type": "btree",
+                    "search": "binary",
+                    "leaf_size_in_pages": 8,
+                },
+            },
+            {
                 "algo_name": "inljPgm256",
                 "algo": "inlj",
                 "index": {
@@ -81,12 +95,19 @@ local ratios = [1, 10, 100, 1000];
                 },
             },
             {
-                "algo_name": "inljBtree2048",
+                "algo_name": "inljPgm256",
                 "algo": "inlj",
                 "index": {
-                    "type": "btree",
+                    "type": "pgm256",
                     "search": "binary",
-                    "leaf_size_in_pages": 8,
+                },
+            },
+            {
+                "algo_name": "inljPgm256",
+                "algo": "inlj",
+                "index": {
+                    "type": "pgm256",
+                    "search": "binary",
                 },
             },
             {
