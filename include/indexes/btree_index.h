@@ -184,7 +184,8 @@ public:
     tree_->bulk_load(elts_.begin(), elts_.end());
     return new BTreeWIndex(tree_, num_items_block_, block_id);
   }
-  void backToFile() { storeElts(elts_, filename_); }
+  void backToFile() override { 
+    storeElts(elts_, filename_); }
 
 private:
   uint64_t num_elts_;

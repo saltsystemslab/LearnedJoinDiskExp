@@ -124,6 +124,7 @@ json create_index(std::string name, Iterator<KVSlice> *iter,
       std::chrono::duration_cast<std::chrono::nanoseconds>(index_load_end -
                                                            index_load_start)
           .count();
+  builder->backToFile();
   return result;
 }
 
@@ -134,8 +135,6 @@ json create_indexes(SSTable<KVSlice> *table,
     new PgmIndexBuilder<KVSlice, 1>(0, 128, converter, tableName + "_sampledpgm256");
   auto sampledpgm1024 = 
     new PgmIndexBuilder<KVSlice, 4>(0, 128, converter, tableName + "_sampledpgm1024");
-  auto sampledpgm2048 = 
-    new PgmIndexBuilder<KVSlice, 8>(0, 128, converter, tableName + "_sampledpgm2048");
   auto sampledpgm4096 = 
     new PgmIndexBuilder<KVSlice, 16>(0, 128, converter, tableName + "_sampledpgm4096");
 
@@ -143,8 +142,6 @@ json create_indexes(SSTable<KVSlice> *table,
       new PgmIndexBuilder<KVSlice, 128>(0, 1, converter, tableName + "_pgm256");
   auto pgm1024 =
       new PgmIndexBuilder<KVSlice, 512>(0, 1, converter, tableName + "_pgm1024");
-  auto pgm2048 =
-      new PgmIndexBuilder<KVSlice, 1024>(0, 1, converter, tableName + "_pgm2048");
   auto pgm4096 =
       new PgmIndexBuilder<KVSlice, 2048>(0, 1, converter, tableName + "_pgm4096");
 
@@ -152,8 +149,6 @@ json create_indexes(SSTable<KVSlice> *table,
       0, 1, converter, tableName + "_flatpgm256");
   auto flatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 512>(
       0, 1, converter, tableName + "_flatpgm1024");
-  auto flatpgm2048 = new OneLevelPgmIndexBuilder<KVSlice, 1024>(
-      0, 1, converter, tableName + "_flatpgm2048");
   auto flatpgm4096 = new OneLevelPgmIndexBuilder<KVSlice, 2048>(
       0, 1, converter, tableName + "_flatpgm4096");
 
@@ -161,8 +156,6 @@ json create_indexes(SSTable<KVSlice> *table,
       0, 128, converter, tableName + "_sampledflatpgm256");
   auto sampledflatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 4>(
       0, 128, converter, tableName + "_sampledflatpgm1024");
-  auto sampledflatpgm2048 = new OneLevelPgmIndexBuilder<KVSlice, 8>(
-      0, 128, converter, tableName + "_sampledflatpgm2048");
   auto sampledflatpgm4096 = new OneLevelPgmIndexBuilder<KVSlice, 16>(
       0, 128, converter, tableName + "_sampledflatpgm4096");
 
@@ -175,9 +168,6 @@ json create_indexes(SSTable<KVSlice> *table,
   auto btree1024 = new BTreeIndexBuilder(
       4 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
       test_spec["value_size"], tableName + "_btree1024");
-  auto btree2048 = new BTreeIndexBuilder(
-      8 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"], tableName + "_btree2048");
   auto btree4096 = new BTreeIndexBuilder(
       16 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
       test_spec["value_size"], tableName + "_btree4096");
@@ -189,27 +179,20 @@ json create_indexes(SSTable<KVSlice> *table,
   index_stats.push_back(
       create_index("sampledpgm1024", table->iterator(), sampledpgm1024));
   index_stats.push_back(
-      create_index("sampledpgm2048", table->iterator(), sampledpgm2048));
-  index_stats.push_back(
       create_index("sampledpgm4096", table->iterator(), sampledpgm4096));
   index_stats.push_back(create_index("pgm256", table->iterator(), pgm256));
   index_stats.push_back(create_index("pgm1024", table->iterator(), pgm1024));
-  index_stats.push_back(create_index("pgm2048", table->iterator(), pgm2048));
   index_stats.push_back(create_index("pgm4096", table->iterator(), pgm4096));
   index_stats.push_back(
       create_index("flatpgm256", table->iterator(), flatpgm256));
   index_stats.push_back(
       create_index("flatpgm1024", table->iterator(), flatpgm1024));
   index_stats.push_back(
-      create_index("flatpgm2048", table->iterator(), flatpgm2048));
-  index_stats.push_back(
       create_index("flatpgm4096", table->iterator(), flatpgm4096));
   index_stats.push_back(
       create_index("sampledflatpgm256", table->iterator(), sampledflatpgm256));
   index_stats.push_back(
       create_index("sampledflatpgm1024", table->iterator(), sampledflatpgm1024));
-  index_stats.push_back(
-      create_index("sampledflatpgm2048", table->iterator(), sampledflatpgm2048));
   index_stats.push_back(
       create_index("sampledflatpgm4096", table->iterator(), sampledflatpgm4096));
   index_stats.push_back(
@@ -218,10 +201,9 @@ json create_indexes(SSTable<KVSlice> *table,
   index_stats.push_back(
       create_index("btree1024", table->iterator(), btree1024));
   index_stats.push_back(
-      create_index("btree2048", table->iterator(), btree2048));
-  index_stats.push_back(
       create_index("btree4096", table->iterator(), btree4096));
 
+  /*
   sampledpgm256->backToFile();
   sampledpgm1024->backToFile();
   sampledpgm2048->backToFile();
@@ -243,6 +225,7 @@ json create_indexes(SSTable<KVSlice> *table,
   btree1024->backToFile();
   btree2048->backToFile();
   btree4096->backToFile();
+  */
 
   return index_stats;
 }
@@ -353,9 +336,6 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   } else if (index_type == "sampledpgm1024") {
     return new PgmIndex<KVSlice, 4>(table_path + "_sampledpgm1024",
                                       get_converter(test_spec), 128);
-  } else if (index_type == "sampledpgm2048") {
-    return new PgmIndex<KVSlice, 8>(table_path + "_sampledpgm2048",
-                                      get_converter(test_spec), 128);
   } else if (index_type == "sampledpgm4096") {
     return new PgmIndex<KVSlice, 16>(table_path + "_sampledpgm4096",
                                       get_converter(test_spec), 128);
@@ -365,9 +345,6 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   } else if (index_type == "pgm1024") {
     return new PgmIndex<KVSlice, 512>(table_path + "_pgm1024",
                                       get_converter(test_spec), 1);
-  } else if (index_type == "pgm2048") {
-    return new PgmIndex<KVSlice, 1024>(table_path + "_pgm2048",
-                                       get_converter(test_spec), 1);
   } else if (index_type == "pgm4096") {
     return new PgmIndex<KVSlice, 2048>(table_path + "_pgm4096",
                                        get_converter(test_spec), 1);
@@ -376,9 +353,6 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
                                               get_converter(test_spec), 1);
   } else if (index_type == "flatpgm1024") {
     return new OneLevelPgmIndex<KVSlice, 512>(table_path + "_flatpgm1024",
-                                              get_converter(test_spec), 1);
-  } else if (index_type == "flatpgm2048") {
-    return new OneLevelPgmIndex<KVSlice, 1024>(table_path + "_flatpgm2048",
                                               get_converter(test_spec), 1);
   } else if (index_type == "flatpgm4096") {
     return new OneLevelPgmIndex<KVSlice, 2048>(table_path + "_flatpgm4096",
@@ -395,9 +369,6 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   } else if (index_type == "sampledflatpgm1024") {
     return new OneLevelPgmIndex<KVSlice, 4>(table_path + "_sampledflatpgm1024",
                                               get_converter(test_spec), 128);
-  } else if (index_type == "sampledflatpgm2048") {
-    return new OneLevelPgmIndex<KVSlice, 8>(table_path + "_sampledflatpgm2048",
-                                               get_converter(test_spec), 128);
   } else if (index_type == "sampledflatpgm4096") {
     return new OneLevelPgmIndex<KVSlice, 16>(table_path + "_sampledflatpgm4096",
                                                get_converter(test_spec), 128);
