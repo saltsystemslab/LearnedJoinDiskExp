@@ -52,6 +52,11 @@ def main(argv):
     test_config = "--spec=./experiments/epsilon_vs_duration/join.jsonnet"
     for name, dataset in datasets.items():
         for thread in [2, 4, 8, 16]:
+            # Temp Checkpoint
+            if name != 'books' and name!='osm':
+                continue
+            if name == 'osm' and thread < 16:
+                continue
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
             args.append(f"--repeat={FLAGS.repeat}")
