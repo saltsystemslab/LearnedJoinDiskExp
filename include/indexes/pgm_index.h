@@ -88,10 +88,12 @@ public:
         new pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon>(x_points_), converter_, sample_freq_);
   }
   // TODO: Overrride this and make take a string.
-  void backToFile() {
+  void backToFile() override {
     // WARNING: This is a free pointer.
-    new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(
+    auto index = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(
                                  x_points_.begin(), x_points_.end(), filename_);
+    delete index;
+    std::vector<POINT_FLOAT_TYPE>().swap(x_points_);
   }
 
 private:

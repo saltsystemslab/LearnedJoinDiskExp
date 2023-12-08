@@ -28,6 +28,7 @@ template <class T> class IndexBuilder {
 public:
   virtual void add(const T &t) = 0;
   virtual Index<T> *build() = 0;
+  virtual void backToFile() = 0; 
 };
 
 template <class T>
