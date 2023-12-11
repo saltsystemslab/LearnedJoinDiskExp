@@ -17,9 +17,70 @@ local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 
-local max_ratio = 100;
-local points = 10;
-local step = max_ratio / points;
+local all_index_names = [
+    "pgm256", "flatpgm256", "sampledflatpgm256", 
+    "pgm1024", "flatpgm1024", "sampledflatpgm1024", 
+    "pgm4096", "flatpgm4096", "sampledflatpgm4096", 
+    "btree256", "btree1024", "btree4096"
+];
+local index_names = [
+    "flatpgm256",  
+    "flatpgm1024",  
+    "flatpgm4096", 
+    "btree256", "btree1024", "btree4096"
+];
+
+local indexes = {
+    "flatpgm256": {
+        "type": "flatpgm256",
+        "search": "binary",
+        "epsilon": 256
+    },
+    "flatpgm1024": {
+        "type": "flatpgm1024",
+        "search": "binary",
+        "epsilon": 1024
+    },
+    "flatpgm4096": {
+        "type": "flatpgm4096",
+        "search": "binary",
+        "epsilon": 4096
+    },
+    "btree256": {
+        "type": "btree",
+        "search": "binary",
+        "leaf_size_in_pages": 1,
+        "epsilon": 256,
+    },
+    "btree1024": {
+        "type": "btree",
+        "search": "binary",
+        "leaf_size_in_pages": 4,
+        "epsilon": 1024,
+    },
+    "btree4096": {
+        "type": "btree",
+        "search": "binary",
+        "leaf_size_in_pages": 16,
+        "epsilon": 4096,
+    }
+};
+
+local algos = [
+    {
+        "algo_name": join_algo + "_" + idx,
+        "algo": join_algo,
+        "index": indexes[idx]
+    }
+    for idx in index_names
+    for join_algo in ["learned_merge"]
+] + [
+    {
+        "algo_name": "standard_merge",
+        "algo": "standard_merge"
+    },
+];
+
 local ratios = [1, 10, 100, 1000];
 {
     inputs : 
@@ -53,57 +114,6 @@ local ratios = [1, 10, 100, 1000];
         }   
         for r in std.range(0, repeats)
         for i in ratios
-        for algo in [
-            {
-                "algo_name": "pgm256",
-                "algo": "inlj",
-                "index": {
-                    "type": "pgm256",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "sampledpgm256",
-                "algo": "inlj",
-                "index": {
-                    "type": "sampledpgm256",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "btree256",
-                "algo": "inlj",
-                "index": {
-                    "type": "btree",
-                    "search": "binary",
-                    "leaf_size_in_pages": 1,
-                },
-            },
-            {
-                "algo_name": "pgm2048",
-                "algo": "inlj",
-                "index": {
-                    "type": "pgm2048",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "sampledpgm2048",
-                "algo": "inlj",
-                "index": {
-                    "type": "sampledpgm2048",
-                    "search": "binary",
-                },
-            },
-            {
-                "algo_name": "btree2048",
-                "algo": "inlj",
-                "index": {
-                    "type": "btree",
-                    "search": "binary",
-                    "leaf_size_in_pages": 8,
-                },
-            },
-        ]
+        for algo in algos
     ]
 }

@@ -9,7 +9,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("repeat", 2, "")
 flags.DEFINE_integer("worker_threads", 5, "")
 flags.DEFINE_bool("clear_inputs", False, "")
-flags.DEFINE_bool("check_checksum", True, "")
+flags.DEFINE_bool("check_checksum", False, "")
 flags.DEFINE_bool("skip_input", False, "")
 
 datasets = {

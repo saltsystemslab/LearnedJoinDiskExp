@@ -1,16 +1,17 @@
 #!/usr/bin/python3
 import subprocess
+import asyncio
 from absl import app
 from absl import flags
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_integer("repeat", 0, "")
-flags.DEFINE_integer("scale", 1, "")
-flags.DEFINE_bool("only_one", False, "")
-flags.DEFINE_bool("debug", False, "")
+flags.DEFINE_integer("repeat", 2, "")
+flags.DEFINE_integer("worker_threads", 5, "")
+flags.DEFINE_string("dataset", "fb", "")
 flags.DEFINE_bool("clear_inputs", True, "")
-flags.DEFINE_bool("check_checksum", False, "")
+flags.DEFINE_bool("check_checksum", True, "")
+flags.DEFINE_bool("skip_input", False, "")
 
 datasets = {
     "fb": {
@@ -49,23 +50,21 @@ datasets = {
 
 def main(argv):
     benchmark_script = "./scripts/benchmark.py"
-    test_config = "--spec=./experiments/pgm_sampled/join.jsonnet"
-    for name, dataset in datasets.items():
-        args = [benchmark_script, test_config]
-        test_dir = "pgm_sampled"
-        if FLAGS.debug:
-            test_dir += "_debug"
-        args.append(f"--threads=1")
-        args.append(f"--repeat={FLAGS.repeat}")
-        args.append(f'--clear_inputs={FLAGS.clear_inputs}')
-        args.append(f'--check_results={FLAGS.check_checksum}')
-        args.append(f"--test_dir=sponge/{test_dir}")
-        args.append(f"--test_name=index_{name}")
-        args.append(f'--sosd_source={dataset["source"]}')
-        args.append(f'--sosd_num_keys={dataset["num_keys"]//FLAGS.scale}')
-        subprocess.run(args)
-        if FLAGS.only_one:
-            exit()
+    test_config = "--spec=./experiments/merge_all/merge.jsonnet"
+    for thread in [1]:
+            args = [benchmark_script, test_config]
+            args.append(f"--threads={thread}")
+            args.append(f"--repeat={FLAGS.repeat}")
+            args.append(f"--test_dir=sponge/merge_all")
+            args.append(f"--test_name={FLAGS.dataset}")
+            args.append(f'--clear_inputs={FLAGS.clear_inputs}')
+            args.append(f'--check_results={FLAGS.check_checksum}')
+            args.append(f'--sosd_source={datasets[FLAGS.dataset]["source"]}')
+            args.append(f'--sosd_num_keys={datasets[FLAGS.dataset]["num_keys"]}')
+            args.append(f'--workers={FLAGS.worker_threads}')
+            args.append(f'--skip_input={FLAGS.skip_input}')
+            print(args)
+            subprocess.run(args)
 
 if __name__ == "__main__":
     app.run(main)
