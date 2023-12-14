@@ -27,6 +27,7 @@ namespace li_merge {
 // TODO(chesetti): Rename FixedSizeKV to Disk.
 
 struct DiskSSTableMetadata {
+  static const int header_size = 16;
   std::string file_path;
   uint64_t num_keys;
   int key_size;
@@ -36,8 +37,8 @@ struct DiskSSTableMetadata {
   static DiskSSTableMetadata loadMetadata(std::string file_path) {
     int fd = open(file_path.c_str(), O_RDONLY);
     char header[16];
-    int bytes_read = pread(fd, header, HEADER_SIZE, 0);
-    assert(bytes_read == HEADER_SIZE);
+    int bytes_read = pread(fd, header, header_size, 0);
+    assert(bytes_read == header_size);
     uint64_t num_keys_ = *((uint64_t *)(header));
     int key_size_bytes_ = *((int *)(header + 8));
     int value_size_bytes_ = *((int *)(header + 12));
@@ -72,14 +73,14 @@ public:
     buf_first_idx_ = 0;
   }
 
-  bool isIdxInBuffer(uint64_t lo_idx) {
+  bool isIdxInBuffer(uint64_t idx) {
     if (!buf_len_)
       return false;
-    if (buf_first_idx_ > lo_idx)
+    if (buf_first_idx_ > idx)
       return false;
     uint64_t buf_last_idx_ =
         buf_first_idx_ + (buf_len_) / metadata_.getKVSize();
-    if (lo_idx >= buf_last_idx_)
+    if (idx >= buf_last_idx_)
       return false;
     return true;
   }
@@ -178,7 +179,7 @@ public:
     return KVSlice(peekWindow_.buf, metadata_.key_size, metadata_.val_size);
   }
   KVSlice key() override {
-    curWindow_ = peek_kv_cache_->getWindowFrom(cur_idx_, cur_idx_ + 1);
+    curWindow_ = cur_kv_cache_->getWindowFrom(cur_idx_, cur_idx_ + 1);
     return KVSlice(curWindow_.buf, metadata_.key_size, metadata_.val_size);
   }
   void seekToFirst() override { cur_idx_ = 0; }

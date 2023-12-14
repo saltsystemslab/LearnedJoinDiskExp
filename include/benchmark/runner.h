@@ -74,10 +74,6 @@ json run_test(json test_spec) {
   } else if (test_spec["algo"] == "sort_join") {
     op = new SortJoin<KVSlice>(outer_table, inner_table, inner_index,
                                comparator, result_table_builder, num_threads);
-  } else if (test_spec["algo"] == "sort_join_bin") {
-    op = new SortJoinBinSearch<KVSlice>(outer_table, inner_table, inner_index,
-                                        comparator, result_table_builder,
-                                        num_threads);
   } else if (test_spec["algo"] == "hash_join") {
     op = new HashJoin(outer_table, inner_table, inner_index, comparator,
                       result_table_builder, num_threads);
