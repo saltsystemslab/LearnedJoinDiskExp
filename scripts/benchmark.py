@@ -26,8 +26,6 @@ flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("clean", False, "")
 flags.DEFINE_bool("clear_inputs", False, "")
-flags.DEFINE_integer("workers", 1, "")
-
 flags.DEFINE_string("test_name", "unknown", "Test Case Name.")
 flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
 flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
@@ -60,8 +58,8 @@ def main(argv):
     generate_configs(exp['config']['inputs'], exp['input_config_dir'])
     generate_configs(exp['config']['tests'], exp['output_config_dir'])
     if not FLAGS.skip_input:
-        asyncio.run(run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False))
-    asyncio.run(run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True, num_workers=FLAGS.workers))
+        run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False)
+    run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True)
     if FLAGS.clear_inputs:
         shutil.rmtree(exp['input_dir'], ignore_errors=True)
 
@@ -79,11 +77,13 @@ def get_specname():
 
 def setup_experiment_directories():
     experiment_dir = os.path.join(FLAGS.test_dir, FLAGS.test_name + "_"+str(FLAGS.threads))
-    input_dir = os.path.join(experiment_dir, "inputs")
-    output_dir = os.path.join(experiment_dir, "outputs")
+    # Input json spec configs, where to generate them, where to store outputs.
     input_config_dir = os.path.join(experiment_dir, "input_configs")
-    output_config_dir = os.path.join(experiment_dir, "output_configs")
+    input_dir = os.path.join(experiment_dir, "inputs")
     input_result_dir = os.path.join(experiment_dir, "input_results")
+    # Output json spec configs, where to generate them, where to store outputs.
+    output_config_dir = os.path.join(experiment_dir, "output_configs")
+    output_dir = os.path.join(experiment_dir, "outputs")
     output_result_dir = os.path.join(output_dir, "results")
     csv_dir = os.path.join(experiment_dir, "csv")
     if FLAGS.clean:
@@ -122,60 +122,24 @@ def generate_configs(config_list, output_dir):
             config_json = json.dumps(config, indent=4)
             outfile.write(config_json)
 
-
-async def worker(queue, runner_bin, config_dir, result_dir, delete_result=False):
-    while True:
-        try:
-            config = await queue.get()
-            print("Queue Left: ", queue.qsize())
-            result_json =  run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
-            if delete_result:
-                os.remove(result_json['spec']['result_path'])
-            with open(os.path.join(result_dir, config), "w") as outfile:
-                result_json = json.dumps(result_json, indent=4)
-                outfile.write(result_json)
-            queue.task_done()
-        except Exception as e:
-            print(e)
-            queue.task_done()
-
-async def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False, num_workers=1):
+def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False):
         configs = os.listdir(config_dir)
         if shuffle:
             random.shuffle(configs)
         else:
             configs = sorted(configs)
 
-        queue = asyncio.Queue()
-        for config in configs:
-            queue.put_nowait(config)
-
         run_result_dir = os.path.join(result_dir, f'run')
         os.makedirs(run_result_dir, exist_ok=True)
 
         tasks = []
-        print(num_workers)
-        for i in range(num_workers):
-            task = asyncio.create_task(worker(queue, runner_bin, config_dir, run_result_dir, delete_result_path))
-            tasks.append(task)
-        await queue.join()
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-'''
-        i = 0
         for config in configs:
-            i = i + 1
-            #result_json = run([runner_bin, os.path.join(config_dir, config)], prefix="Running [%d/%d] %s" % (i, len(configs), config))
-            if delete_result_path:
-               os.remove(result_json['spec']['result_path'])
-            test_result_file = result_json
-            with open(os.path.join(run_result_dir, config), "w") as outfile:
+            result_json =  run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
+            if delete_result:
+                os.remove(result_json['spec']['result_path'])
+            with open(os.path.join(result_dir, config), "w") as outfile:
                 result_json = json.dumps(result_json, indent=4)
                 outfile.write(result_json)
-'''
-
 
 
 def run(command, force_dry_run=False, prefix=''):
