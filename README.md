@@ -1,21 +1,70 @@
+## Join & Merge Runner
 
+## Join Merge Binary
+
+```bash
+mkdir build
+cd build
+cmake ../ -DCMAKE_BUILD_TYPE=Release
+cmake --build .
+./benchmark_runner config.json
 ```
 
-#Index Build Stats and Duration
+### Example config.json
 
+You don't have to worry about writing these config jsons, use the script to trigger the binary.
+
+```json
+{
+    "algo": "inlj",
+    "algo_name": "inlj_btree256",
+    "check_checksum": true,
+    "common_key": 10,
+    "index": {
+        "epsilon": 256,
+        "leaf_size_in_pages": 1,
+        "search": "binary",
+        "type": "btree"
+    },
+    "inner_table": "sponge/join_all/books_1/inputs/inner",
+    "key_size": 8,
+    "key_type": "uint64",
+    "load_sstable_in_mem": false,
+    "name": "inlj_btree25610run_2",
+    "num_threads": 1,
+    "outer_table": "sponge/join_all/books_1/inputs/input10",
+    "result_path": "sponge/join_all/books_1/outputs/inlj_btree256_run_2_ratio_10",
+    "value_size": 8,
+    "write_result_to_disk": true
+}
 ```
-$python3 benchmark/run_indexes.py # (1 hr on patagonia).
-# Use scripts/index_report.ipynb
-```
-# To run all tests
-# Back up sponge rename to a new directory.
-$python3 benchmark/run_all.py # (Make sure to check the configuration)
 
+## Join & Merge Script Runner
 
-# To copy CSV files change directory in script/gen_report.py
-./benchmark/gen_report.py
-
+```bash
+python3 ./scripts/benchmark.py --spec=benchmark/sosd_join.jsonnet --threads=3 --repeat=3 --test_name=join_test --sosd_source=join_inputdataset --sosd_num_keys=1000000000 --clear_inputs=False
 ```
 
-To debug a single test case use ./benchmark/report.ipynb.
-To get grouped results use ./benchmark/mergejoin_report.ipynb
+
+
+## Input Datasets
+
+### SOSD
+
+```bash
+sudo apt -y update
+sudo apt -y install zstd python3-pip m4 cmake clang libboost-all-dev
+pip3 install --user numpy scipy
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+git clone git@github.com:learnedsystems/sosd
+cd sosd
+./scripts/download.sh
+```
+
+### String keys
+
+TODO
+
+

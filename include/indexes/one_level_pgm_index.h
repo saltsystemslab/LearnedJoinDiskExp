@@ -95,7 +95,7 @@ public:
   }
   // TODO: Overrride this and make take a string.
   void backToFile() override {
-        new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon, 0>(
+    auto index = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon, 0>(
             x_points_.begin(), x_points_.end(), filename_);
     x_points_.clear();
     std::vector<POINT_FLOAT_TYPE>().swap(x_points_);
