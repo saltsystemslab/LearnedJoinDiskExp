@@ -17,11 +17,7 @@ local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
 local num_threads = std.parseInt(std.extVar("TEST_NUM_THREADS"));
 local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 
-local max_ratio = 100;
-local points = 10;
-local step = max_ratio / points;
-local ratios = std.map(function(x) std.ceil(step * x), std.range(1, points));
-
+local ratios = [1, 10, 100, 1000];
 {
     inputs : 
         [input_template + {

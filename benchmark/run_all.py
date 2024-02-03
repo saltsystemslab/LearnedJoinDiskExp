@@ -1,9 +1,9 @@
 import subprocess
 
-default_args = ["--nouse_numactl"]
+default_args = []
 benchmark_script = "./scripts/benchmark.py"
 
-# Datasets with 200M items. Single Thread. Run 3 times. 10,20,...100
+# Datasets with 200M items.
 datasets = {
     "fb": {
         "source": "/home/chesetti/sosd-data/fb_200M_uint64",
@@ -31,18 +31,18 @@ datasets = {
     },
 }
 
-threads = [1, 4, 8]
+threads = [1, 4, 8, 16]
 for thread in threads:
     for name, dataset in datasets.items():
-        join_args = [benchmark_script, "--spec=benchmark/sosd_join_small.jsonnet"] + default_args
+        join_args = [benchmark_script, "--spec=benchmark/sosd_join.jsonnet"] + default_args
         args = join_args
         args.append(f"--threads={thread}")
-        args.append(f"--repeat=1")
+        args.append(f"--repeat=2")
         args.append(f"--nouse_numactl")
         args.append(f"--test_name=join_{name}")
         args.append(f'--sosd_source={dataset["source"]}')
         args.append(f'--sosd_num_keys={dataset["num_keys"]}')
-        args.append(f'--clear_inputs=False')
+        args.append(f'--clear_inputs=True')
         subprocess.run(args)
         exit()
 
@@ -58,7 +58,7 @@ for thread in threads:
 
 
 
-# Datasets with 800M items. Single Thread. Run 1 time. 10,20....100
+# Datasets with 800M items. Single Thread
 datasets = {
     "osm": {
         "source": "/home/chesetti/sosd-data/osm_cellids_800M_uint64",
@@ -75,7 +75,7 @@ for thread in threads:
         join_args = [benchmark_script, "--spec=benchmark/sosd_join.jsonnet"] + default_args
         args = join_args
         args.append(f"--threads={thread}")
-        args.append(f"--repeat=0")
+        args.append(f"--repeat=2")
         args.append(f"--test_name=join_{name}")
         args.append(f'--sosd_source={dataset["source"]}')
         args.append(f'--sosd_num_keys={dataset["num_keys"]}')
@@ -85,7 +85,7 @@ for thread in threads:
         merge_args = [benchmark_script, "--spec=benchmark/sosd_merge.jsonnet"] + default_args
         args = merge_args
         args.append(f"--threads={thread}")
-        args.append(f"--repeat=0")
+        args.append(f"--repeat=2")
         args.append(f"--test_name=merge_{name}")
         args.append(f'--sosd_source={dataset["source"]}')
         args.append(f'--sosd_num_keys={dataset["num_keys"]}')
