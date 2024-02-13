@@ -56,7 +56,7 @@ def init_datasets():
 def main(argv):
     datasets = init_datasets()
     benchmark_script = "./scripts/benchmark.py"
-    test_config = "--spec=./experiments/epsilon_vs_duration/join.jsonnet"
+    test_config = "--spec=./experiments/join_multithread/join.jsonnet"
     for name, dataset in datasets.items():
         for thread in [2, 4, 8, 16]:
             args = [benchmark_script, test_config]
