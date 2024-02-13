@@ -135,7 +135,8 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
         tasks = []
         for config in configs:
             result_json =  run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
-            if delete_result:
+            if delete_result_path:
+                print(result_json)
                 os.remove(result_json['spec']['result_path'])
             with open(os.path.join(result_dir, config), "w") as outfile:
                 result_json = json.dumps(result_json, indent=4)

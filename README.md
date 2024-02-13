@@ -1,3 +1,12 @@
+## Run all experiments
+
+Setup Input Datasets, see below.
+
+```
+./experiments/join_all/run.py --sosd_data_dir=<PATH_TO_DIR> --use_numactl
+
+```
+
 ## Join & Merge Runner
 
 ## Join Merge Binary
@@ -13,6 +22,7 @@ cmake --build .
 ### Example config.json
 
 You don't have to worry about writing these config jsons, use the script to trigger the binary.
+But here's how one looks anyways.
 
 ```json
 {
