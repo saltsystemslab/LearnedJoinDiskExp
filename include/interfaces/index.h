@@ -6,6 +6,7 @@
 #include "sstable.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <string>
 
 namespace li_merge {
 struct Bounds {
@@ -28,7 +29,7 @@ template <class T> class IndexBuilder {
 public:
   virtual void add(const T &t) = 0;
   virtual Index<T> *build() = 0;
-  virtual void backToFile() = 0; 
+  virtual void backToFile(std::string filename) = 0; 
 };
 
 template <class T>

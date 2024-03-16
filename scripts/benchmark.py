@@ -143,7 +143,7 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
                 outfile.write(result_json)
 
 
-def run(command, force_dry_run=False, prefix=''):
+def run(command, prefix=''):
     if FLAGS.regen_report:
         return
     if FLAGS.use_numactl:

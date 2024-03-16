@@ -14,6 +14,7 @@
 #include "search.h"
 #include "sstable.h"
 #include "synthetic.h"
+#include "benchmark.h"
 #include <openssl/md5.h>
 #include <unordered_set>
 
@@ -96,7 +97,7 @@ json run_test(json test_spec) {
   return result.stats;
 }
 
-json create_index(std::string name, Iterator<KVSlice> *iter,
+json create_index(std::string table_name, std::string index_name, Iterator<KVSlice> *iter,
                   IndexBuilder<KVSlice> *builder) {
   auto index_load_start = std::chrono::high_resolution_clock::now();
   iter->seekToFirst();
@@ -110,7 +111,7 @@ json create_index(std::string name, Iterator<KVSlice> *iter,
   auto index = builder->build();
   auto index_build_end = std::chrono::high_resolution_clock::now();
   json result;
-  result["index_name"] = name;
+  result["index_name"] = index_name;
   result["index_size"] = index->sizeInBytes();
   result["index_build_duration"] =
       std::chrono::duration_cast<std::chrono::nanoseconds>(index_build_end -
@@ -120,108 +121,74 @@ json create_index(std::string name, Iterator<KVSlice> *iter,
       std::chrono::duration_cast<std::chrono::nanoseconds>(index_load_end -
                                                            index_load_start)
           .count();
-  builder->backToFile();
+  builder->backToFile(table_name + "_" + index_name);
   return result;
 }
 
 json create_indexes(SSTable<KVSlice> *table,
                     KeyToPointConverter<KVSlice> *converter,
-                    std::string tableName, json test_spec) {
-  auto sampledpgm256 = 
-    new PgmIndexBuilder<KVSlice, 1>(0, 128, converter, tableName + "_sampledpgm256");
-  auto sampledpgm1024 = 
-    new PgmIndexBuilder<KVSlice, 4>(0, 128, converter, tableName + "_sampledpgm1024");
-  auto sampledpgm4096 = 
-    new PgmIndexBuilder<KVSlice, 16>(0, 128, converter, tableName + "_sampledpgm4096");
+                    std::string table_name, json test_spec) {
+  auto sampledpgm256 = new PgmIndexBuilder<KVSlice, 1, 128>(converter);
+  auto sampledpgm1024 = new PgmIndexBuilder<KVSlice, 4, 128>(converter);
+  auto sampledpgm4096 = new PgmIndexBuilder<KVSlice, 16, 128>(converter);
 
-  auto pgm256 =
-      new PgmIndexBuilder<KVSlice, 128>(0, 1, converter, tableName + "_pgm256");
-  auto pgm1024 =
-      new PgmIndexBuilder<KVSlice, 512>(0, 1, converter, tableName + "_pgm1024");
-  auto pgm4096 =
-      new PgmIndexBuilder<KVSlice, 2048>(0, 1, converter, tableName + "_pgm4096");
+  auto pgm256 = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
+  auto pgm1024 = new PgmIndexBuilder<KVSlice, 512, 1>(converter);
+  auto pgm4096 = new PgmIndexBuilder<KVSlice, 2048, 1>(converter);
 
-  auto flatpgm256 = new OneLevelPgmIndexBuilder<KVSlice, 128>(
-      0, 1, converter, tableName + "_flatpgm256");
-  auto flatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 512>(
-      0, 1, converter, tableName + "_flatpgm1024");
-  auto flatpgm4096 = new OneLevelPgmIndexBuilder<KVSlice, 2048>(
-      0, 1, converter, tableName + "_flatpgm4096");
+  auto flatpgm256 = new OneLevelPgmIndexBuilder<KVSlice, 128, 1>(converter);
+  auto flatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 512, 1>(converter);
+  auto flatpgm4096 = new OneLevelPgmIndexBuilder<KVSlice, 2048, 1>(converter);
 
-  auto sampledflatpgm256 = new OneLevelPgmIndexBuilder<KVSlice, 1>(
-      0, 128, converter, tableName + "_sampledflatpgm256");
-  auto sampledflatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 4>(
-      0, 128, converter, tableName + "_sampledflatpgm1024");
-  auto sampledflatpgm4096 = new OneLevelPgmIndexBuilder<KVSlice, 16>(
-      0, 128, converter, tableName + "_sampledflatpgm4096");
-
-  auto flatpgm8192 = new OneLevelPgmIndexBuilder<KVSlice, 4096>(
-      0, 1, converter, tableName + "_flatpgm8192");
+  auto sampledflatpgm256 = 
+    new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
+  auto sampledflatpgm1024 = 
+    new OneLevelPgmIndexBuilder<KVSlice, 4, 128>(converter);
+  auto sampledflatpgm4096 = 
+    new OneLevelPgmIndexBuilder<KVSlice, 16, 128>(converter);
 
   auto btree256 = new BTreeIndexBuilder(
       1 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"], tableName + "_btree256");
+      test_spec["value_size"]);
   auto btree1024 = new BTreeIndexBuilder(
       4 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"], tableName + "_btree1024");
+      test_spec["value_size"]);
   auto btree4096 = new BTreeIndexBuilder(
       16 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"], tableName + "_btree4096");
+      test_spec["value_size"]);
 
   json index_stats = json::array();
 
   index_stats.push_back(
-      create_index("sampledpgm256", table->iterator(), sampledpgm256));
+      create_index(table_name, "sampledpgm256", table->iterator(), sampledpgm256));
   index_stats.push_back(
-      create_index("sampledpgm1024", table->iterator(), sampledpgm1024));
+      create_index(table_name, "sampledpgm1024", table->iterator(), sampledpgm1024));
   index_stats.push_back(
-      create_index("sampledpgm4096", table->iterator(), sampledpgm4096));
-  index_stats.push_back(create_index("pgm256", table->iterator(), pgm256));
-  index_stats.push_back(create_index("pgm1024", table->iterator(), pgm1024));
-  index_stats.push_back(create_index("pgm4096", table->iterator(), pgm4096));
-  index_stats.push_back(
-      create_index("flatpgm256", table->iterator(), flatpgm256));
-  index_stats.push_back(
-      create_index("flatpgm1024", table->iterator(), flatpgm1024));
-  index_stats.push_back(
-      create_index("flatpgm4096", table->iterator(), flatpgm4096));
-  index_stats.push_back(
-      create_index("sampledflatpgm256", table->iterator(), sampledflatpgm256));
-  index_stats.push_back(
-      create_index("sampledflatpgm1024", table->iterator(), sampledflatpgm1024));
-  index_stats.push_back(
-      create_index("sampledflatpgm4096", table->iterator(), sampledflatpgm4096));
-  index_stats.push_back(
-      create_index("flatpgm8192", table->iterator(), flatpgm8192));
-  index_stats.push_back(create_index("btree256", table->iterator(), btree256));
-  index_stats.push_back(
-      create_index("btree1024", table->iterator(), btree1024));
-  index_stats.push_back(
-      create_index("btree4096", table->iterator(), btree4096));
+      create_index(table_name, "sampledpgm4096", table->iterator(), sampledpgm4096));
 
-  /*
-  sampledpgm256->backToFile();
-  sampledpgm1024->backToFile();
-  sampledpgm2048->backToFile();
-  sampledpgm4096->backToFile();
-  sampledflatpgm256->backToFile();
-  sampledflatpgm1024->backToFile();
-  sampledflatpgm2048->backToFile();
-  sampledflatpgm4096->backToFile();
-  pgm256->backToFile();
-  pgm1024->backToFile();
-  pgm2048->backToFile();
-  pgm4096->backToFile();
-  flatpgm256->backToFile();
-  flatpgm1024->backToFile();
-  flatpgm2048->backToFile();
-  flatpgm4096->backToFile();
-  flatpgm8192->backToFile();
-  btree256->backToFile();
-  btree1024->backToFile();
-  btree2048->backToFile();
-  btree4096->backToFile();
-  */
+  index_stats.push_back(create_index(table_name, "pgm256", table->iterator(), pgm256));
+  index_stats.push_back(create_index(table_name, "pgm1024", table->iterator(), pgm1024));
+  index_stats.push_back(create_index(table_name, "pgm4096", table->iterator(), pgm4096));
+
+  index_stats.push_back(
+      create_index(table_name, "flatpgm256", table->iterator(), flatpgm256));
+  index_stats.push_back(
+      create_index(table_name, "flatpgm1024", table->iterator(), flatpgm1024));
+  index_stats.push_back(
+      create_index(table_name, "flatpgm4096", table->iterator(), flatpgm4096));
+
+  index_stats.push_back(
+      create_index(table_name, "sampledflatpgm256", table->iterator(), sampledflatpgm256));
+  index_stats.push_back(
+      create_index(table_name, "sampledflatpgm1024", table->iterator(), sampledflatpgm1024));
+  index_stats.push_back(
+      create_index(table_name, "sampledflatpgm4096", table->iterator(), sampledflatpgm4096));
+
+  index_stats.push_back(create_index(table_name, "btree256", table->iterator(), btree256));
+  index_stats.push_back(
+      create_index(table_name, "btree1024", table->iterator(), btree1024));
+  index_stats.push_back(
+      create_index(table_name, "btree4096", table->iterator(), btree4096));
 
   return index_stats;
 }
@@ -244,28 +211,15 @@ json create_input_sstable(json test_spec) {
       table = generate_uniform_random_distribution(num_keys, key_size_bytes,
                                                    value_size_bytes, comparator,
                                                    result_table_builder);
-    } else {
-      std::string source = test_spec["source"];
-      SSTable<KVSlice> *table = load_sstable(source, false);
-      auto iter = table->iterator()->numElts();
-      int fd = open(source.c_str(), O_RDONLY);
-      // First 8 bytes are count, this is same for our SSTable and SOSD.
-      uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
-      std::set<uint64_t> common_keys; // UNUSED.
-      table = generate_from_datafile(fd, 16 /* We use a 16 byte header*/,
-                                     key_size_bytes, value_size_bytes,
-                                     num_keys_in_dataset, num_keys, common_keys,
-                                     get_result_builder(test_spec));
     }
   } else if (test_spec["method"] == "sosd") {
-    std::string source = test_spec["source"];
-    int fd = open(source.c_str(), O_RDONLY);
+    std::string source_path = test_spec["source"];
+    std::string result_path = test_spec["result_path"];
+    int fd = open(source_path.c_str(), O_RDONLY);
     uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
     std::set<uint64_t> common_keys; // UNUSED.
-    table = generate_from_datafile(fd, 8, key_size_bytes, value_size_bytes,
-                                   num_keys_in_dataset, num_keys, common_keys,
-                                   get_result_builder(test_spec));
-    // Create indexes for the input tables.
+    CreateInputTablesFromSosdDataset action(source_path, result_path, num_keys_in_dataset/num_keys);
+    table = action.doAction().outputTable;
     close(fd);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
@@ -322,52 +276,49 @@ SearchStrategy<KVSlice> *get_search_strategy(json test_spec) {
 
 Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   if (!test_spec.contains("index")) {
-    return new PgmIndex<KVSlice, 256>(table_path + "_pgm256",
-                                      get_converter(test_spec), 1);
+    return new PgmIndex<KVSlice, 256, 1>(table_path + "_pgm256",
+                                      get_converter(test_spec));
   }
   std::string index_type = test_spec["index"]["type"];
   if (index_type == "sampledpgm256") {
-    return new PgmIndex<KVSlice, 1>(table_path + "_sampledpgm256",
-                                      get_converter(test_spec), 128);
+    return new PgmIndex<KVSlice, 1, 128>(table_path + "_sampledpgm256",
+                                      get_converter(test_spec));
   } else if (index_type == "sampledpgm1024") {
-    return new PgmIndex<KVSlice, 4>(table_path + "_sampledpgm1024",
-                                      get_converter(test_spec), 128);
+    return new PgmIndex<KVSlice, 4, 128>(table_path + "_sampledpgm1024",
+                                      get_converter(test_spec));
   } else if (index_type == "sampledpgm4096") {
-    return new PgmIndex<KVSlice, 16>(table_path + "_sampledpgm4096",
-                                      get_converter(test_spec), 128);
+    return new PgmIndex<KVSlice, 16, 128>(table_path + "_sampledpgm4096",
+                                      get_converter(test_spec));
   } else if (index_type == "pgm256") {
-    return new PgmIndex<KVSlice, 128>(table_path + "_pgm256",
-                                      get_converter(test_spec), 1);
+    return new PgmIndex<KVSlice, 128, 1>(table_path + "_pgm256",
+                                      get_converter(test_spec));
   } else if (index_type == "pgm1024") {
-    return new PgmIndex<KVSlice, 512>(table_path + "_pgm1024",
-                                      get_converter(test_spec), 1);
+    return new PgmIndex<KVSlice, 512, 1>(table_path + "_pgm1024",
+                                      get_converter(test_spec));
   } else if (index_type == "pgm4096") {
-    return new PgmIndex<KVSlice, 2048>(table_path + "_pgm4096",
-                                       get_converter(test_spec), 1);
+    return new PgmIndex<KVSlice, 2048, 1>(table_path + "_pgm4096",
+                                       get_converter(test_spec));
   } else if (index_type == "flatpgm256") {
-    return new OneLevelPgmIndex<KVSlice, 128>(table_path + "_flatpgm256",
-                                              get_converter(test_spec), 1);
+    return new OneLevelPgmIndex<KVSlice, 128, 1>(table_path + "_flatpgm256",
+                                              get_converter(test_spec));
   } else if (index_type == "flatpgm1024") {
-    return new OneLevelPgmIndex<KVSlice, 512>(table_path + "_flatpgm1024",
-                                              get_converter(test_spec), 1);
+    return new OneLevelPgmIndex<KVSlice, 512, 1>(table_path + "_flatpgm1024",
+                                              get_converter(test_spec));
   } else if (index_type == "flatpgm4096") {
-    return new OneLevelPgmIndex<KVSlice, 2048>(table_path + "_flatpgm4096",
-                                               get_converter(test_spec), 1);
+    return new OneLevelPgmIndex<KVSlice, 2048, 1>(table_path + "_flatpgm4096",
+                                               get_converter(test_spec));
   } else if (index_type == "flatpgm4096") {
-    return new OneLevelPgmIndex<KVSlice, 2048>(table_path + "_flatpgm4096",
-                                               get_converter(test_spec), 1);
-  } else if (index_type == "flatpgm8192") {
-    return new OneLevelPgmIndex<KVSlice, 4096>(table_path + "_flatpgm8192",
-                                               get_converter(test_spec), 1);
+    return new OneLevelPgmIndex<KVSlice, 2048, 1>(table_path + "_flatpgm4096",
+                                               get_converter(test_spec));
   } else if (index_type == "sampledflatpgm256") {
-    return new OneLevelPgmIndex<KVSlice, 1>(table_path + "_sampledflatpgm256",
-                                              get_converter(test_spec), 128);
+    return new OneLevelPgmIndex<KVSlice, 1, 128>(table_path + "_sampledflatpgm256",
+                                              get_converter(test_spec));
   } else if (index_type == "sampledflatpgm1024") {
-    return new OneLevelPgmIndex<KVSlice, 4>(table_path + "_sampledflatpgm1024",
-                                              get_converter(test_spec), 128);
+    return new OneLevelPgmIndex<KVSlice, 4, 128>(table_path + "_sampledflatpgm1024",
+                                              get_converter(test_spec));
   } else if (index_type == "sampledflatpgm4096") {
-    return new OneLevelPgmIndex<KVSlice, 16>(table_path + "_sampledflatpgm4096",
-                                               get_converter(test_spec), 128);
+    return new OneLevelPgmIndex<KVSlice, 16, 128>(table_path + "_sampledflatpgm4096",
+                                               get_converter(test_spec));
   }
   
   else if (index_type == "btree") {

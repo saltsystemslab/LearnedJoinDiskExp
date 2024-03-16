@@ -86,7 +86,7 @@ class FixedKSizeKVFileCache {
 public:
   FixedKSizeKVFileCache(int fd, int key_size_bytes, int value_size_bytes,
                         uint64_t file_start_offset, int cache_size_in_pages,
-                        bool load_ahead)
+                        bool load_ahead = false)
       : file_page_cache_(new FileNPageBuffer(fd, file_start_offset,
                                              cache_size_in_pages, load_ahead)),
         key_size_bytes_(key_size_bytes), value_size_bytes_(value_size_bytes),

@@ -157,8 +157,8 @@ private:
 class BTreeIndexBuilder : public IndexBuilder<KVSlice> {
 public:
   BTreeIndexBuilder(int leaf_size_in_pages, int key_size_bytes,
-                    int value_size_bytes, std::string filename)
-      : num_elts_(0), block_id(0), filename_(filename) {
+                    int value_size_bytes)
+      : num_elts_(0), block_id(0)  {
     tree_ = new stx_btree();
     // TODO(chesetti): Use PAGE_SIZE HERE.
     num_items_block_ =
@@ -184,8 +184,9 @@ public:
     tree_->bulk_load(elts_.begin(), elts_.end());
     return new BTreeWIndex(tree_, num_items_block_, block_id);
   }
-  void backToFile() override { 
-    storeElts(elts_, filename_); }
+  void backToFile(std::string filename) override { 
+    storeElts(elts_, filename); 
+  }
 
 private:
   uint64_t num_elts_;
@@ -193,7 +194,6 @@ private:
   std::vector<std::pair<KEY_TYPE, uint64_t>> elts_;
   stx_btree *tree_;
   int num_items_block_;
-  std::string filename_;
 };
 
 } // namespace li_merge
