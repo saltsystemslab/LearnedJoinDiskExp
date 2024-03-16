@@ -37,7 +37,7 @@ datasets = {
 }
 
 for name, dataset in datasets.items():
-        args = [benchmark_script, "--spec=benchmark/sosd_index.jsonnet"]
+        args = [benchmark_script, "--spec=experiments/index_size/sosd_index.jsonnet"]
         args.append(f"--threads=1")
         args.append(f"--repeat=0")
         args.append(f"--test_name=index_{name}")
