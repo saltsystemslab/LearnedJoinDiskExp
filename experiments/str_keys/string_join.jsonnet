@@ -129,6 +129,7 @@ local ratios = [1, 10, 100, 1000];
             "name": name,
             "num_keys": num_keys_in_inner,
             "result_path": test_input_dir + "/inner",
+            "fraction_of_keys": 1,
             "create_indexes": true,
         }] +
         [
@@ -137,6 +138,7 @@ local ratios = [1, 10, 100, 1000];
             "num_keys": std.ceil(num_keys_in_inner/i),
             "name": name,
             "result_path": test_input_dir + "/" + name,
+            "fraction_of_keys": 1,
             "create_indexes": false,
             "source": test_input_dir + "/inner",
             }  for i in ratios

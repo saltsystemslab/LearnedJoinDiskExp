@@ -97,146 +97,34 @@ json run_test(json test_spec) {
   return result.stats;
 }
 
-json create_index(std::string table_name, std::string index_name, Iterator<KVSlice> *iter,
-                  IndexBuilder<KVSlice> *builder) {
-  auto index_load_start = std::chrono::high_resolution_clock::now();
-  iter->seekToFirst();
-  while (iter->valid()) {
-    builder->add(iter->key());
-    iter->next();
-  }
-  auto index_load_end = std::chrono::high_resolution_clock::now();
-
-  auto index_build_start = std::chrono::high_resolution_clock::now();
-  auto index = builder->build();
-  auto index_build_end = std::chrono::high_resolution_clock::now();
-  json result;
-  result["index_name"] = index_name;
-  result["index_size"] = index->sizeInBytes();
-  result["index_build_duration"] =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(index_build_end -
-                                                           index_build_start)
-          .count();
-  result["index_load_duration"] =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(index_load_end -
-                                                           index_load_start)
-          .count();
-  builder->backToFile(table_name + "_" + index_name);
-  return result;
-}
-
-json create_indexes(SSTable<KVSlice> *table,
-                    KeyToPointConverter<KVSlice> *converter,
-                    std::string table_name, json test_spec) {
-  auto sampledpgm256 = new PgmIndexBuilder<KVSlice, 1, 128>(converter);
-  auto sampledpgm1024 = new PgmIndexBuilder<KVSlice, 4, 128>(converter);
-  auto sampledpgm4096 = new PgmIndexBuilder<KVSlice, 16, 128>(converter);
-
-  auto pgm256 = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
-  auto pgm1024 = new PgmIndexBuilder<KVSlice, 512, 1>(converter);
-  auto pgm4096 = new PgmIndexBuilder<KVSlice, 2048, 1>(converter);
-
-  auto flatpgm256 = new OneLevelPgmIndexBuilder<KVSlice, 128, 1>(converter);
-  auto flatpgm1024 = new OneLevelPgmIndexBuilder<KVSlice, 512, 1>(converter);
-  auto flatpgm4096 = new OneLevelPgmIndexBuilder<KVSlice, 2048, 1>(converter);
-
-  auto sampledflatpgm256 = 
-    new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
-  auto sampledflatpgm1024 = 
-    new OneLevelPgmIndexBuilder<KVSlice, 4, 128>(converter);
-  auto sampledflatpgm4096 = 
-    new OneLevelPgmIndexBuilder<KVSlice, 16, 128>(converter);
-
-  auto btree256 = new BTreeIndexBuilder(
-      1 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"]);
-  auto btree1024 = new BTreeIndexBuilder(
-      4 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"]);
-  auto btree4096 = new BTreeIndexBuilder(
-      16 * (uint64_t)test_spec["key_size"] / 8, test_spec["key_size"],
-      test_spec["value_size"]);
-
-  json index_stats = json::array();
-
-  index_stats.push_back(
-      create_index(table_name, "sampledpgm256", table->iterator(), sampledpgm256));
-  index_stats.push_back(
-      create_index(table_name, "sampledpgm1024", table->iterator(), sampledpgm1024));
-  index_stats.push_back(
-      create_index(table_name, "sampledpgm4096", table->iterator(), sampledpgm4096));
-
-  index_stats.push_back(create_index(table_name, "pgm256", table->iterator(), pgm256));
-  index_stats.push_back(create_index(table_name, "pgm1024", table->iterator(), pgm1024));
-  index_stats.push_back(create_index(table_name, "pgm4096", table->iterator(), pgm4096));
-
-  index_stats.push_back(
-      create_index(table_name, "flatpgm256", table->iterator(), flatpgm256));
-  index_stats.push_back(
-      create_index(table_name, "flatpgm1024", table->iterator(), flatpgm1024));
-  index_stats.push_back(
-      create_index(table_name, "flatpgm4096", table->iterator(), flatpgm4096));
-
-  index_stats.push_back(
-      create_index(table_name, "sampledflatpgm256", table->iterator(), sampledflatpgm256));
-  index_stats.push_back(
-      create_index(table_name, "sampledflatpgm1024", table->iterator(), sampledflatpgm1024));
-  index_stats.push_back(
-      create_index(table_name, "sampledflatpgm4096", table->iterator(), sampledflatpgm4096));
-
-  index_stats.push_back(create_index(table_name, "btree256", table->iterator(), btree256));
-  index_stats.push_back(
-      create_index(table_name, "btree1024", table->iterator(), btree1024));
-  index_stats.push_back(
-      create_index(table_name, "btree4096", table->iterator(), btree4096));
-
-  return index_stats;
-}
-
 json create_input_sstable(json test_spec) {
   json result;
   std::string result_path = test_spec["result_path"];
-  int key_size_bytes = test_spec["key_size"];
-  int value_size_bytes = test_spec["value_size"];
-  uint64_t num_keys = test_spec["num_keys"];
-  Comparator<KVSlice> *comparator = get_comparator(test_spec);
-  SSTableBuilder<KVSlice> *result_table_builder = get_result_builder(test_spec);
-  auto merge_start = std::chrono::high_resolution_clock::now();
+  uint64_t fraction_of_keys = (uint64_t)test_spec["fraction_of_keys"];
 
-  SSTable<KVSlice> *table;
+  CreateInputTable *createInputTable;
   if (test_spec["method"] == "string") {
-    // Inner table creates index, so we use it as a source.
-    // This it keep 100% selectivity.
-    if (test_spec["create_indexes"] == true) {
-      table = generate_uniform_random_distribution(num_keys, key_size_bytes,
-                                                   value_size_bytes, comparator,
-                                                   result_table_builder);
+    if (fraction_of_keys == 1) {
+      uint64_t num_keys = test_spec["num_keys"];
+      createInputTable = new Create16ByteStringTables(result_path, num_keys);
+    } else {
+      std::string source_path = test_spec["source"];
+      createInputTable = new Create16ByteStringTables(result_path, source_path, fraction_of_keys);
     }
   } else if (test_spec["method"] == "sosd") {
     std::string source_path = test_spec["source"];
-    std::string result_path = test_spec["result_path"];
-    int fd = open(source_path.c_str(), O_RDONLY);
-    uint64_t num_keys_in_dataset = get_num_keys_from_sosd_dataset(fd);
-    std::set<uint64_t> common_keys; // UNUSED.
-    CreateInputTablesFromSosdDataset action(source_path, result_path, num_keys_in_dataset/num_keys);
-    table = action.doAction().outputTable;
-    close(fd);
+    createInputTable = new CreateInputTablesFromSosdDataset(source_path, result_path, fraction_of_keys);
   } else {
     fprintf(stderr, "Unsupported input creation method!");
     abort();
   }
+
+  SSTable<KVSlice> *table = createInputTable->profileAndCreateInputTable().outputTable;
+
   if (test_spec["create_indexes"]) {
-    result["index_stats"] =
-        create_indexes(table, get_converter(test_spec), result_path, test_spec);
+    CreateIndexes action(result_path, table, get_converter(test_spec));
+    result["index_stats"] = action.doAction();
   }
-  auto merge_end = std::chrono::high_resolution_clock::now();
-  auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         merge_end - merge_start)
-                         .count();
-  float duration_sec = duration_ns / 1e9;
-  result["input_created"] = true;
-  result["duration_sec"] = duration_sec;
-  delete comparator;
   return result;
 }
 
@@ -359,11 +247,15 @@ SSTableBuilder<KVSlice> *get_result_builder(json test_spec) {
 
 PSSTableBuilder<KVSlice> *
 get_parallel_result_builder_for_merge(json test_spec) {
+  int num_threads = test_spec["num_threads"];
   bool write_result_to_disk = test_spec["write_result_to_disk"];
   int key_size_bytes = test_spec["key_size"];
   int value_size_bytes = test_spec["value_size"];
   if (write_result_to_disk) {
     std::string result_file = test_spec["result_path"];
+    if (num_threads == 1) {
+      return new PSingleDiskSSTableBuilder(result_file, key_size_bytes, value_size_bytes);
+    }
     return new PFixedSizeKVDiskSSTableBuilder(result_file, key_size_bytes,
                                               value_size_bytes);
   } else {
@@ -373,11 +265,15 @@ get_parallel_result_builder_for_merge(json test_spec) {
 }
 
 PSSTableBuilder<KVSlice> *get_parallel_result_builder_for_join(json test_spec) {
+  int num_threads = test_spec["num_threads"];
   bool write_result_to_disk = test_spec["write_result_to_disk"];
   int key_size_bytes = test_spec["key_size"];
   int value_size_bytes = test_spec["value_size"];
   if (write_result_to_disk) {
     std::string result_file = test_spec["result_path"];
+    if (num_threads == 1) {
+      return new PSingleDiskSSTableBuilder(result_file, key_size_bytes, value_size_bytes);
+    }
     return new PSplitFixedSizeKVDiskSSTableBuilder(result_file, key_size_bytes,
                                                    value_size_bytes);
   } else {

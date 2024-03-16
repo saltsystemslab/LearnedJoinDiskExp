@@ -88,6 +88,7 @@ local ratios = [1, 10, 100, 1000];
             local name = "inner",
             "name": name,
             "num_keys": num_keys_in_inner,
+            "fraction_of_keys": 1,
             "result_path": test_input_dir + "/inner",
             "create_indexes": true,
         }] +
@@ -95,6 +96,7 @@ local ratios = [1, 10, 100, 1000];
             input_template + {
             local name = "input" + i,
             "num_keys": std.ceil(num_keys_in_inner/i),
+            "fraction_of_keys": i,
             "name": name,
             "result_path": test_input_dir + "/" + name,
             "create_indexes": false,

@@ -429,6 +429,35 @@ private:
   int value_size_bytes_;
   std::map<uint64_t, SSTableBuilder<KVSlice> *> subRangeBuilders;
 };
+
+class PSingleDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
+public:
+  PSingleDiskSSTableBuilder(std::string file_path, int key_size_bytes,
+                                      int value_size_bytes)
+      : file_path_(file_path), key_size_bytes_(key_size_bytes),
+        value_size_bytes_(value_size_bytes) {}
+  SSTableBuilder<KVSlice> *getBuilderForRange(uint64_t start_index,
+                                              uint64_t end_index) override {
+    // Create a new file for each range and then merge them later.
+    if (start_index != 0) {
+      abort();
+    }
+    std::string subRangeFilePath = file_path_;
+    subRangeBuilders[start_index] = new FixedSizeKVDiskSSTableBuilder(
+        subRangeFilePath, key_size_bytes_, value_size_bytes_, 0, true);
+    return subRangeBuilders[start_index];
+  }
+
+  SSTable<KVSlice> *build() override {
+    return subRangeBuilders[0]->build();
+  }
+
+private:
+  std::string file_path_;
+  int key_size_bytes_;
+  int value_size_bytes_;
+  std::map<uint64_t, SSTableBuilder<KVSlice> *> subRangeBuilders;
+};
 // ========= IMPLEMENTATTION ===============
 
 void FixedSizeKVDiskSSTableBuilder::writeHeader() {

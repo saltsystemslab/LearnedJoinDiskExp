@@ -1,6 +1,7 @@
 build/*
 .idea/*
 test_runs/*
+release/*
 bench_release/*
 bench_debug/*
 datasets/*
