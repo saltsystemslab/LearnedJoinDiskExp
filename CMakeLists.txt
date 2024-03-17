@@ -28,6 +28,7 @@ include_directories(
   include/datastructures/btree/
   third_party/pgm/include
   third_party/LearnedIndexDiskExp/code/b+_tree/stx-btree-0.9/include
+  third_party/RadixSpline/include
 )
 
 set(THIRD_PARTY GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)

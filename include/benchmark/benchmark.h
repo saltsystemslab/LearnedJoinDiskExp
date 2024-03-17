@@ -4,6 +4,7 @@
 #include "comparator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
+#include "radix_spline_index.h"
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -30,7 +31,6 @@ public:
     uint64_t *num_keys = (uint64_t *)bytes;
     return *num_keys;
   }
-  SSTable<KVSlice> *load_sstable(std::string path) {}
 
   virtual SSTable<KVSlice> *createInputTable() = 0;
   CreateInputTableResult profileAndCreateInputTable() {
@@ -234,6 +234,7 @@ public:
           select_indexes_uniform(num_keys_to_extract, num_keys_in_dataset);
       for (auto key_idx : selected_indexes) {
         KVSlice k = dataset.get_kv(key_idx);
+        memcpy(kv_buf, k.data(), key_size_bytes);
         fix_value(kv_buf, key_size_bytes, value_size_bytes);
         // Remove max_uint64.
         if (memcmp(kv_buf, max_uint64, key_size_bytes + value_size_bytes) ==
@@ -319,6 +320,9 @@ public:
         new PgmIndexBuilder<KVSlice, 4, 128>(converter);
     indexBuilders["sampledpgm4096"] =
         new PgmIndexBuilder<KVSlice, 16, 128>(converter);
+    indexBuilders["radixspline256"] = new RadixSplineIndexBuilder<KVSlice>(converter, 256);
+    indexBuilders["radixspline1024"] = new RadixSplineIndexBuilder<KVSlice>(converter, 1024);
+    indexBuilders["radixspline4096"] = new RadixSplineIndexBuilder<KVSlice>(converter, 4096);
 
 #ifdef STRING_KEYS
     uint64_t key_size = 16;

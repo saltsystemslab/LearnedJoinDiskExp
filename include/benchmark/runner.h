@@ -207,6 +207,15 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   } else if (index_type == "sampledflatpgm4096") {
     return new OneLevelPgmIndex<KVSlice, 16, 128>(table_path + "_sampledflatpgm4096",
                                                get_converter(test_spec));
+  } else if (index_type == "radixspline256") {
+    return new RadixSplineIndex<KVSlice>(table_path + "_radixspline256",
+                                               get_converter(test_spec), 256);
+  } else if (index_type == "radixspline1024") {
+    return new RadixSplineIndex<KVSlice>(table_path + "_radixspline1024",
+                                               get_converter(test_spec), 1024);
+  } else if (index_type == "radixspline4096") {
+    return new RadixSplineIndex<KVSlice>(table_path + "_radixspline4096",
+                                               get_converter(test_spec), 4096);
   }
   
   else if (index_type == "btree") {
