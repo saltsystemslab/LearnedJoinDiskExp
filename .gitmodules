@@ -13,3 +13,6 @@
 [submodule "third_party/sosd"]
 	path = third_party/sosd
 	url = https://github.com/learnedsystems/SOSD
+[submodule "third_party/RadixSpline"]
+	path = third_party/RadixSpline
+	url = https://github.com/saltsystemslab/RadixSpline
