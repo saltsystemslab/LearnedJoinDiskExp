@@ -26,6 +26,7 @@ include_directories(
   include/sstable
   include/datastructures/betree/
   include/datastructures/btree/
+  rmi/
   third_party/pgm/include
   third_party/LearnedIndexDiskExp/code/b+_tree/stx-btree-0.9/include
   third_party/RadixSpline/include
@@ -43,7 +44,7 @@ if (STRING_KEYS)
   add_compile_definitions(STRING_KEYS=1)
 endif()
 
-add_executable(benchmark_runner src/test_runner.cpp)
+add_executable(benchmark_runner src/test_runner.cpp )
 #target_link_libraries(benchmark_runner PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(benchmark_runner PRIVATE ${THIRD_PARTY})
 

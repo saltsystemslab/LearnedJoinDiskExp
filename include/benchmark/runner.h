@@ -10,6 +10,7 @@
 #include "merge.h"
 #include "one_level_pgm_index.h"
 #include "pgm_index.h"
+#include "rmi_index.h"
 #include "runner.h"
 #include "search.h"
 #include "sstable.h"
@@ -125,6 +126,8 @@ json create_input_sstable(json test_spec) {
     CreateIndexes action(result_path, table, get_converter(test_spec));
     result["index_stats"] = action.doAction();
   }
+  // printf("Num Keys: %lld\n", table->iterator()->numElts());
+  result["num_keys"] = table->iterator()->numElts();
   return result;
 }
 
@@ -216,6 +219,8 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   } else if (index_type == "radixspline4096") {
     return new RadixSplineIndex<KVSlice>(table_path + "_radixspline4096",
                                                get_converter(test_spec), 4096);
+  } else if (index_type == "rmi") {
+    return new RmiIndex<KVSlice>(test_spec["index"]["dataset"], get_converter(test_spec));
   }
   
   else if (index_type == "btree") {

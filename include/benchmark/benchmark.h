@@ -225,6 +225,7 @@ public:
         if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) == 0) {
           continue;
         }
+        memcpy(prev_buf, kv_buf, key_size_bytes + value_size_bytes);
         builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
       }
     } else {
@@ -245,6 +246,7 @@ public:
         if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) == 0) {
           continue;
         }
+        memcpy(prev_buf, kv_buf, key_size_bytes + value_size_bytes);
         builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
       }
     }

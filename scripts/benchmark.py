@@ -15,6 +15,7 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_string("spec", "", "JSON Test Spec")
 flags.DEFINE_string("test_dir", "sponge", "JSON Test Spec")
+flags.DEFINE_bool("dry_run", False, "Skip run")
 flags.DEFINE_bool("skip_input", False, "Skip input creation")
 flags.DEFINE_bool("check_results", False, "Verify that all the outputs are same.")
 flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmark stats.")
@@ -47,6 +48,7 @@ def main(argv):
             "TEST_NUM_THREADS": str(FLAGS.threads),
             "TEST_DATASET_SIZE": str(FLAGS.sosd_num_keys),
             "TEST_DATASET_SOURCE": str(FLAGS.sosd_source),
+            "TEST_DATASET_NAME": str(os.path.basename(FLAGS.sosd_source)),
             "TEST_CHECK_CHECKSUM": str(FLAGS.check_results)
         }
     ))
@@ -132,7 +134,9 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
         run_result_dir = os.path.join(result_dir, f'run')
         os.makedirs(run_result_dir, exist_ok=True)
 
-        tasks = []
+        if FLAGS.dry_run:
+            return
+
         for config in configs:
             result_json =  run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
             if delete_result_path:

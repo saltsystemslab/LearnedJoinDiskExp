@@ -11,6 +11,7 @@ local input_template = key_template + {
     "write_result_to_disk": true, // Can be false.
     "source": std.extVar("TEST_DATASET_SOURCE")
 };
+local dataset_name = std.extVar("TEST_DATASET_NAME");
 local test_output_dir = std.extVar("TEST_OUTPUT_DIR");
 local test_input_dir = std.extVar("TEST_INPUT_DIR");
 local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
@@ -22,14 +23,16 @@ local all_index_names = [
     "pgm1024", "flatpgm1024", "sampledflatpgm1024", 
     "pgm4096", "flatpgm4096", "sampledflatpgm4096", 
     "btree256", "btree1024", "btree4096", 
-    "radixspline256", "radixspline1024, "radixspline4096",
+    "radixspline256", "radixspline1024", "radixspline4096",
+    "rmi",
 ];
 local index_names = [
      "pgm256", "flatpgm256", "sampledflatpgm256", 
      "pgm1024", "flatpgm1024", "sampledflatpgm1024", 
      "pgm4096", "flatpgm4096", "sampledflatpgm4096", 
     "btree256", "btree1024", "btree4096", 
-    "radixspline256", "radixspline1024, "radixspline4096",
+    "radixspline256", "radixspline1024", "radixspline4096",
+    "rmi",
 ];
 
 local indexes = {
@@ -104,16 +107,21 @@ local indexes = {
         "type": "radixspline256",
         "search": "binary",
         "epsilon": 256,
-    }
+    },
     "radixspline1024": {
         "type": "radixspline1024",
         "search": "binary",
         "epsilon": 1024,
-    }
+    },
     "radixspline4096": {
         "type": "radixspline4096",
         "search": "binary",
         "epsilon": 4096,
+    },
+    "rmi": {
+        "type": "rmi",
+        "search": "binary",
+        "dataset": dataset_name,
     }
 };
 

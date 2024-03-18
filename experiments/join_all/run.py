@@ -13,6 +13,7 @@ flags.DEFINE_bool("clear_inputs", True, "")
 flags.DEFINE_bool("check_checksum", True, "")
 flags.DEFINE_bool("skip_input", False, "")
 flags.DEFINE_bool("use_numactl", False, "")
+flags.DEFINE_bool("dry_run", False, "")
 flags.DEFINE_string("sosd_data_dir", "./data", "")
 
 def init_datasets():
@@ -68,6 +69,7 @@ def main(argv):
             args.append(f'--sosd_num_keys={datasets[FLAGS.dataset]["num_keys"]}')
             args.append(f'--skip_input={FLAGS.skip_input}')
             args.append(f'--use_numactl={FLAGS.use_numactl}')
+            args.append(f'--dry_run={FLAGS.dry_run}')
             print(args)
             subprocess.run(args)
 
