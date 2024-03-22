@@ -24,8 +24,6 @@ public:
   }
   Bounds getPositionBoundsRA(const T &t) override {
     auto bounds = pgm_index_->search(converter_->toPoint(t));
-    // fprintf(stderr, "[%ld %ld]\n", bounds.lo * sample_freq_, (bounds.hi + 1)
-    // * sample_freq_);
     return Bounds{bounds.lo * SampleFreq, (bounds.hi + 1) * SampleFreq,
                   bounds.pos * SampleFreq};
   }

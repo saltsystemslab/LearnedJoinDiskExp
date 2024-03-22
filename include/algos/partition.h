@@ -42,7 +42,7 @@ partition_sstables(int num_partitions, SSTable<T> *outer_table,
       spill--;
     }
     uint64_t inner_end =
-        inner_index->getPositionBounds(outer_iter->peek(outer_end - 1)).lower;
+        inner_index->getPositionBoundsRA(outer_iter->peek(outer_end - 1)).lower;
     while (inner_end < inner_iter->numElts() &&
            comparator->compare(inner_iter->peek(inner_end),
                                outer_iter->peek(outer_end - 1)) <= 0) {

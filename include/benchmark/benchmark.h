@@ -298,6 +298,17 @@ public:
   }
   json doAction() {
     std::map<std::string, IndexBuilder<KVSlice> *> indexBuilders;
+
+#ifdef STRING_KEYS
+    uint64_t key_size = 16;
+#else
+    uint64_t key_size = 16;
+#endif
+
+    /*
+    indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
+    indexBuilders["btree1024"] = new BTreeIndexBuilder(1024, key_size);
+    indexBuilders["btree4096"] = new BTreeIndexBuilder(4096, key_size);
     indexBuilders["pgm256"] = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
     indexBuilders["pgm1024"] = new PgmIndexBuilder<KVSlice, 512, 1>(converter);
     indexBuilders["pgm4096"] = new PgmIndexBuilder<KVSlice, 2048, 1>(converter);
@@ -322,19 +333,19 @@ public:
         new PgmIndexBuilder<KVSlice, 4, 128>(converter);
     indexBuilders["sampledpgm4096"] =
         new PgmIndexBuilder<KVSlice, 16, 128>(converter);
+    */
+    indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
+    indexBuilders["pgm256"] = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
+    indexBuilders["flatpgm256"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 128, 1>(converter);
+    indexBuilders["sampledflatpgm256"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
+    indexBuilders["sampledpgm256"] =
+        new PgmIndexBuilder<KVSlice, 1, 128>(converter);
     indexBuilders["radixspline256"] = new RadixSplineIndexBuilder<KVSlice>(converter, 256);
     indexBuilders["radixspline1024"] = new RadixSplineIndexBuilder<KVSlice>(converter, 1024);
     indexBuilders["radixspline4096"] = new RadixSplineIndexBuilder<KVSlice>(converter, 4096);
 
-#ifdef STRING_KEYS
-    uint64_t key_size = 16;
-#else
-    uint64_t key_size = 16;
-#endif
-
-    indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
-    indexBuilders["btree1024"] = new BTreeIndexBuilder(1024, key_size);
-    indexBuilders["btree4096"] = new BTreeIndexBuilder(4096, key_size);
 
     json index_stats = json::array();
     for (auto it = indexBuilders.begin(); it != indexBuilders.end(); it++) {

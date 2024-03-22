@@ -27,12 +27,18 @@ local all_index_names = [
     "rmi",
 ];
 local index_names = [
+    /*
      "pgm256", "flatpgm256", "sampledflatpgm256", 
      "pgm1024", "flatpgm1024", "sampledflatpgm1024", 
      "pgm4096", "flatpgm4096", "sampledflatpgm4096", 
     "btree256", "btree1024", "btree4096", 
-    "radixspline256", "radixspline1024", "radixspline4096",
-    "rmi",
+    */
+    // "btree256",
+    // "pgm256",
+    // "flatpgm256",
+    // "sampledflatpgm256",
+    // "radixspline256", "radixspline1024", "radixspline4096",
+    "rmi"
 ];
 
 local indexes = {
@@ -132,16 +138,19 @@ local algos = [
         "index": indexes[idx]
     }
     for idx in index_names
-    for join_algo in ["lsj", "inlj"]
+    //for join_algo in ["lsj", "inlj"]
+    for join_algo in ["lsj"]
 ] + [
     {
         "algo_name": "sort_join",
         "algo": "sort_join"
     },
+    /*
     {
         "algo_name": "hash_join",
         "algo": "hash_join"
     },
+    */
 ];
 
 local ratios = [1, 10, 100, 1000];

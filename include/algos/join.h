@@ -115,7 +115,7 @@ public:
       } while (result.shouldContinue);
       if (result.found) {
         result_builder->add(outer_iterator->key());
-      }
+      } 
       last_found_idx = result.lower_bound; // Never search before this again.
       outer_iterator->next();
     }
