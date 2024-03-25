@@ -138,6 +138,7 @@ public:
         if (memcmp(kv_buf, prev_buf, key_size_bytes + value_size_bytes) == 0) {
           continue;
         }
+        memcpy(prev_buf, kv_buf, key_size_bytes + value_size_bytes);
         builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
       }
     } else {
@@ -320,13 +321,6 @@ public:
     indexBuilders["flatpgm4096"] =
         new OneLevelPgmIndexBuilder<KVSlice, 2048, 1>(converter);
 
-    indexBuilders["sampledflatpgm256"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
-    indexBuilders["sampledflatpgm1024"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 4, 128>(converter);
-    indexBuilders["sampledflatpgm4096"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 16, 128>(converter);
-
     indexBuilders["sampledpgm256"] =
         new PgmIndexBuilder<KVSlice, 1, 128>(converter);
     indexBuilders["sampledpgm1024"] =
@@ -334,12 +328,17 @@ public:
     indexBuilders["sampledpgm4096"] =
         new PgmIndexBuilder<KVSlice, 16, 128>(converter);
     */
+    indexBuilders["sampledflatpgm256"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
+    indexBuilders["sampledflatpgm1024"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 4, 128>(converter);
+    indexBuilders["sampledflatpgm4096"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 16, 128>(converter);
+
     indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
     indexBuilders["pgm256"] = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
     indexBuilders["flatpgm256"] =
         new OneLevelPgmIndexBuilder<KVSlice, 128, 1>(converter);
-    indexBuilders["sampledflatpgm256"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
     indexBuilders["sampledpgm256"] =
         new PgmIndexBuilder<KVSlice, 1, 128>(converter);
     indexBuilders["radixspline256"] = new RadixSplineIndexBuilder<KVSlice>(converter, 256);

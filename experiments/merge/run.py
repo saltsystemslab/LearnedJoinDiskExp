@@ -3,6 +3,7 @@ import subprocess
 import asyncio
 from absl import app
 from absl import flags
+import os
 
 
 FLAGS = flags.FLAGS
@@ -55,7 +56,7 @@ def init_datasets():
 def main(argv):
     datasets = init_datasets()
     benchmark_script = "./scripts/benchmark.py"
-    test_config = "--spec=./experiments/merge_all/merge.jsonnet"
+    test_config = "--spec=./experiments/merge/merge.jsonnet"
     for thread in [1]:
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
@@ -66,7 +67,6 @@ def main(argv):
             args.append(f'--check_results={FLAGS.check_checksum}')
             args.append(f'--sosd_source={datasets[FLAGS.dataset]["source"]}')
             args.append(f'--sosd_num_keys={datasets[FLAGS.dataset]["num_keys"]}')
-            args.append(f'--workers={FLAGS.worker_threads}')
             args.append(f'--skip_input={FLAGS.skip_input}')
             print(args)
             subprocess.run(args)

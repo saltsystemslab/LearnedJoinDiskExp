@@ -167,7 +167,7 @@ public:
     // Copy the keys over.
     KeyStruct k;
     memcpy(k.buf, t.data(), KEY_SIZE);
-    if (num_elts_ > 0 && num_elts_ % num_items_block_ == 0) {
+    if (num_elts_ > 0 && num_elts_ % num_items_per_block_ == 0) {
       elts_.push_back(std::pair(k, block_id++));
     }
 #else
