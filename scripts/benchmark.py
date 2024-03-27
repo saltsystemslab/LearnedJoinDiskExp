@@ -17,11 +17,13 @@ flags.DEFINE_string("spec", "", "JSON Test Spec")
 flags.DEFINE_string("test_dir", "sponge", "JSON Test Spec")
 flags.DEFINE_bool("dry_run", False, "Skip run")
 flags.DEFINE_bool("skip_input", False, "Skip input creation")
+flags.DEFINE_bool("only_input", False, "Create input and exit")
 flags.DEFINE_bool("check_results", False, "Verify that all the outputs are same.")
 flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmark stats.")
 flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_bool("use_numactl", True, "")
+flags.DEFINE_bool("use_cgroups", False, "Assumes cgroup learnedjoin exists and is setup")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
@@ -59,10 +61,9 @@ def main(argv):
     # Generate all the JSON configs.
     generate_configs(exp['config']['inputs'], exp['input_config_dir'])
     generate_configs(exp['config']['tests'], exp['output_config_dir'])
-    if not FLAGS.skip_input:
-        run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False)
-    run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True)
-    if FLAGS.clear_inputs:
+    run_configs(runner_bin, exp['input_config_dir'], exp['input_result_dir'], shuffle=False, dry_run=FLAGS.skip_input or FLAGS.dry_run, use_cgroups=False)
+    run_configs(runner_bin, exp['output_config_dir'], exp['output_result_dir'], shuffle=True, total_repeat=FLAGS.repeat, delete_result_path=True, dry_run=FLAGS.only_input or FLAGS.dry_run, use_cgroups=FLAGS.use_cgroups)
+    if FLAGS.clear_inputs and not FLAGS.only_input and not FLAGS.dry_run:
         shutil.rmtree(exp['input_dir'], ignore_errors=True)
 
 def build_runner(build_dir, force_track_stats=False):
@@ -78,7 +79,7 @@ def get_specname():
     return os.path.splitext(spec_path_with_extension)[0]
 
 def setup_experiment_directories():
-    experiment_dir = os.path.join(FLAGS.test_dir, FLAGS.test_name + "_"+str(FLAGS.threads))
+    experiment_dir = os.path.join(FLAGS.test_dir, FLAGS.test_name + "_threads="+str(FLAGS.threads))
     # Input json spec configs, where to generate them, where to store outputs.
     input_config_dir = os.path.join(experiment_dir, "input_configs")
     input_dir = os.path.join(experiment_dir, "inputs")
@@ -88,12 +89,12 @@ def setup_experiment_directories():
     output_dir = os.path.join(experiment_dir, "outputs")
     output_result_dir = os.path.join(output_dir, "results")
     csv_dir = os.path.join(experiment_dir, "csv")
+    shutil.rmtree(input_config_dir, ignore_errors=True)
+    shutil.rmtree(output_config_dir, ignore_errors=True)
     if FLAGS.clean:
         shutil.rmtree(experiment_dir, ignore_errors=True)
         shutil.rmtree(input_dir, ignore_errors=True)
         shutil.rmtree(output_dir, ignore_errors=True)
-        shutil.rmtree(input_config_dir, ignore_errors=True)
-        shutil.rmtree(output_config_dir, ignore_errors=True)
         shutil.rmtree(input_result_dir, ignore_errors=True)
         shutil.rmtree(output_result_dir, ignore_errors=True)
         shutil.rmtree(csv_dir, ignore_errors=True)
@@ -124,7 +125,7 @@ def generate_configs(config_list, output_dir):
             config_json = json.dumps(config, indent=4)
             outfile.write(config_json)
 
-def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False):
+def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False, dry_run=False, use_cgroups=False):
         configs = os.listdir(config_dir)
         if shuffle:
             random.shuffle(configs)
@@ -134,11 +135,10 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
         run_result_dir = os.path.join(result_dir, f'run')
         os.makedirs(run_result_dir, exist_ok=True)
 
-        if FLAGS.dry_run:
-            return
-
         for config in configs:
-            result_json =  run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config)
+            result_json = run([runner_bin, os.path.join(config_dir, config)], prefix="Running %s" % config, use_cgroups=use_cgroups, dry_run=dry_run)
+            if dry_run:
+                continue
             if delete_result_path:
                 print(result_json)
                 os.remove(result_json['spec']['result_path'])
@@ -147,14 +147,20 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
                 outfile.write(result_json)
 
 
-def run(command, prefix=''):
+def run(command, prefix='', use_cgroups=False, dry_run=False):
     if FLAGS.regen_report:
         return
     if FLAGS.use_numactl:
         command = ['numactl', '-N', '1', '-m', '1'] + command
+    if use_cgroups:
+        command = ['cgexec', '-g', 'memory:learnedjoin'] + command
     command_str = " ".join(command)
     result = {"command": command_str}
     print(prefix, ' '.join(command))
+
+    if dry_run:
+        return
+
     process= subprocess.run(command, capture_output=True, text=True)
     if process.returncode == 0:
         result_json = json.loads(process.stdout)
@@ -162,6 +168,7 @@ def run(command, prefix=''):
     else:
         result['status'] = 'NZEC'
     return result
+
 
 def remove_result(result_path):
     try:

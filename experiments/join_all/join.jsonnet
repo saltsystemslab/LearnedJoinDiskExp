@@ -33,12 +33,11 @@ local index_names = [
      "pgm4096", "flatpgm4096", "sampledflatpgm4096", 
     "btree256", "btree1024", "btree4096", 
     */
-    // "btree256",
-    // "pgm256",
-    // "flatpgm256",
-    // "sampledflatpgm256",
-    // "radixspline256", "radixspline1024", "radixspline4096",
-    "rmi"
+    "btree256",
+    "pgm256",
+    "flatpgm256",
+    "sampledflatpgm256",
+    "radixspline256", "radixspline1024", "radixspline4096",
 ];
 
 local indexes = {
@@ -138,8 +137,7 @@ local algos = [
         "index": indexes[idx]
     }
     for idx in index_names
-    //for join_algo in ["lsj", "inlj"]
-    for join_algo in ["lsj"]
+    for join_algo in ["lsj", "inlj"]
 ] + [
     {
         "algo_name": "sort_join",
