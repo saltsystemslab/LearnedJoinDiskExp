@@ -36,7 +36,7 @@ public:
       if (page_idx == cur_page_idx_) {
         return buffer_;
       }
-      if (!always_load_ahead_ && cur_page_idx_ + buffer_size_ > page_idx) {
+      if (!always_load_ahead_ && cur_page_idx_ + buffer_size_ > page_idx && page_idx >= cur_page_idx_) {
         return buffer_ + (page_idx - cur_page_idx_) * PAGE_SIZE;
       }
     }

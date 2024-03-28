@@ -17,6 +17,7 @@ struct CreateInputTableResult {
   SSTable<KVSlice> *outputTable;
 };
 
+
 class CreateInputTable {
 public:
   uint64_t get_num_keys(int fd) {
@@ -254,6 +255,56 @@ public:
     SSTable<KVSlice> *table = builder->build();
     close(fd);
     return table;
+  }
+};
+
+class CreateUnsortedTable : public CreateInputTable {
+  const uint64_t key_size_bytes = 8;
+  const uint64_t value_size_bytes = 8;
+  std::string dataset_path_;
+  std::string result_path_;
+  double fraction_keys_to_extract_;
+public:
+  CreateUnsortedTable(std::string result_path, std::string dataset_path, double fraction_keys_to_extract):
+  dataset_path_(dataset_path), result_path_(result_path), fraction_keys_to_extract_(fraction_keys_to_extract) {
+  };
+  SSTable<KVSlice> *createInputTable() override {
+    int fd = open(this->dataset_path_.c_str(), O_RDONLY);
+    if (fd == -1) {
+      perror("open");
+      exit(EXIT_FAILURE);
+    }
+
+    char kv_buf[key_size_bytes + value_size_bytes];
+    uint64_t num_keys_in_dataset = get_num_keys(fd);
+    const int bytes_to_skip_for_header = 8;
+    const int inmem_cache_size_in_pages = 1;
+    SSTableBuilder<KVSlice> *builder = new FixedSizeKVDiskSSTableBuilder(
+        result_path_, key_size_bytes, value_size_bytes);
+    FixedKSizeKVFileCache dataset(
+        fd, key_size_bytes, 0 /*there are *no values in sosd dataset*/,
+        bytes_to_skip_for_header, inmem_cache_size_in_pages);
+
+    uint64_t num_keys_to_extract =
+        num_keys_in_dataset * fraction_keys_to_extract_;
+
+    std::set<uint64_t> selected_keys;
+    std::random_device rd;  // a seed source for the random number engine
+    std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<uint64_t> distrib(0, num_keys_in_dataset - 1);
+    for (uint64_t i = 0; i < num_keys_to_extract; i++) {
+      uint64_t key_idx = distrib(gen);
+      if (selected_keys.find(key_idx) != selected_keys.end()) {
+        continue;
+      }
+      KVSlice k = dataset.get_kv(key_idx);
+      memcpy(kv_buf, k.data(), key_size_bytes);
+      fix_value(kv_buf, key_size_bytes, value_size_bytes);
+      builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
+      selected_keys.insert(key_idx);
+    }
+    
+    return builder->build();
   }
 };
 

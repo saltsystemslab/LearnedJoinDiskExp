@@ -15,6 +15,7 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_string("spec", "", "JSON Test Spec")
 flags.DEFINE_string("test_dir", "sponge", "JSON Test Spec")
+flags.DEFINE_bool("only_build", False, "Only build")
 flags.DEFINE_bool("dry_run", False, "Skip run")
 flags.DEFINE_bool("skip_input", False, "Skip input creation")
 flags.DEFINE_bool("only_input", False, "Create input and exit")
@@ -34,10 +35,13 @@ flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
 flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
 
 def main(argv):
+    print(FLAGS.test_dir)
     os.makedirs(FLAGS.test_dir, exist_ok=True)
     runner_bin = build_runner(os.path.join(FLAGS.test_dir, 'build')); 
     # Setup Experiment Directories
     exp = setup_experiment_directories()
+    if FLAGS.only_build:
+        return
 
     # Generate the experiment json config.
     # This config has definitions to generate input files, and test configurations.

@@ -33,6 +33,7 @@ json run_sort_join_exp(json test_spec);
 json run_hash_join(json test_spec);
 json run_inlj(json test_spec);
 json create_input_sstable(json test_spec);
+json create_input_unsorted_table(json test_spec);
 std::string md5_checksum(SSTable<KVSlice> *sstable);
 SSTableBuilder<KVSlice> *get_result_builder(json test_spec);
 PSSTableBuilder<KVSlice> *get_parallel_result_builder_for_join(json test_spec);
@@ -101,7 +102,9 @@ json run_test(json test_spec) {
 json create_input_sstable(json test_spec) {
   json result;
   std::string result_path = test_spec["result_path"];
-  uint64_t fraction_of_keys = (uint64_t)test_spec["fraction_of_keys"];
+  // Ugh, for sosd, string this is means 1/x * num_keys keys, 
+  // for unsorted this is x * num_keys
+  double fraction_of_keys = (double)test_spec["fraction_of_keys"]; 
 
   CreateInputTable *createInputTable;
   if (test_spec["method"] == "string") {
@@ -110,12 +113,16 @@ json create_input_sstable(json test_spec) {
       createInputTable = new Create16ByteStringTables(result_path, num_keys);
     } else {
       std::string source_path = test_spec["source"];
-      createInputTable = new Create16ByteStringTables(result_path, source_path, fraction_of_keys);
+      createInputTable = new Create16ByteStringTables(result_path, source_path, (uint64_t)fraction_of_keys);
     }
   } else if (test_spec["method"] == "sosd") {
     std::string source_path = test_spec["source"];
-    createInputTable = new CreateInputTablesFromSosdDataset(source_path, result_path, fraction_of_keys);
-  } else {
+    createInputTable = new CreateInputTablesFromSosdDataset(source_path, result_path, (uint64_t)fraction_of_keys);
+  } else if (test_spec["method"] == "unsorted") {
+    std::string source_path = test_spec["source"];
+    createInputTable = new CreateUnsortedTable(result_path, source_path, fraction_of_keys);
+  } 
+  else {
     fprintf(stderr, "Unsupported input creation method!");
     abort();
   }
