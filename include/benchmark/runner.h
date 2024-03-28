@@ -99,9 +99,9 @@ json run_test(json test_spec) {
                            get_search_strategy(test_spec), result_table_builder,
                            num_threads);
   } else if (test_spec["algo"] == "unsorted_lsj") {
-    op = new LearnedSortJoinOnUnsortedData<KVSlice>(outer_table, inner_table, result_table_builder, num_threads);
+    op = new LearnedSortJoinOnUnsortedData<KVSlice>(outer_table, inner_table, result_table_builder, num_threads, test_spec["index_file"]);
   } else if (test_spec["algo"] == "unsorted_inlj") {
-    op = new IndexedJoinOnUnsortedData<KVSlice>(outer_table, inner_table, result_table_builder, num_threads);
+    op = new IndexedJoinOnUnsortedData<KVSlice>(outer_table, inner_table, result_table_builder, num_threads, test_spec["index_file"]);
   }
   TableOpResult<KVSlice> result = op->profileOp();
   if (test_spec.contains("check_checksum") && test_spec["check_checksum"]) {

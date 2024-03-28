@@ -14,6 +14,7 @@ local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
         "write_result_to_disk": true,
         "key_size": 8,
         "value_size": 8,
+        "index_file": test_output_dir + "/" + algo + "_run" + r + "_index" 
     } 
     for algo in ["unsorted_lsj", "unsorted_inlj"]
     for r in std.range(0, repeats)

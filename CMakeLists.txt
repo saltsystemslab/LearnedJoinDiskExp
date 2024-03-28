@@ -29,6 +29,7 @@ include_directories(
   rmi/
   third_party/pgm/include
   third_party/LearnedIndexDiskExp/code/b+_tree/stx-btree-0.9/include
+  third_party/LearnedIndexDiskExp/code/b+_tree/
   third_party/RadixSpline/include
 )
 

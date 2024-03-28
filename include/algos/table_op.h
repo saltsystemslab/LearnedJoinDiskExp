@@ -19,6 +19,7 @@ template <class T> struct TableOpResult {
 template <class T> class TableOp {
 public:
   virtual void preOp(){};
+  virtual void postOp(){};
   virtual std::vector<Partition> getPartitions() = 0;
   virtual void doOpOnPartition(Partition partition,
                                TableOpResult<T> *result) = 0;
@@ -48,6 +49,7 @@ public:
             .count();
     stats_["duration_ns"] = duration_ns;
     stats_["duration_sec"] = duration_ns / 1e9;
+    postOp();
     return TableOpResult<T>{output_table_, stats_};
   }
 
