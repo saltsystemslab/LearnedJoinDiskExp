@@ -66,6 +66,78 @@ protected:
   Comparator<T> *comparator_;
 };
 
+template <class T> class LearnedSortJoinOnUnsortedData: public TableOp<T> {
+  public:
+  LearnedSortJoinOnUnsortedData(SSTable<T> *outer, SSTable<T> *inner,
+                  PSSTableBuilder<T> *result_builder, int num_threads)
+      : TableOp<T>(outer, inner, result_builder, num_threads) {}
+  std::vector<Partition> getPartitions() override {
+    if (this->num_threads_ != 1) {
+      abort();
+    }
+    uint64_t outer_start = 0;
+    uint64_t outer_end = this->outer_->iterator()->numElts();
+    uint64_t inner_start = 0;
+    uint64_t inner_end = this->inner_->iterator()->numElts();
+    std::vector<Partition> partitions;
+    partitions.push_back(
+        Partition{std::pair<uint64_t, uint64_t>(outer_start, outer_end),
+                  std::pair<uint64_t, uint64_t>(inner_start, inner_end)});
+    return partitions;
+  }
+
+  void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    uint64_t outer_start = partition.outer.first;
+    uint64_t outer_end = partition.outer.second;
+    uint64_t inner_start = partition.inner.first;
+    uint64_t inner_end = partition.inner.second;
+    auto result_builder = this->result_builder_->getBuilderForRange(
+        inner_start + outer_start, inner_end + outer_end);
+    result->output_table = result_builder->build();
+  }
+
+  void mergePartitions() override {
+    this->output_table_ = this->result_builder_->build();
+  }
+};
+
+template <class T> class IndexedJoinOnUnsortedData: public TableOp<T> {
+  public:
+  IndexedJoinOnUnsortedData(SSTable<T> *outer, SSTable<T> *inner,
+                  PSSTableBuilder<T> *result_builder, int num_threads)
+      : TableOp<T>(outer, inner, result_builder, num_threads) {}
+
+  std::vector<Partition> getPartitions() override {
+    if (this->num_threads_ != 1) {
+      abort();
+    }
+    uint64_t outer_start = 0;
+    uint64_t outer_end = this->outer_->iterator()->numElts();
+    uint64_t inner_start = 0;
+    uint64_t inner_end = this->inner_->iterator()->numElts();
+    std::vector<Partition> partitions;
+    partitions.push_back(
+        Partition{std::pair<uint64_t, uint64_t>(outer_start, outer_end),
+                  std::pair<uint64_t, uint64_t>(inner_start, inner_end)});
+    return partitions;
+  }
+
+  void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    uint64_t outer_start = partition.outer.first;
+    uint64_t outer_end = partition.outer.second;
+    uint64_t inner_start = partition.inner.first;
+    uint64_t inner_end = partition.inner.second;
+    auto result_builder = this->result_builder_->getBuilderForRange(
+        inner_start + outer_start, inner_end + outer_end);
+    result->output_table = result_builder->build();
+  }
+
+  void mergePartitions() override {
+    this->output_table_ = this->result_builder_->build();
+  }
+
+};
+
 template <class T> class LearnedSortJoin : public BaseMergeAndJoinOp<T> {
 public:
   LearnedSortJoin(SSTable<T> *outer, SSTable<T> *inner, Index<T> *inner_index,

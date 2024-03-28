@@ -53,8 +53,6 @@ json run_test(json test_spec) {
       load_sstable(test_spec["inner_table"], test_spec["load_sstable_in_mem"]);
   SSTable<KVSlice> *outer_table =
       load_sstable(test_spec["outer_table"], test_spec["load_sstable_in_mem"]);
-  Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
-  Comparator<KVSlice> *comparator = get_comparator(test_spec);
   int num_threads = test_spec["num_threads"];
   // TODO: Make this a function map.
   PSSTableBuilder<KVSlice> *result_table_builder;
@@ -67,27 +65,43 @@ json run_test(json test_spec) {
 
   TableOp<KVSlice> *op;
   if (test_spec["algo"] == "standard_merge") {
+    Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
+    Comparator<KVSlice> *comparator = get_comparator(test_spec);
     op = new StandardMerge<KVSlice>(outer_table, inner_table, inner_index,
                                     comparator, result_table_builder,
                                     num_threads);
   } else if (test_spec["algo"] == "learned_merge") {
+    Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
+    Comparator<KVSlice> *comparator = get_comparator(test_spec);
     op = new LearnedMerge1Way<KVSlice>(
         outer_table, inner_table, inner_index, comparator,
         get_search_strategy(test_spec), result_table_builder, num_threads);
   } else if (test_spec["algo"] == "sort_join") {
+    Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
+    Comparator<KVSlice> *comparator = get_comparator(test_spec);
     op = new SortJoin<KVSlice>(outer_table, inner_table, inner_index,
                                comparator, result_table_builder, num_threads);
   } else if (test_spec["algo"] == "hash_join") {
+    Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
+    Comparator<KVSlice> *comparator = get_comparator(test_spec);
     op = new HashJoin(outer_table, inner_table, inner_index, comparator,
                       result_table_builder, num_threads);
   } else if (test_spec["algo"] == "lsj") {
+    Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
+    Comparator<KVSlice> *comparator = get_comparator(test_spec);
     op = new LearnedSortJoin<KVSlice>(
         outer_table, inner_table, inner_index, comparator,
         get_search_strategy(test_spec), result_table_builder, num_threads);
   } else if (test_spec["algo"] == "inlj") {
+    Index<KVSlice> *inner_index = get_index(test_spec["inner_table"], test_spec);
+    Comparator<KVSlice> *comparator = get_comparator(test_spec);
     op = new Inlj<KVSlice>(outer_table, inner_table, inner_index, comparator,
                            get_search_strategy(test_spec), result_table_builder,
                            num_threads);
+  } else if (test_spec["algo"] == "unsorted_lsj") {
+    op = new LearnedSortJoinOnUnsortedData<KVSlice>(outer_table, inner_table, result_table_builder, num_threads);
+  } else if (test_spec["algo"] == "unsorted_inlj") {
+    op = new IndexedJoinOnUnsortedData<KVSlice>(outer_table, inner_table, result_table_builder, num_threads);
   }
   TableOpResult<KVSlice> result = op->profileOp();
   if (test_spec.contains("check_checksum") && test_spec["check_checksum"]) {
