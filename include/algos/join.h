@@ -9,6 +9,7 @@
 #include "search.h"
 #include "sstable.h"
 #include <thread>
+#include <algorithm>
 #include <unordered_set>
 // TODO(chesetti): Must be last for some reason. Fix.
 #include <nlohmann/json.hpp>
@@ -111,11 +112,10 @@ template <class T> class LearnedSortJoinOnUnsortedData: public TableOp<T> {
       uint64_t key = *(uint64_t *)k.data();
       sampled_keys.push_back(key);
     }
-    sort(sampled_keys.begin(), sampled_keys.end());
+    std::sort(sampled_keys.begin(), sampled_keys.end());
     auto index = new pgm::PGMIndex<uint64_t, 1>(sampled_keys);
 
     // Calculate buckets 
-    uint64_t last_pos = 0;
     uint64_t num_buckets = num_keys / (256) + 64;
     uint64_t max_key = 0;
     uint64_t *bucket_sizes = new uint64_t[num_buckets + 64];
@@ -290,6 +290,492 @@ template <class T> class IndexedJoinOnUnsortedData: public TableOp<T> {
   }
 
 };
+
+template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public TableOp<T> {
+  std::string outer_index_file_;
+  std::string inner_index_file_;
+  public:
+  LearnedSortJoinOnUnsortedDataSortedOutput(SSTable<T> *outer, SSTable<T> *inner,
+                  PSSTableBuilder<T> *result_builder, int num_threads, std::string outer_index_file, std::string inner_index_file)
+      : TableOp<T>(outer, inner, result_builder, num_threads), outer_index_file_(outer_index_file), inner_index_file_(inner_index_file) {}
+  std::vector<Partition> getPartitions() override {
+    if (this->num_threads_ != 1) {
+      abort();
+    }
+    uint64_t outer_start = 0;
+    uint64_t outer_end = this->outer_->iterator()->numElts();
+    uint64_t inner_start = 0;
+    uint64_t inner_end = this->inner_->iterator()->numElts();
+    std::vector<Partition> partitions;
+    partitions.push_back(
+        Partition{std::pair<uint64_t, uint64_t>(outer_start, outer_end),
+                  std::pair<uint64_t, uint64_t>(inner_start, inner_end)});
+    return partitions;
+  }
+
+  void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    uint64_t outer_start = partition.outer.first;
+    uint64_t outer_end = partition.outer.second;
+    uint64_t inner_start = partition.inner.first;
+    uint64_t inner_end = partition.inner.second;
+    auto result_builder = this->result_builder_->getBuilderForRange(
+        inner_start + outer_start, inner_end + outer_end);
+
+    // Build the CDF for outer.
+    std::vector<uint64_t> outer_sampled_keys;
+    uint64_t outer_num_keys = outer_end - outer_start;
+    uint64_t sample_freq = 100;
+    uint64_t sample_step = outer_num_keys / sample_freq;
+    auto outer_iter = this->outer_->iterator();
+    auto inner_iter = this->inner_->iterator();
+    for (uint64_t i=outer_start; i < outer_end; i+=sample_freq) {
+      outer_iter->seekTo(i);
+      KVSlice k = outer_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      outer_sampled_keys.push_back(key);
+    }
+    std::sort(outer_sampled_keys.begin(), outer_sampled_keys.end());
+    auto outer_index = new pgm::PGMIndex<uint64_t, 1>(outer_sampled_keys);
+
+    // Calculate buckets 
+    uint64_t outer_num_buckets = outer_num_keys / (256) + 64;
+    uint64_t outer_max_key = 0;
+    uint64_t *outer_bucket_sizes = new uint64_t[outer_num_buckets + 64];
+    uint64_t *outer_bucket_prefix = new uint64_t[outer_num_buckets + 64];
+    uint64_t *outer_bucket_max = new uint64_t[outer_num_buckets + 64];
+    uint64_t *outer_bucket_cur = new uint64_t[outer_num_buckets + 64];
+    memset((void *)outer_bucket_sizes, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
+    memset((void *)outer_bucket_prefix, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
+    memset((void *)outer_bucket_max, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
+    memset((void *)outer_bucket_cur, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
+
+    // Write the buckets 
+    outer_iter->seekTo(0);
+    for (uint64_t i=outer_start; i < outer_end; i++) {
+      KVSlice k = outer_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      outer_max_key = std::max(outer_max_key, key);
+      auto pos = outer_index->search(key).pos;
+      // pos is scaled to [0, num_keys/100]
+      uint64_t bucket = (pos * 1.0 * sample_freq / outer_num_keys) * outer_num_buckets;
+      if (bucket >= outer_num_buckets + 64) {
+        abort();
+      }
+      outer_bucket_sizes[bucket]++;
+      outer_bucket_max[bucket] = std::max(outer_bucket_max[bucket], key);
+      outer_iter->next();
+    }
+    uint64_t outer_max_buffer_size = outer_bucket_sizes[0];
+    for (uint64_t i=1; i<outer_num_buckets + 64; i++)  {
+      outer_bucket_prefix[i] = outer_bucket_prefix[i-1] + outer_bucket_sizes[i-1];
+      outer_bucket_max[i] = std::max(outer_bucket_max[i], outer_bucket_max[i-1]);
+      outer_max_buffer_size = std::max(outer_bucket_sizes[i], outer_max_buffer_size);
+    }
+    int fd = open(outer_index_file_.c_str(), O_WRONLY | O_CREAT, 0644);
+    if (fd == -1) {
+        perror("Failed to open file");
+        exit(EXIT_FAILURE);
+    }
+    outer_iter->seekTo(0);
+    for (uint64_t i=outer_start; i<outer_end; i++) {
+      KVSlice k = outer_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      auto pos = outer_index->search(key).pos;
+      // pos is scaled to [0, num_keys/100]
+      uint64_t b= (pos * 1.0 * sample_freq / outer_num_keys) * outer_num_buckets;
+      if (b >= outer_num_buckets + 64) {
+        abort();
+      }
+      uint64_t offset = (outer_bucket_prefix[b] + outer_bucket_cur[b]) * sizeof(uint64_t);
+      pwrite(fd, k.data(), sizeof(uint64_t), offset);
+      outer_bucket_cur[b]++;
+      outer_iter->next();
+    }
+    close(fd);
+
+    // Now do the same for inner.
+    // Build the CDF for inner.
+    std::vector<uint64_t> inner_sampled_keys;
+    uint64_t inner_num_keys = inner_end - inner_start;
+    sample_step = inner_num_keys / sample_freq;
+    for (uint64_t i=inner_start; i < inner_end; i+=sample_freq) {
+      inner_iter->seekTo(i);
+      KVSlice k = inner_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      inner_sampled_keys.push_back(key);
+    }
+    std::sort(inner_sampled_keys.begin(), inner_sampled_keys.end());
+    auto inner_index = new pgm::PGMIndex<uint64_t, 1>(inner_sampled_keys);
+
+    // Calculate buckets 
+    uint64_t inner_num_buckets = inner_num_keys / (256) + 64;
+    uint64_t inner_max_key = 0;
+    uint64_t *inner_bucket_sizes = new uint64_t[inner_num_buckets + 64];
+    uint64_t *inner_bucket_prefix = new uint64_t[inner_num_buckets + 64];
+    uint64_t *inner_bucket_max = new uint64_t[inner_num_buckets + 64];
+    uint64_t *inner_bucket_cur = new uint64_t[inner_num_buckets + 64];
+    memset((void *)inner_bucket_sizes, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
+    memset((void *)inner_bucket_prefix, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
+    memset((void *)inner_bucket_max, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
+    memset((void *)inner_bucket_cur, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
+
+    // Write the buckets 
+    inner_iter->seekTo(0);
+    for (uint64_t i=inner_start; i < inner_end; i++) {
+      KVSlice k = inner_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      inner_max_key = std::max(inner_max_key, key);
+      auto pos = inner_index->search(key).pos;
+      // pos is scaled to [0, num_keys/100]
+      uint64_t bucket = (pos * 1.0 * sample_freq / inner_num_keys) * inner_num_buckets;
+      if (bucket >= inner_num_buckets + 64) {
+        abort();
+      }
+      inner_bucket_sizes[bucket]++;
+      inner_bucket_max[bucket] = std::max(inner_bucket_max[bucket], key);
+      inner_iter->next();
+    }
+    uint64_t inner_max_buffer_size = inner_bucket_sizes[0];
+    for (uint64_t i=1; i<inner_num_buckets + 64; i++)  {
+      inner_bucket_prefix[i] = inner_bucket_prefix[i-1] + inner_bucket_sizes[i-1];
+      inner_bucket_max[i] = std::max(inner_bucket_max[i], inner_bucket_max[i-1]);
+      inner_max_buffer_size = std::max(inner_bucket_sizes[i], inner_max_buffer_size);
+    }
+
+    fd = open(inner_index_file_.c_str(), O_WRONLY | O_CREAT, 0644);
+    if (fd == -1) {
+        perror("Failed to open file");
+        exit(EXIT_FAILURE);
+    }
+    inner_iter->seekTo(0);
+    for (uint64_t i=inner_start; i<inner_end; i++) {
+      KVSlice k = inner_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      auto pos = inner_index->search(key).pos;
+      // pos is scaled to [0, num_keys/100]
+      uint64_t b= (pos * 1.0 * sample_freq / inner_num_keys) * inner_num_buckets;
+      if (b >= inner_num_buckets + 64) {
+        abort();
+      }
+      uint64_t offset = (inner_bucket_prefix[b] + inner_bucket_cur[b]) * sizeof(uint64_t);
+      pwrite(fd, k.data(), sizeof(uint64_t), offset);
+      inner_bucket_cur[b]++;
+      inner_iter->next();
+    }
+    close(fd);
+
+    int fd1 = open(inner_index_file_.c_str(), O_RDONLY, 0644);
+    int fd2 = open(outer_index_file_.c_str(), O_RDONLY, 0644);
+    uint64_t inner_bucket = 0, inner_pos = 0;
+    uint64_t outer_bucket = 0, outer_pos = 0;
+    uint64_t *inner_buffer = new uint64_t[inner_max_buffer_size];
+    uint64_t *outer_buffer = new uint64_t[outer_max_buffer_size];
+    
+    char kvbuf[16];
+    memset(kvbuf, 0, 16);
+
+    pread(fd1, (void *)inner_buffer, inner_bucket_sizes[inner_bucket] * 8, inner_bucket_prefix[inner_bucket] * 8);
+    std::sort(inner_buffer, inner_buffer + inner_bucket_sizes[inner_bucket]);
+    pread(fd2, (void *)outer_buffer, outer_bucket_sizes[outer_bucket] * 8, outer_bucket_prefix[outer_bucket] * 8);
+    std::sort(outer_buffer, outer_buffer + outer_bucket_sizes[outer_bucket]);
+
+    uint64_t inner_last_key = 0;
+    uint64_t outer_last_key = 0;
+
+    while (inner_pos < inner_num_keys && outer_pos < outer_num_keys) {
+      uint64_t inner_buffer_offset = inner_pos - inner_bucket_prefix[inner_bucket];
+      uint64_t outer_buffer_offset = outer_pos - outer_bucket_prefix[outer_bucket];
+
+      if (inner_buffer[inner_buffer_offset] < inner_last_key) {
+        abort();
+      }
+      if (outer_buffer[outer_buffer_offset] < outer_last_key) {
+        abort();
+      }
+      inner_last_key = inner_buffer[inner_buffer_offset];
+      outer_last_key = outer_buffer[outer_buffer_offset];
+
+      if (inner_buffer[inner_buffer_offset] == outer_buffer[outer_buffer_offset] ) {
+        memcpy(kvbuf, (char *)(inner_buffer + inner_buffer_offset), 8);
+        KVSlice k(kvbuf, 8, 8);
+        result_builder->add(k);
+        inner_pos++;
+        outer_pos++;
+      }
+      else if (inner_buffer[inner_buffer_offset] < outer_buffer[outer_buffer_offset]) {
+        inner_pos++;
+      } else {
+        outer_pos++;
+      }
+      while (inner_pos == inner_bucket_prefix[inner_bucket+1]) {
+        inner_bucket++;
+        pread(fd1, (void *)inner_buffer, inner_bucket_sizes[inner_bucket] * 8, inner_bucket_prefix[inner_bucket] * 8);
+        std::sort(inner_buffer, inner_buffer + inner_bucket_sizes[inner_bucket]);
+      }
+      while (outer_pos == outer_bucket_prefix[outer_bucket+1]) {
+        outer_bucket++;
+        pread(fd2, (void *)outer_buffer, outer_bucket_sizes[outer_bucket] * 8, outer_bucket_prefix[outer_bucket] * 8);
+        std::sort(outer_buffer, outer_buffer + outer_bucket_sizes[outer_bucket]);
+      }
+    }
+
+    close(fd1);
+    close(fd2);
+
+
+    result->output_table = result_builder->build();
+  }
+
+  void mergePartitions() override {
+    this->output_table_ = this->result_builder_->build();
+  }
+};
+
+template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T> {
+  public:
+  std::string inner_btree_file_path_;
+  std::string outer_btree_file_path_;
+  void postOp() override {
+    // std::remove(btree_file_path_.c_str());
+  }
+  IndexedJoinOnUnsortedDataSortedOutput(SSTable<T> *outer, SSTable<T> *inner,
+                  PSSTableBuilder<T> *result_builder, int num_threads, std::string inner_btree_file_path, std::string outer_btree_file_path)
+      : TableOp<T>(outer, inner, result_builder, num_threads), inner_btree_file_path_(inner_btree_file_path), outer_btree_file_path_(outer_btree_file_path) {}
+
+  std::vector<Partition> getPartitions() override {
+    if (this->num_threads_ != 1) {
+      abort();
+    }
+    uint64_t outer_start = 0;
+    uint64_t outer_end =  this->outer_->iterator()->numElts();
+    uint64_t inner_start = 0;
+    uint64_t inner_end =  this->inner_->iterator()->numElts();
+    std::vector<Partition> partitions;
+    partitions.push_back(
+        Partition{std::pair<uint64_t, uint64_t>(outer_start, outer_end),
+                  std::pair<uint64_t, uint64_t>(inner_start, inner_end)});
+    return partitions;
+  }
+
+  void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    uint64_t outer_start = partition.outer.first;
+    uint64_t outer_end = partition.outer.second;
+    uint64_t inner_start = partition.inner.first;
+    uint64_t inner_end = partition.inner.second;
+    auto result_builder = this->result_builder_->getBuilderForRange(
+        inner_start + outer_start, inner_end + outer_end);
+
+    LeafNodeIterm lni;
+    int c;
+    uint64_t value;
+
+    // std::vector<uint64_t> inner_keys;
+    // std::vector<uint64_t> outer_keys;
+
+    char *outerBtreeName = new char[outer_btree_file_path_.size() + 1];
+    memset(outerBtreeName, '\0', outer_btree_file_path_.size() + 1);
+    memcpy(outerBtreeName, outer_btree_file_path_.c_str(), outer_btree_file_path_.size());
+    BTree *outer_btree = new BTree(LEAF_DISK, true, outerBtreeName);
+    auto outer_iter = this->outer_->iterator();
+    for (uint64_t i=outer_start; i<outer_end; i++) {
+      KVSlice k = outer_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      lni.key = key; lni.value = i;
+      // printf("%lld %lld\n", lni.key, lni.value);
+      // outer_keys.push_back(key);
+      outer_btree->insert_key_leaf_disk(lni);
+      outer_iter->next();
+    }
+
+    char *innerBtreeName = new char[inner_btree_file_path_.size() + 1];
+    memset(innerBtreeName, '\0', inner_btree_file_path_.size() + 1);
+    memcpy(innerBtreeName, inner_btree_file_path_.c_str(), inner_btree_file_path_.size());
+    BTree *inner_btree = new BTree(LEAF_DISK, true, innerBtreeName);
+    auto inner_iter = this->inner_->iterator();
+    for (uint64_t i=inner_start; i<inner_end; i++) {
+      KVSlice k = inner_iter->key();
+      uint64_t key = *(uint64_t *)k.data();
+      lni.key = key; lni.value = i;
+      // printf("%lld %lld\n", lni.key, lni.value);
+      // inner_keys.push_back(key);
+      inner_btree->insert_key_leaf_disk(lni);
+      inner_iter->next();
+    }
+
+    // std::sort(inner_keys.begin(), inner_keys.end());
+    // std::sort(outer_keys.begin(), outer_keys.end());
+    /*
+    uint64_t missing_inner = 0, missing_outer=0;
+    for (auto k: inner_keys) {
+      uint64_t pos;
+      if (!inner_btree->lookup_value(k, &pos, &c)){
+        missing_inner++;
+      }
+    }
+    for (auto k: outer_keys) {
+      uint64_t pos;
+      if (!outer_btree->lookup_value(k, &pos, &c)){
+        missing_outer++;
+      }
+    }
+    printf("missing %lld %lld\n", missing_inner, missing_outer);
+    printf("end %lld %lld\n", inner_end, outer_end);
+    */
+
+#if 0
+    // auto inner_it = inner_btree->inner_btree.begin(); 
+    auto inner_it = inner_btree->inner_btree.find_for_disk(0);
+    int block_id = inner_it.data();
+    auto vit = inner_keys.begin();
+    printf("last block: %lld block_count: %lld level: %lld\n", inner_btree->metanode.last_block, inner_btree->metanode.block_count, inner_btree->metanode.level);
+    while (inner_it != inner_btree->inner_btree.end()) {
+      Block inner_block = inner_btree->sm->get_block(inner_it.data());
+      LeaftNodeHeader *inner_head = (LeaftNodeHeader *) (inner_block.data);
+      LeafNodeIterm *inner_items = (LeafNodeIterm *) (inner_block.data + LeaftNodeHeaderSize);
+      inner_it++;
+      uint64_t mn, mx;
+      mn = inner_items[0].key;
+      mx = inner_items[0].key;
+      for (uint64_t i=0; i < inner_head->item_count; i++) {
+        mn = std::min(mn, inner_items[i].key);
+        mx = std::max(mx, inner_items[i].key);
+        if (inner_items[i].key != *(vit)) {
+          printf("Missing key %lld %lld!\n", *(vit), inner_items[i].key);
+          uint64_t pos; 
+          bool found = inner_btree->lookup_value(*(vit), &pos, &c);
+          printf("%d\n", found);
+        }
+        while (*(vit) <= inner_items[i].key && vit!=inner_keys.end()) {
+          vit++;
+        }
+      }
+      printf("%lld (%lld %lld) NodeType:%lld NextBlock:%lld, Level: %lld [%lld %lld]\n", block_id, inner_it.key(), inner_it.data(), inner_head->node_type, inner_head->next_block_id, inner_head->level, mn,mx);
+      if (block_id == inner_btree->metanode.last_block) {
+        break;
+      }
+      block_id = inner_head->next_block_id;
+    }
+    #endif
+
+    auto outer_it = outer_btree->inner_btree.begin(); 
+    auto inner_it = inner_btree->inner_btree.begin(); 
+    Block inner_block = inner_btree->sm->get_block(inner_it.data());
+    Block outer_block = outer_btree->sm->get_block(outer_it.data());
+
+    LeaftNodeHeader *inner_head = (LeaftNodeHeader *) (inner_block.data);
+    LeafNodeIterm *inner_items = (LeafNodeIterm *) (inner_block.data + LeaftNodeHeaderSize);
+    LeaftNodeHeader *outer_head = (LeaftNodeHeader *) (outer_block.data);
+    LeafNodeIterm *outer_items = (LeafNodeIterm *) (outer_block.data + LeaftNodeHeaderSize);
+    uint64_t ic=0;
+    uint64_t oc=0;
+    char kvbuf[16];
+    memset(kvbuf, 0, 16);
+    int inner_is_last = 0;
+    int outer_is_last = 0;
+    uint64_t inner_count = 0;
+    uint64_t outer_count = 0;
+    while (true) {
+      uint64_t ikey = inner_items[ic].key;
+      uint64_t okey = outer_items[oc].key;
+      if (ikey == okey) {
+        memcpy(kvbuf, (char *)(&ikey), 8);
+        KVSlice k(kvbuf, 8, 8);
+        result_builder->add(k);
+        ic++;
+        oc++;
+        inner_count++;
+        outer_count++;
+      } else if (ikey < okey) {
+        ic++;
+        inner_count++;
+      } else {
+        oc++;
+        outer_count++;
+      }
+
+      if (ic == inner_head->item_count) {
+        inner_it++;
+        if (inner_is_last) break;
+        if (inner_it == inner_btree->inner_btree.end()) {
+          inner_block = inner_btree->sm->get_block(inner_btree->metanode.last_block);
+          inner_is_last = 1;
+          // printf("count: %lld %lld\n", inner_count, outer_count);
+        } else {
+          inner_block = inner_btree->sm->get_block(inner_it.data());
+        }
+        ic = 0;
+        inner_head = (LeaftNodeHeader *) (inner_block.data);
+        inner_items = (LeafNodeIterm *) (inner_block.data + LeaftNodeHeaderSize);
+      }
+      if (oc == outer_head->item_count) {
+        outer_it++;
+        if (outer_is_last) break;
+        if (outer_it == outer_btree->inner_btree.end()) {
+          outer_block = outer_btree->sm->get_block(outer_btree->metanode.last_block);
+          outer_is_last = 1;
+          // printf("%lld %lld\n", inner_count, outer_count);
+        } else {
+          outer_block = outer_btree->sm->get_block(outer_it.data());
+        };
+        oc = 0;
+        outer_head = (LeaftNodeHeader *) (outer_block.data);
+        outer_items = (LeafNodeIterm *) (outer_block.data + LeaftNodeHeaderSize);
+      }
+    }
+    // printf("final: %lld %lld\n", inner_count, outer_count);
+
+#if 0
+
+    inner_index_iter.has_next_range(&c);
+    outer_index_iter.has_next_range(&c);
+    uint64_t inner_key = 0;
+    uint64_t outer_key = 0;
+    while (ic < inner_end && oc < outer_end) {
+    // while (inner_index_iter.has_next() && outer_index_iter.has_next()) {
+      if (inner_key <= inner_index_iter.key()) {
+        inner_key = inner_index_iter.key();
+      } else {
+        abort();
+      }
+      if (outer_key <= outer_index_iter.key()) {
+        outer_key = outer_index_iter.key();
+      } else {
+        abort();
+      }
+      // printf("[%lld %lld] [%lld %lld]\n", inner_key, inner_index_iter.value(), outer_key, outer_index_iter.value());
+      if (inner_key == outer_key) {
+        memcpy(kvbuf, (char *)(&inner_key), 8);
+        KVSlice k(kvbuf, 8, 8);
+        result_builder->add(k);
+        inner_index_iter.has_next_range(&c);
+        inner_index_iter.next();
+        outer_index_iter.has_next_range(&c);
+        outer_index_iter.next();
+        oc++;
+        ic++;
+      } else if (inner_key < outer_key) {
+        inner_index_iter.has_next_range(&c);
+        inner_index_iter.next();
+        ic++;
+      } else {
+        outer_index_iter.has_next_range(&c);
+        inner_index_iter.has_next();
+        outer_index_iter.next();
+        oc++;
+      }
+    }
+  #endif
+    delete inner_btree;
+    delete outer_btree;
+    result->output_table = result_builder->build();
+  }
+
+  void mergePartitions() override {
+    this->output_table_ = this->result_builder_->build();
+  }
+
+};
+
 
 template <class T> class LearnedSortJoin : public BaseMergeAndJoinOp<T> {
 public:

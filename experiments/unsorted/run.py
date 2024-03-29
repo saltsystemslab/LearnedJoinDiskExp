@@ -19,7 +19,35 @@ def init_datasets():
     "fb": {
         "source": os.path.join(FLAGS.sosd_data_dir, "fb_200M_uint64"),
         "num_keys": 200000000
-        },
+    },
+    "lognormal": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "lognormal_200M_uint64"),
+        "num_keys": 200000000
+    },
+    "uniform_sparse": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "uniform_sparse_200M_uint64"),
+        "num_keys": 200000000
+    },
+    "uniform_dense": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "uniform_dense_200M_uint64"),
+        "num_keys": 200000000
+    },
+    "normal": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "normal_200M_uint64"),
+        "num_keys": 200000000
+    },
+    "wiki": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "wiki_ts_200M_uint64"),
+        "num_keys": 200000000
+    },
+    "osm": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "osm_cellids_800M_uint64"),
+        "num_keys": 800000000
+    },
+    "books": {
+        "source": os.path.join(FLAGS.sosd_data_dir, "books_800M_uint64"),
+        "num_keys": 800000000
+    },
     }
 
 def setup_experiment_directories():
@@ -36,7 +64,7 @@ def create_input_config(table_name):
     input_config_template = './experiments/unsorted/create_input.jsonnet'
     table_config = json.loads(_jsonnet.evaluate_file(
         input_config_template, ext_vars = {
-            "FRACTION": "0.5",
+            "FRACTION": "0.8",
             "TEST_INPUT_FILE": datasets[FLAGS.dataset]["source"],
             "TEST_OUTPUT_FILE": os.path.join(input_dir, table_name)
         }
@@ -76,7 +104,7 @@ def create_output_configs(table1, table2):
             "TEST_INNER_TABLE": table1,
             "TEST_OUTER_TABLE": table2,
             "TEST_OUTPUT_DIR": output_dir, 
-            "TEST_REPEAT": "3",
+            "TEST_REPEAT": "0",
         }
     ))
     config_paths = []
@@ -98,6 +126,12 @@ def run_config(config_path):
         print(process.stdout)
         with open(os.path.join(result_dir, config), "w") as outfile:
             result_json = json.loads(process.stdout)
+            os.remove(result_json["spec"]["result_path"])
+            try:
+                os.remove(result_json["spec"]["outer_index_file"])
+                os.remove(result_json["spec"]["inner_index_file"])
+            except OSError as e:
+                pass
             result_json = json.dumps(result_json, indent=4)
             outfile.write(result_json)
     else:

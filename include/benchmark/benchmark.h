@@ -289,6 +289,7 @@ public:
         num_keys_in_dataset * fraction_keys_to_extract_;
 
     std::set<uint64_t> selected_keys;
+    std::set<uint64_t> keys_in_table;;
     std::random_device rd;  // a seed source for the random number engine
     std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
     std::uniform_int_distribution<uint64_t> distrib(0, num_keys_in_dataset - 1);
@@ -298,10 +299,16 @@ public:
         continue;
       }
       KVSlice k = dataset.get_kv(key_idx);
+      uint64_t kval = *(uint64_t *)k.data();
+      if (kval == -1) continue;
+      if (keys_in_table.find(kval) != keys_in_table.end()) {
+        continue;
+      }
       memcpy(kv_buf, k.data(), key_size_bytes);
       fix_value(kv_buf, key_size_bytes, value_size_bytes);
       builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
       selected_keys.insert(key_idx);
+      keys_in_table.insert(kval);
     }
     
     return builder->build();
