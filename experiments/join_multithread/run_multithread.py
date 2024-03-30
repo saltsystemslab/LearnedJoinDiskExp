@@ -12,7 +12,7 @@ flags.DEFINE_string("dataset", "fb", "")
 flags.DEFINE_bool("clear_inputs", True, "")
 flags.DEFINE_bool("check_checksum", True, "")
 flags.DEFINE_bool("skip_input", False, "")
-flags.DEFINE_bool("use_numactl", False, "")
+flags.DEFINE_bool("use_numactl", True, "")
 flags.DEFINE_string("sosd_data_dir", "./data", "")
 
 def init_datasets():
@@ -58,7 +58,7 @@ def main(argv):
     benchmark_script = "./scripts/benchmark.py"
     test_config = "--spec=./experiments/join_multithread/join.jsonnet"
     for name, dataset in datasets.items():
-        for thread in [2, 4, 8, 16]:
+        for thread in [1, 2, 4, 8, 16]:
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
             args.append(f"--repeat={FLAGS.repeat}")
@@ -68,11 +68,11 @@ def main(argv):
             args.append(f'--check_results={FLAGS.check_checksum}')
             args.append(f'--sosd_source={dataset["source"]}')
             args.append(f'--sosd_num_keys={dataset["num_keys"]}')
-            args.append(f'--workers={FLAGS.worker_threads}')
             args.append(f'--skip_input={FLAGS.skip_input}')
             args.append(f'--use_numactl={FLAGS.use_numactl}')
             print(args)
             subprocess.run(args)
+        break
 
 if __name__ == "__main__":
     app.run(main)

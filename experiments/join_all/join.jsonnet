@@ -34,10 +34,10 @@ local index_names = [
     "btree256", "btree1024", "btree4096", 
     */
     "btree256",
-    "pgm256",
-    "flatpgm256",
+    // "pgm256",
+    // "flatpgm256",
     "sampledflatpgm256",
-    "radixspline256", "radixspline1024", "radixspline4096",
+    // "radixspline256", "radixspline1024", "radixspline4096",
 ];
 
 local indexes = {
@@ -137,18 +137,12 @@ local algos = [
         "index": indexes[idx]
     }
     for idx in index_names
-    for join_algo in ["lsj", "inlj"]
+     for join_algo in ["lsj", "inlj"]
 ] + [
     {
         "algo_name": "sort_join",
         "algo": "sort_join"
     },
-    /*
-    {
-        "algo_name": "hash_join",
-        "algo": "hash_join"
-    },
-    */
 ];
 
 local ratios = [1, 10, 100, 1000];

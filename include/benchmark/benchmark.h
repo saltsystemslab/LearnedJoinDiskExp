@@ -263,7 +263,7 @@ class CreateUnsortedTable : public CreateInputTable {
   const uint64_t value_size_bytes = 8;
   std::string dataset_path_;
   std::string result_path_;
-  double fraction_keys_to_extract_;
+  uint64_t fraction_keys_to_extract_;
 public:
   CreateUnsortedTable(std::string result_path, std::string dataset_path, double fraction_keys_to_extract):
   dataset_path_(dataset_path), result_path_(result_path), fraction_keys_to_extract_(fraction_keys_to_extract) {
@@ -286,31 +286,24 @@ public:
         bytes_to_skip_for_header, inmem_cache_size_in_pages);
 
     uint64_t num_keys_to_extract =
-        num_keys_in_dataset * fraction_keys_to_extract_;
-
-    std::set<uint64_t> selected_keys;
-    std::set<uint64_t> keys_in_table;;
+        num_keys_in_dataset / fraction_keys_to_extract_;
+      
+    std::vector<uint64_t> key_indexes;
+    // -1 because to avoid handle 0xfffffffff in fb for now.
+    // PGM doesn't handle this well.
+    for (uint64_t i=0; i<num_keys_in_dataset-1; i++) {
+      key_indexes.push_back(i);
+    }
     std::random_device rd;  // a seed source for the random number engine
     std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
-    std::uniform_int_distribution<uint64_t> distrib(0, num_keys_in_dataset - 1);
+    std::shuffle(key_indexes.begin(), key_indexes.end(), gen);
     for (uint64_t i = 0; i < num_keys_to_extract; i++) {
-      uint64_t key_idx = distrib(gen);
-      if (selected_keys.find(key_idx) != selected_keys.end()) {
-        continue;
-      }
-      KVSlice k = dataset.get_kv(key_idx);
+      KVSlice k = dataset.get_kv(key_indexes[i]);
       uint64_t kval = *(uint64_t *)k.data();
-      if (kval == -1) continue;
-      if (keys_in_table.find(kval) != keys_in_table.end()) {
-        continue;
-      }
       memcpy(kv_buf, k.data(), key_size_bytes);
       fix_value(kv_buf, key_size_bytes, value_size_bytes);
       builder->add(KVSlice(kv_buf, key_size_bytes, value_size_bytes));
-      selected_keys.insert(key_idx);
-      keys_in_table.insert(kval);
     }
-    
     return builder->build();
   }
 };

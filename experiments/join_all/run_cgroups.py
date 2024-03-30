@@ -46,7 +46,7 @@ def init_datasets():
     },
     "osm": {
         "source": os.path.join(FLAGS.sosd_data_dir, "osm_cellids_800M_uint64"),
-        "num_keys": 800000000
+    "num_keys": 800000000
     },
     "books": {
         "source": os.path.join(FLAGS.sosd_data_dir, "books_800M_uint64"),
@@ -59,8 +59,6 @@ def main(argv):
     datasets = init_datasets()
     benchmark_script = "./scripts/benchmark.py"
     test_config = "--spec=./experiments/join_all/join.jsonnet"
-    subprocess.Popen("echo 0 >/sys/fs/cgroup/memory/cgroup./memory.force_empty", shell=True)
-    subprocess.Popen(f"echo {FLAGS.mem_limit} > /sys/fs/cgroup/memory/learnedjoin/memory.limit_in_bytes", shell=True)
     for thread in [1]:
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
@@ -76,6 +74,7 @@ def main(argv):
             args.append(f'--use_cgroups=True')
             args.append(f'--only_input={FLAGS.only_input}')
             args.append(f'--dry_run={FLAGS.dry_run}')
+            args.append(f'--mem_limit={FLAGS.mem_limit}')
             print(args)
             subprocess.run(args)
 

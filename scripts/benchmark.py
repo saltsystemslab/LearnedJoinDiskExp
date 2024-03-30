@@ -24,9 +24,10 @@ flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmar
 flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_bool("use_numactl", True, "")
-flags.DEFINE_bool("use_cgroups", False, "Assumes cgroup learnedjoin exists and is setup")
+flags.DEFINE_bool("use_cgroups", False, "")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
+flags.DEFINE_string("mem_limit", "20M", "Memory Limit")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("clean", False, "")
 flags.DEFINE_bool("clear_inputs", False, "")
@@ -157,7 +158,10 @@ def run(command, prefix='', use_cgroups=False, dry_run=False):
     if FLAGS.use_numactl:
         command = ['numactl', '-N', '1', '-m', '1'] + command
     if use_cgroups:
-        command = ['cgexec', '-g', 'memory:learnedjoin'] + command
+        subprocess.run(['cgdelete', 'memory:learnedjoin/limit_mem'])
+        subprocess.run(['cgcreate', '-g' 'memory:learnedjoin/limit_mem'])
+        command = ['cgexec', '-g', 'memory:learnedjoin/limit_mem'] + command
+        subprocess.Popen(f"echo {FLAGS.mem_limit} > /sys/fs/cgroup/memory/learnedjoin/limit_mem/memory.limit_in_bytes", shell=True)
     command_str = " ".join(command)
     result = {"command": command_str}
     print(prefix, ' '.join(command))

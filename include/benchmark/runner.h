@@ -122,7 +122,7 @@ json create_input_sstable(json test_spec) {
   std::string result_path = test_spec["result_path"];
   // Ugh, for sosd, string this is means 1/x * num_keys keys, 
   // for unsorted this is x * num_keys
-  double fraction_of_keys = (double)test_spec["fraction_of_keys"]; 
+  uint64_t fraction_of_keys = (uint64_t)test_spec["fraction_of_keys"]; 
 
   CreateInputTable *createInputTable;
   if (test_spec["method"] == "string") {
