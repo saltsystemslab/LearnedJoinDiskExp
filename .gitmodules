@@ -1,0 +1,18 @@
+[submodule "third_party/json"]
+	path = third_party/json
+	url = https://github.com/nlohmann/json
+[submodule "third_party/pgm"]
+	path = third_party/pgm
+	url = git@github.com:droidkid/PGM-index
+[submodule "third_party/LearnedIndexDiskExp"]
+	path = third_party/LearnedIndexDiskExp
+	url = git@github.com:saltsystemslab/LearnedIndexDiskExp
+[submodule "SOSD"]
+	path = SOSD
+	url = https://github.com/learnedsystems/SOSD
+[submodule "third_party/sosd"]
+	path = third_party/sosd
+	url = https://github.com/learnedsystems/SOSD
+[submodule "third_party/RadixSpline"]
+	path = third_party/RadixSpline
+	url = https://github.com/saltsystemslab/RadixSpline

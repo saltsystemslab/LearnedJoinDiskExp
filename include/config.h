@@ -1,9 +1,10 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef LEARNEDINDEXMERGE_CONFIG
+#define LEARNEDINDEXMERGE_CONFIG
 
-#include "slice.h"
-#define PAGE_SIZE 4096
-#define NUM_SORT_THREADS 8
-typedef double PLR_SEGMENT_POINT;
+#ifdef STRING_KEYS
+typedef double POINT_FLOAT_TYPE;
+#else
+typedef uint64_t POINT_FLOAT_TYPE;
+#endif
 
 #endif
