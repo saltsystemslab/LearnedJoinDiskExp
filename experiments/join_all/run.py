@@ -4,6 +4,7 @@ import asyncio
 import os
 from absl import app
 from absl import flags
+import json
 
 FLAGS = flags.FLAGS
 
@@ -14,7 +15,9 @@ flags.DEFINE_bool("check_checksum", True, "")
 flags.DEFINE_bool("skip_input", False, "")
 flags.DEFINE_bool("use_numactl", False, "")
 flags.DEFINE_bool("dry_run", False, "")
-flags.DEFINE_string("sosd_data_dir", "./data", "")
+flags.DEFINE_string("sosd_data_dir", "./third_party/sosd/data/", "")
+flags.DEFINE_string("ratios", "1,10,100,100", "")
+flags.DEFINE_string("indexes", "btree256,sampledflatpgm256","")
 
 def init_datasets():
  datasets = {
@@ -57,6 +60,13 @@ def main(argv):
     datasets = init_datasets()
     benchmark_script = "./scripts/benchmark.py"
     test_config = "--spec=./experiments/join_all/join.jsonnet"
+    indexes = json.dumps(FLAGS.indexes.split(","))
+    ratio_strs = (FLAGS.ratios.split(","))
+    ratios = []
+    for r in ratio_strs:
+        ratios = ratios + [int(r)]
+    print(indexes)
+    print(ratios)
     for thread in [1]:
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
@@ -70,6 +80,8 @@ def main(argv):
             args.append(f'--skip_input={FLAGS.skip_input}')
             args.append(f'--use_numactl={FLAGS.use_numactl}')
             args.append(f'--dry_run={FLAGS.dry_run}')
+            args.append(f'--ratios={ratios}')
+            args.append(f'--indexes={indexes}')
             print(args)
             subprocess.run(args)
 

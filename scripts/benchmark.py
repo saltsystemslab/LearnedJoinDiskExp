@@ -34,6 +34,8 @@ flags.DEFINE_bool("clear_inputs", False, "")
 flags.DEFINE_string("test_name", "unknown", "Test Case Name.")
 flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
 flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
+flags.DEFINE_string("ratios", "[1,10,100,100]", "")
+flags.DEFINE_string("indexes", "[\"btree256\",\"sampledflatpgm256\"]","")
 
 def main(argv):
     print(FLAGS.test_dir)
@@ -47,6 +49,8 @@ def main(argv):
     # Generate the experiment json config.
     # This config has definitions to generate input files, and test configurations.
     print(FLAGS.spec)
+    print("RATIOS: ", FLAGS.ratios)
+    print(FLAGS.indexes)
     exp['config'] = json.loads(_jsonnet.evaluate_file(
         FLAGS.spec, ext_vars = {
             "TEST_OUTPUT_DIR": exp['output_dir'],
@@ -56,7 +60,9 @@ def main(argv):
             "TEST_DATASET_SIZE": str(FLAGS.sosd_num_keys),
             "TEST_DATASET_SOURCE": str(FLAGS.sosd_source),
             "TEST_DATASET_NAME": str(os.path.basename(FLAGS.sosd_source)),
-            "TEST_CHECK_CHECKSUM": str(FLAGS.check_results)
+            "TEST_CHECK_CHECKSUM": str(FLAGS.check_results),
+            "TEST_RATIOS": str(FLAGS.ratios),
+            "TEST_INDEXES": str(FLAGS.indexes)
         }
     ))
 
