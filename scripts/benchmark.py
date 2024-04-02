@@ -25,6 +25,7 @@ flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_bool("use_numactl", True, "")
 flags.DEFINE_bool("use_cgroups", False, "")
+flags.DEFINE_string("cgroup_name", "", "")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_string("mem_limit", "20M", "Memory Limit")
@@ -36,6 +37,7 @@ flags.DEFINE_string("sosd_source", "unknown", "SOSD source dataset file")
 flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
 flags.DEFINE_string("ratios", "[1,10,100,100]", "")
 flags.DEFINE_string("indexes", "[\"btree256\",\"sampledflatpgm256\"]","")
+flags.DEFINE_string("non_indexed_joins", "[\"sort_join\",\"hash_join\"]","")
 
 def main(argv):
     print(FLAGS.test_dir)
@@ -62,7 +64,8 @@ def main(argv):
             "TEST_DATASET_NAME": str(os.path.basename(FLAGS.sosd_source)),
             "TEST_CHECK_CHECKSUM": str(FLAGS.check_results),
             "TEST_RATIOS": str(FLAGS.ratios),
-            "TEST_INDEXES": str(FLAGS.indexes)
+            "TEST_INDEXES": str(FLAGS.indexes),
+            "TEST_NON_INDEXED_JOINS": str(FLAGS.non_indexed_joins)
         }
     ))
 
@@ -162,12 +165,12 @@ def run(command, prefix='', use_cgroups=False, dry_run=False):
     if FLAGS.regen_report:
         return
     if FLAGS.use_numactl:
-        command = ['numactl', '-N', '1', '-m', '1'] + command
+        command = ['numactl', '-N', '0', '-m', '0'] + command
     if use_cgroups:
-        subprocess.run(['cgdelete', 'memory:learnedjoin/limit_mem'])
-        subprocess.run(['cgcreate', '-g' 'memory:learnedjoin/limit_mem'])
-        command = ['cgexec', '-g', 'memory:learnedjoin/limit_mem'] + command
-        subprocess.Popen(f"echo {FLAGS.mem_limit} > /sys/fs/cgroup/memory/learnedjoin/limit_mem/memory.limit_in_bytes", shell=True)
+        subprocess.run(['cgdelete', "memory:" + FLAGS.cgroup_name])
+        subprocess.run(['cgcreate', '-g', "memory:" + FLAGS.cgroup_name])
+        command = ['cgexec', '-g', FLAGS.cgroup_name] + command
+        subprocess.Popen(f"cgset {FLAGS.cgroup_name} -r memory.limit_in_bytes={FLAGS.mem_limit}", shell=True)
     command_str = " ".join(command)
     result = {"command": command_str}
     print(prefix, ' '.join(command))

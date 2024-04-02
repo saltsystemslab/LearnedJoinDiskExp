@@ -15,6 +15,9 @@ flags.DEFINE_bool("check_checksum", True, "")
 flags.DEFINE_bool("skip_input", False, "")
 flags.DEFINE_bool("use_numactl", False, "")
 flags.DEFINE_string("sosd_data_dir", "./data", "")
+flags.DEFINE_string("threads", "1","")
+flags.DEFINE_string("exp_name", "mergetestrun","")
+flags.DEFINE_bool("dry_run", False, "")
 
 def init_datasets():
  datasets = {
@@ -57,16 +60,21 @@ def main(argv):
     datasets = init_datasets()
     benchmark_script = "./scripts/benchmark.py"
     test_config = "--spec=./experiments/merge/merge.jsonnet"
-    for thread in [1]:
+    threads = [int(t) for t in FLAGS.threads.split(",")]
+    for thread in threads:
+        for dataset in datasets:
+            if FLAGS.dataset != "all" and FLAGS.dataset != dataset:  
+                continue
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
             args.append(f"--repeat={FLAGS.repeat}")
-            args.append(f"--test_dir=sponge/merge_all")
-            args.append(f"--test_name={FLAGS.dataset}")
+            args.append(f"--test_dir=sponge/{FLAGS.exp_name}")
+            args.append(f"--test_name={dataset}")
             args.append(f'--clear_inputs={FLAGS.clear_inputs}')
             args.append(f'--check_results={FLAGS.check_checksum}')
-            args.append(f'--sosd_source={datasets[FLAGS.dataset]["source"]}')
-            args.append(f'--sosd_num_keys={datasets[FLAGS.dataset]["num_keys"]}')
+            args.append(f'--sosd_source={datasets[dataset]["source"]}')
+            args.append(f'--sosd_num_keys={datasets[dataset]["num_keys"]}')
+            args.append(f'--dry_run={FLAGS.dry_run}')
             args.append(f'--skip_input={FLAGS.skip_input}')
             print(args)
             subprocess.run(args)
