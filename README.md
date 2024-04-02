@@ -29,11 +29,19 @@ source $HOME/.cargo/env
 ### Experiments
 In the root directory of the repo, to run the experiments for one dataset:
 
+TODO: Finish commands
+
 ```
 # Index study
 ./scripts/join_all/run.py --dataset=fb --indexes=flatpgm256,sampledflatpgm256,btree256,radixspline256,btree256 --ratios=1
 # Single Thread study
 ./scripts/join_all/run.py --dataset=fb --indexes=sampledflatpgm256,btree256 --ratios=1,10,100,1000
+# Multithread
+# Error Window Study
+# Merge
 ```
+
+### Generating reports.
+TODO: Add commands
 
 
