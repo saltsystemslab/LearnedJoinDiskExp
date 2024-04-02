@@ -63,9 +63,3 @@ TODO: Finish commands
 
 ### Generating reports.
 Once the experiment here, we use `experiments/report.ipynb` as a base template to build exact queries. Examples of using this template are in results. 
-
-TODO:
-- [ ] Make reporting friendly to use. Right now we use hardcoded scripts in experiments.
-- [ ] Summarize the results from the paper here.
-
-
