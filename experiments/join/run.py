@@ -18,7 +18,7 @@ flags.DEFINE_bool("dry_run", False, "")
 flags.DEFINE_string("sosd_data_dir", "./third_party/sosd/data/", "")
 flags.DEFINE_string("ratios", "1,10,100,100", "")
 flags.DEFINE_string("indexes", "btree256,sampledflatpgm256","")
-flags.DEFINE_string("non_indexed_joins", "","")
+flags.DEFINE_string("non_indexed_joins", "sort_join","")
 flags.DEFINE_string("exp_name", "testrun","")
 flags.DEFINE_string("threads", "1","")
 flags.DEFINE_bool("use_cgroups", False, "") 
@@ -70,12 +70,14 @@ def init_datasets():
 def main(argv):
     datasets = init_datasets()
     benchmark_script = "./scripts/benchmark.py"
-    test_config = "--spec=./experiments/join_all/join.jsonnet"
+    test_config = "--spec=./experiments/join/join.jsonnet"
     if FLAGS.string_keys:
-        test_config = "--spec=./experiments/join_all/string_join.jsonnet"
+        test_config = "--spec=./experiments/join/string_join.jsonnet"
 
     indexes = json.dumps(FLAGS.indexes.split(","))
     non_indexed_joins = json.dumps(FLAGS.non_indexed_joins.split(","))
+    if not non_indexed_joins:
+        non_indexed_joins = "[]"
     ratios = [int(r) for r in FLAGS.ratios.split(",")]
     threads = [int(t) for t in FLAGS.threads.split(",")]
     for thread in threads:
