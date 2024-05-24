@@ -25,10 +25,10 @@ flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_bool("use_numactl", True, "")
 flags.DEFINE_bool("use_cgroups", False, "")
+flags.DEFINE_bool("clear_fs_cache", False, "")
 flags.DEFINE_string("cgroup_name", "", "")
 flags.DEFINE_integer("repeat", 3, "")
 flags.DEFINE_integer("threads", 1, "")
-flags.DEFINE_string("mem_limit", "20M", "Memory Limit")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("clean", False, "")
 flags.DEFINE_bool("clear_inputs", False, "")
@@ -38,6 +38,8 @@ flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
 flags.DEFINE_string("ratios", "[1,10,100,100]", "")
 flags.DEFINE_string("indexes", "[\"btree256\",\"sampledflatpgm256\"]","")
 flags.DEFINE_string("non_indexed_joins", "[\"sort_join\",\"hash_join\"]","")
+flags.DEFINE_string("io_device", "nvme0n1", "")
+flags.DEFINE_string("cgroup", "/sys/fs/cgroup/user.slice", "")
 
 def main(argv):
     print(FLAGS.test_dir)
@@ -139,7 +141,34 @@ def generate_configs(config_list, output_dir):
             config_json = json.dumps(config, indent=4)
             outfile.write(config_json)
 
+def get_iostat():
+    command = ['iostat', '-o', 'JSON', '-p', FLAGS.io_device]
+    process = subprocess.run(command, capture_output=True, text=True)
+    iostat = json.loads(process.stdout)
+    disk_statistics = iostat["sysstat"]["hosts"][0]["statistics"][0]["disk"]
+    iostat = {}
+    for disk in disk_statistics:
+        if disk["disk_device"] == FLAGS.io_device:
+            iostat["bytes_read"] = disk["kB_read"] * 1000
+            iostat["bytes_wrtn"] = disk["kB_wrtn"] * 1000
+    return iostat
+
+def get_cgroup_iostat():
+    command = ['cat', os.path.join(FLAGS.cgroup,'io.stat')]
+    process = subprocess.run(command, capture_output=True, text=True)
+    tokens = process.stdout.split(' ')
+    iostat = {}
+    print(tokens)
+    for i in range(0, len(tokens)):
+        if tokens[i].startswith('rbytes'):
+            iostat['bytes_read'] = int(tokens[i].split("=")[1])
+        if tokens[i].startswith('wbytes'):
+            iostat['bytes_wrtn'] = int(tokens[i].split("=")[1])
+    print(iostat)
+    return iostat
+
 def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1, delete_result_path=False, dry_run=False, use_cgroups=False):
+        print("Running configs in ", config_dir)
         configs = os.listdir(config_dir)
         if shuffle:
             random.shuffle(configs)
@@ -160,29 +189,49 @@ def run_configs(runner_bin, config_dir, result_dir, shuffle=True, total_repeat=1
                 result_json = json.dumps(result_json, indent=4)
                 outfile.write(result_json)
 
-
 def run(command, prefix='', use_cgroups=False, dry_run=False):
     if FLAGS.regen_report:
         return
     if FLAGS.use_numactl:
         command = ['numactl', '-N', '0', '-m', '0'] + command
-    if use_cgroups:
-        subprocess.run(['cgdelete', "memory:" + FLAGS.cgroup_name])
-        subprocess.run(['cgcreate', '-g', "memory:" + FLAGS.cgroup_name])
-        command = ['cgexec', '-g', FLAGS.cgroup_name] + command
-        subprocess.Popen(f"cgset {FLAGS.cgroup_name} -r memory.limit_in_bytes={FLAGS.mem_limit}", shell=True)
+    if FLAGS.clear_fs_cache:
+        clear_command = ['echo 1 | sudo tee /proc/sys/vm/drop_caches',]
+        subprocess.run(clear_command, shell=True, text=True)
+    
     command_str = " ".join(command)
     result = {"command": command_str}
     print(prefix, ' '.join(command))
+    process = {}
 
+    io_stats_before = get_iostat()
+    cgroup_io_stats_before = {}
+    cgroup_io_stats_after = {}
     if dry_run:
         return
+    elif use_cgroups:
+        cgroup_io_stats_before = get_cgroup_iostat()
+        cgroup_proc_path = os.path.join(FLAGS.cgroup, 'cgroup.procs')
+        command = [f'echo $$ >> {cgroup_proc_path} && ' + command_str]
+        process = subprocess.run(command, shell=True, capture_output=True, text=True)
+        cgroup_io_stats_after = get_cgroup_iostat()
+    else:
+        process = subprocess.run(command, capture_output=True, text=True)
 
-    process= subprocess.run(command, capture_output=True, text=True)
+    io_stats_after = get_iostat()
+
     if process.returncode == 0:
         result_json = json.loads(process.stdout)
         result.update(result_json)
+        result['iostat'] = {}
+        result['iostat']['bytes_read'] = io_stats_after['bytes_read'] - io_stats_before['bytes_read']
+        result['iostat']['bytes_wrtn'] = io_stats_after['bytes_wrtn'] - io_stats_before['bytes_wrtn']
+        if use_cgroups:
+            result['cgroup_iostat'] = {}
+            result['cgroup_iostat']['bytes_read'] = cgroup_io_stats_after['bytes_read'] - cgroup_io_stats_before['bytes_read']
+            result['cgroup_iostat']['bytes_wrtn'] = cgroup_io_stats_after['bytes_wrtn'] - cgroup_io_stats_before['bytes_wrtn']
+
     else:
+        print(process.stdout, process.stderr)
         result['status'] = 'NZEC'
     return result
 

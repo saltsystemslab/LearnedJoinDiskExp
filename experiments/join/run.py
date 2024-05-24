@@ -22,8 +22,8 @@ flags.DEFINE_string("non_indexed_joins", "sort_join","")
 flags.DEFINE_string("exp_name", "testrun","")
 flags.DEFINE_string("threads", "1","")
 flags.DEFINE_bool("use_cgroups", False, "") 
-flags.DEFINE_string("cgroup_name", "memory:learnedjoin/limit_mem","")
-flags.DEFINE_string("cgroup_mem_limit", "50M", "")
+flags.DEFINE_bool("clear_fs_cache", False, "") 
+flags.DEFINE_string("cgroup", "/sys/fs/cgroup/join-cgroup","")
 flags.DEFINE_bool("string_keys", False, "")
 
 def init_datasets():
@@ -103,8 +103,9 @@ def main(argv):
                 args.append("--string_keys")
             if FLAGS.use_cgroups:
                 args.append(f'--use_cgroups')
-                args.append(f'--cgroup_name={FLAGS.cgroup_name}')
-                args.append(f'--mem_limit={FLAGS.cgroup_mem_limit}')
+                args.append(f'--cgroup={FLAGS.cgroup}')
+            if FLAGS.clear_fs_cache:
+                args.append(f'--clear_fs_cache')
             print(args)
             subprocess.run(args)
 

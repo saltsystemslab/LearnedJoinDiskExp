@@ -363,6 +363,7 @@ public:
         bytes_written += ret;
       }
       close(fd_);
+      fsync(fd_);
       built_ = true;
     }
     return new FixedSizeKVDiskSSTable(file_path_);
