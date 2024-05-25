@@ -19,6 +19,6 @@ local repeats = std.parseInt(std.extVar("TEST_REPEAT"));
         "inner_index_file": test_output_dir + "/" + algo + "_run" + r + "inner_index",
         "key_type": "uint64"
     } 
-    for algo in ["unsorted_inlj_sorted_output"]
+    for algo in ["unsorted_inlj_sorted_output", "unsorted_lsj_sorted_output"]
     for r in std.range(0, repeats)
 ]

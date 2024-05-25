@@ -25,6 +25,8 @@ flags.DEFINE_bool("use_cgroups", False, "")
 flags.DEFINE_bool("clear_fs_cache", False, "") 
 flags.DEFINE_string("cgroup", "/sys/fs/cgroup/join-cgroup","")
 flags.DEFINE_bool("string_keys", False, "")
+flags.DEFINE_string("io_device", "sdb", "")
+flags.DEFINE_string("test_dir", "sponge", "")
 
 def init_datasets():
  datasets = {
@@ -84,10 +86,11 @@ def main(argv):
         for dataset in datasets:
             if FLAGS.dataset != "all" and FLAGS.dataset != dataset:  
                 continue
+            test_dir = os.path.join(FLAGS.test_dir, FLAGS.exp_name)
             args = [benchmark_script, test_config]
             args.append(f"--threads={thread}")
             args.append(f"--repeat={FLAGS.repeat}")
-            args.append(f"--test_dir=sponge/{FLAGS.exp_name}")
+            args.append(f"--test_dir={test_dir}")
             args.append(f"--test_name={dataset}")
             args.append(f'--clear_inputs={FLAGS.clear_inputs}')
             args.append(f'--check_results={FLAGS.check_checksum}')
@@ -99,6 +102,7 @@ def main(argv):
             args.append(f'--ratios={ratios}')
             args.append(f'--indexes={indexes}')
             args.append(f'--non_indexed_joins={non_indexed_joins}')
+            args.append(f'--io_device={FLAGS.io_device}')
             if FLAGS.string_keys:
                 args.append("--string_keys")
             if FLAGS.use_cgroups:
