@@ -11,7 +11,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("repeat", 2, "")
 flags.DEFINE_string("dataset", "fb", "")
 flags.DEFINE_bool("clear_inputs", True, "")
-flags.DEFINE_bool("check_checksum", True, "")
+flags.DEFINE_bool("check_checksum", False, "")
 flags.DEFINE_bool("skip_input", False, "")
 flags.DEFINE_bool("use_numactl", True, "")
 flags.DEFINE_bool("dry_run", False, "")

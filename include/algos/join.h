@@ -23,6 +23,29 @@ typedef std::pair<uint64_t, uint64_t> pii;
 
 namespace li_merge {
 
+std::string exec_iostat() {
+    std::array<char, 1024> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("iostat -o JSON -d sda", "r"), pclose);
+    
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+
+static json get_iostat() {
+  json raw_iostat = json::parse(exec_iostat().c_str());
+  json iostat;
+  iostat["kbytes_wrtn"] = (uint64_t)raw_iostat["sysstat"]["hosts"][0]["statistics"][0]["disk"][0]["kB_wrtn"];
+  iostat["kbytes_read"] = (uint64_t)raw_iostat["sysstat"]["hosts"][0]["statistics"][0]["disk"][0]["kB_read"];
+  return iostat;
+}
+
 template <class T> class BaseMergeAndJoinOp : public TableOp<T> {
 public:
   BaseMergeAndJoinOp(SSTable<T> *outer, SSTable<T> *inner,
@@ -284,6 +307,7 @@ template <class T> class IndexedJoinOnUnsortedData: public TableOp<T> {
       }
       inner_iter->next();
     }
+
     delete btree;
     result->output_table = result_builder->build();
   }
@@ -316,7 +340,15 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     return partitions;
   }
 
+#define IOSTAT 0
+
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    #if IOSTAT 
+    uint64_t bucket_size = 100;
+    result->stats["start_iostat"] = get_iostat();
+    auto op_start = std::chrono::high_resolution_clock::now();
+    #endif
+
     uint64_t bytes_read = 0;
     uint64_t outer_start = partition.outer.first;
     uint64_t outer_end = partition.outer.second;
@@ -340,18 +372,22 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     }
     std::sort(outer_sampled_keys.begin(), outer_sampled_keys.end());
     auto outer_index = new pgm::PGMIndex<uint64_t, 1>(outer_sampled_keys);
+    #if IOSTAT
+    // Measure time to train the index
+    auto outer_index_train_ts = std::chrono::high_resolution_clock::now();
+    #endif
 
     // Calculate buckets 
-    uint64_t outer_num_buckets = outer_num_keys / (256) + 64;
+    uint64_t outer_num_buckets = outer_num_keys / (bucket_size); 
     uint64_t outer_max_key = 0;
-    uint64_t *outer_bucket_sizes = new uint64_t[outer_num_buckets + 64];
-    uint64_t *outer_bucket_prefix = new uint64_t[outer_num_buckets + 64];
-    uint64_t *outer_bucket_max = new uint64_t[outer_num_buckets + 64];
-    uint64_t *outer_bucket_cur = new uint64_t[outer_num_buckets + 64];
-    memset((void *)outer_bucket_sizes, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
-    memset((void *)outer_bucket_prefix, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
-    memset((void *)outer_bucket_max, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
-    memset((void *)outer_bucket_cur, 0, sizeof(uint64_t) * (outer_num_buckets + 64));
+    uint64_t *outer_bucket_sizes = new uint64_t[outer_num_buckets + 1];
+    uint64_t *outer_bucket_prefix = new uint64_t[outer_num_buckets + 1];
+    uint64_t *outer_bucket_max = new uint64_t[outer_num_buckets + 1];
+    uint64_t *outer_bucket_cur = new uint64_t[outer_num_buckets + 1];
+    memset((void *)outer_bucket_sizes, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
+    memset((void *)outer_bucket_prefix, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
+    memset((void *)outer_bucket_max, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
+    memset((void *)outer_bucket_cur, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
 
     char kvbuf[16];
 
@@ -364,7 +400,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       auto pos = outer_index->search(key).pos;
       // pos is scaled to [0, num_keys/100]
       uint64_t bucket = (pos * 1.0 * sample_freq / outer_num_keys) * outer_num_buckets;
-      if (bucket >= outer_num_buckets + 64) {
+      if (bucket >= outer_num_buckets + 1) {
         abort();
       }
       outer_bucket_sizes[bucket]++;
@@ -372,13 +408,14 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       outer_iter->next();
     }
     uint64_t outer_max_buffer_size = outer_bucket_sizes[0];
-    for (uint64_t i=1; i<outer_num_buckets + 64; i++)  {
+    for (uint64_t i=1; i<=outer_num_buckets; i++)  {
       outer_bucket_prefix[i] = outer_bucket_prefix[i-1] + outer_bucket_sizes[i-1];
       outer_bucket_max[i] = std::max(outer_bucket_max[i], outer_bucket_max[i-1]);
       outer_max_buffer_size = std::max(outer_bucket_sizes[i], outer_max_buffer_size);
       // printf("%lld %lld %lld\n", outer_bucket_max[i], outer_bucket_prefix[i], outer_bucket_sizes[i]);
     }
     int fd = open(outer_index_file_.c_str(), O_WRONLY | O_CREAT, 0644);
+    fallocate(fd, 0, 0, outer_num_keys*16);
     if (fd == -1) {
         perror("Failed to open file");
         exit(EXIT_FAILURE);
@@ -390,7 +427,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       auto pos = outer_index->search(key).pos;
       // pos is scaled to [0, num_keys/100]
       uint64_t b= (pos * 1.0 * sample_freq / outer_num_keys) * outer_num_buckets;
-      if (b >= outer_num_buckets + 64) {
+      if (b >= outer_num_buckets + 1) {
         abort();
       }
       uint64_t offset = (outer_bucket_prefix[b] + outer_bucket_cur[b]) * (2 * sizeof(uint64_t));
@@ -401,6 +438,10 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       outer_iter->next();
     }
     close(fd);
+    fsync(fd);
+    #if IOSTAT
+    auto outer_index_bucket_ts = std::chrono::high_resolution_clock::now();
+    #endif
 
     // Now do the same for inner.
     // Build the CDF for inner.
@@ -417,16 +458,16 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     auto inner_index = new pgm::PGMIndex<uint64_t, 1>(inner_sampled_keys);
 
     // Calculate buckets 
-    uint64_t inner_num_buckets = inner_num_keys / (256) + 64;
+    uint64_t inner_num_buckets = inner_num_keys / (bucket_size);
     uint64_t inner_max_key = 0;
-    uint64_t *inner_bucket_sizes = new uint64_t[inner_num_buckets + 64];
-    uint64_t *inner_bucket_prefix = new uint64_t[inner_num_buckets + 64];
-    uint64_t *inner_bucket_max = new uint64_t[inner_num_buckets + 64];
-    uint64_t *inner_bucket_cur = new uint64_t[inner_num_buckets + 64];
-    memset((void *)inner_bucket_sizes, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
-    memset((void *)inner_bucket_prefix, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
-    memset((void *)inner_bucket_max, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
-    memset((void *)inner_bucket_cur, 0, sizeof(uint64_t) * (inner_num_buckets + 64));
+    uint64_t *inner_bucket_sizes = new uint64_t[inner_num_buckets + 1];
+    uint64_t *inner_bucket_prefix = new uint64_t[inner_num_buckets + 1];
+    uint64_t *inner_bucket_max = new uint64_t[inner_num_buckets + 1];
+    uint64_t *inner_bucket_cur = new uint64_t[inner_num_buckets + 1];
+    memset((void *)inner_bucket_sizes, 0, sizeof(uint64_t) * (inner_num_buckets + 1));
+    memset((void *)inner_bucket_prefix, 0, sizeof(uint64_t) * (inner_num_buckets + 1));
+    memset((void *)inner_bucket_max, 0, sizeof(uint64_t) * (inner_num_buckets + 1));
+    memset((void *)inner_bucket_cur, 0, sizeof(uint64_t) * (inner_num_buckets + 1));
 
     // Write the buckets 
     inner_iter->seekTo(0);
@@ -437,7 +478,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       auto pos = inner_index->search(key).pos;
       // pos is scaled to [0, num_keys/100]
       uint64_t bucket = (pos * 1.0 * sample_freq / inner_num_keys) * inner_num_buckets;
-      if (bucket >= inner_num_buckets + 64) {
+      if (bucket >= inner_num_buckets + 1) {
         abort();
       }
       inner_bucket_sizes[bucket]++;
@@ -445,13 +486,14 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       inner_iter->next();
     }
     uint64_t inner_max_buffer_size = inner_bucket_sizes[0];
-    for (uint64_t i=1; i<inner_num_buckets + 64; i++)  {
+    for (uint64_t i=1; i<=inner_num_buckets; i++)  {
       inner_bucket_prefix[i] = inner_bucket_prefix[i-1] + inner_bucket_sizes[i-1];
       inner_bucket_max[i] = std::max(inner_bucket_max[i], inner_bucket_max[i-1]);
       inner_max_buffer_size = std::max(inner_bucket_sizes[i], inner_max_buffer_size);
     }
 
     fd = open(inner_index_file_.c_str(), O_WRONLY | O_CREAT, 0644);
+    fallocate(fd, 0, 0, inner_num_keys*16);
     if (fd == -1) {
         perror("Failed to open file");
         exit(EXIT_FAILURE);
@@ -463,7 +505,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       auto pos = inner_index->search(key).pos;
       // pos is scaled to [0, num_keys/100]
       uint64_t b= (pos * 1.0 * sample_freq / inner_num_keys) * inner_num_buckets;
-      if (b >= inner_num_buckets + 64) {
+      if (b >= inner_num_buckets + 1) {
         abort();
       }
       uint64_t offset = (inner_bucket_prefix[b] + inner_bucket_cur[b]) * (2 * sizeof(uint64_t));
@@ -474,6 +516,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       inner_iter->next();
     }
     close(fd);
+    fsync(fd);
 
     int fd1 = open(inner_index_file_.c_str(), O_RDONLY, 0644);
     int fd2 = open(outer_index_file_.c_str(), O_RDONLY, 0644);
@@ -490,10 +533,23 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     std::sort(outer_buffer, outer_buffer + outer_bucket_sizes[outer_bucket]);
     bytes_read += (outer_bucket_sizes[outer_bucket] + inner_bucket_sizes[inner_bucket]) * sizeof(pii);
 
+#if IOSTAT
+    auto index_end = std::chrono::high_resolution_clock::now();
+    result->stats["index_iostat"] = get_iostat();
+    result->stats["index_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(index_end - op_start).count();
+#endif
+
     pii inner_key(0,0);
     pii outer_key(0,0);
     uint64_t current_inner_bucket = -1;
     uint64_t inner_buffer_pos = 0;
+
+    while (outer_bucket_sizes[outer_bucket] == 0) {
+      outer_bucket++;
+      pread(fd2, (void *)outer_buffer, outer_bucket_sizes[outer_bucket] * sizeof(pii), outer_bucket_prefix[outer_bucket] * sizeof(pii));
+      std::sort(outer_buffer, outer_buffer + outer_bucket_sizes[outer_bucket]);
+      bytes_read += (outer_bucket_sizes[outer_bucket] + inner_bucket_sizes[inner_bucket]) * sizeof(pii);
+    }
 
     while (outer_pos < outer_num_keys) {
       uint64_t outer_buffer_offset = outer_pos - outer_bucket_prefix[outer_bucket];
@@ -543,59 +599,40 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     }
 
 
-#if 0
-    while (inner_pos < inner_num_keys && outer_pos < outer_num_keys) {
-      uint64_t inner_buffer_offset = inner_pos - inner_bucket_prefix[inner_bucket];
-      uint64_t outer_buffer_offset = outer_pos - outer_bucket_prefix[outer_bucket];
-
-      if (inner_buffer[inner_buffer_offset] < inner_last_key) {
-        abort();
-      }
-      if (outer_buffer[outer_buffer_offset] < outer_last_key) {
-        abort();
-      }
-      inner_last_key = inner_buffer[inner_buffer_offset];
-      outer_last_key = outer_buffer[outer_buffer_offset];
-
-      if (inner_buffer[inner_buffer_offset] == outer_buffer[outer_buffer_offset] ) {
-        memcpy(kvbuf, (char *)(inner_buffer + inner_buffer_offset), 8);
-        KVSlice k(kvbuf, 8, 8);
-        result_builder->add(k);
-        inner_pos++;
-        outer_pos++;
-      }
-      else if (inner_buffer[inner_buffer_offset] < outer_buffer[outer_buffer_offset]) {
-        inner_pos++;
-      } else {
-        outer_pos++;
-      }
-      while (inner_pos == inner_bucket_prefix[inner_bucket+1]) {
-        inner_bucket++;
-        pread(fd1, (void *)inner_buffer, inner_bucket_sizes[inner_bucket] * 8, inner_bucket_prefix[inner_bucket] * 8);
-        std::sort(inner_buffer, inner_buffer + inner_bucket_sizes[inner_bucket]);
-      }
-      while (outer_pos == outer_bucket_prefix[outer_bucket+1]) {
-        outer_bucket++;
-        pread(fd2, (void *)outer_buffer, outer_bucket_sizes[outer_bucket] * 8, outer_bucket_prefix[outer_bucket] * 8);
-        std::sort(outer_buffer, outer_buffer + outer_bucket_sizes[outer_bucket]);
-      }
-    }
-    #endif
-
     close(fd1);
     close(fd2);
 
-    result->stats["bucket_size"] = std::max(inner_max_buffer_size, outer_max_buffer_size);
+    result->stats["max_bucket_size"] = std::max(inner_max_buffer_size, outer_max_buffer_size);
+    result->stats["avg_bucket_size"] = bucket_size;
     result->stats["disk_read"] = inner_iter->getTotalBytesFetched() + outer_iter->getTotalBytesFetched() + bytes_read; 
     result->stats["disk_write"] = (outer_end-outer_start + inner_end-inner_start) * sizeof(pii);
+    #if IOSTAT
+    auto join_end = std::chrono::high_resolution_clock::now();
+    result->stats["join_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(join_end - index_end).count();
+    result->stats["outer_index_train_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(outer_index_train_ts - op_start).count();
+    result->stats["outer_index_bucket_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(outer_index_bucket_ts - outer_index_train_ts).count();
+    #endif
 
     result->output_table = result_builder->build();
   }
 
   void mergePartitions() override {
-    this->stats_["bucket_size"] = this->partition_results_[0].stats["bucket_size"];
+    this->stats_["max_bucket_size"] = this->partition_results_[0].stats["max_bucket_size"];
+    this->stats_["avg_bucket_size"] = this->partition_results_[0].stats["avg_bucket_size"];
     this->stats_["disk_read"] = this->partition_results_[0].stats["disk_read"];
     this->stats_["disk_write"] = this->partition_results_[0].stats["disk_write"];
+    #if IOSTAT
+    this->stats_["iostat_kb_read_index"] = 
+      (uint64_t)this->partition_results_[0].stats["index_iostat"]["kbytes_read"] - 
+      (uint64_t)this->partition_results_[0].stats["start_iostat"]["kbytes_read"];
+    this->stats_["iostat_kb_wrtn_index"] = 
+      (uint64_t)this->partition_results_[0].stats["index_iostat"]["kbytes_wrtn"] - 
+      (uint64_t)this->partition_results_[0].stats["start_iostat"]["kbytes_wrtn"];
+    this->stats_["index_duration_ns"] = (uint64_t)this->partition_results_[0].stats["index_duration_ns"];
+    this->stats_["join_duration_ns"] = (uint64_t)this->partition_results_[0].stats["join_duration_ns"];
+    this->stats_["outer_index_train_ns"] = (uint64_t)this->partition_results_[0].stats["outer_index_train_ns"];
+    this->stats_["outer_index_bucket_ns"] = (uint64_t)this->partition_results_[0].stats["outer_index_bucket_ns"];
+    #endif
     this->output_table_ = this->result_builder_->build();
   }
 };
@@ -627,6 +664,12 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
   }
 
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    // Read IOStat and Time here
+    #if IOSTAT
+    result->stats["start_iostat"] = get_iostat();
+    auto op_start = std::chrono::high_resolution_clock::now();
+    #endif
+
     uint64_t outer_start = partition.outer.first;
     uint64_t outer_end = partition.outer.second;
     uint64_t inner_start = partition.inner.first;
@@ -655,6 +698,7 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
       outer_btree->insert_key_leaf_disk(lni);
       outer_iter->next();
     }
+    auto outer_index_train_ts = std::chrono::high_resolution_clock::now();
 
     char *innerBtreeName = new char[inner_btree_file_path_.size() + 1];
     memset(innerBtreeName, '\0', inner_btree_file_path_.size() + 1);
@@ -671,7 +715,12 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
       inner_iter->next();
     }
 
-
+#if IOSTAT
+    // Read IOStat and Time here.
+    auto index_end = std::chrono::high_resolution_clock::now();
+    result->stats["index_iostat"] = get_iostat();
+    result->stats["index_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(index_end - op_start).count();
+#endif
     // std::sort(inner_keys.begin(), inner_keys.end());
     // std::sort(outer_keys.begin(), outer_keys.end());
     /*
@@ -692,43 +741,11 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     printf("end %lld %lld\n", inner_end, outer_end);
     */
 
-#if 0
-    // auto inner_it = inner_btree->inner_btree.begin(); 
-    auto inner_it = inner_btree->inner_btree.find_for_disk(0);
-    int block_id = inner_it.data();
-    auto vit = inner_keys.begin();
-    printf("last block: %lld block_count: %lld level: %lld\n", inner_btree->metanode.last_block, inner_btree->metanode.block_count, inner_btree->metanode.level);
-    while (inner_it != inner_btree->inner_btree.end()) {
-      Block inner_block = inner_btree->sm->get_block(inner_it.data());
-      LeaftNodeHeader *inner_head = (LeaftNodeHeader *) (inner_block.data);
-      LeafNodeIterm *inner_items = (LeafNodeIterm *) (inner_block.data + LeaftNodeHeaderSize);
-      inner_it++;
-      uint64_t mn, mx;
-      mn = inner_items[0].key;
-      mx = inner_items[0].key;
-      for (uint64_t i=0; i < inner_head->item_count; i++) {
-        mn = std::min(mn, inner_items[i].key);
-        mx = std::max(mx, inner_items[i].key);
-        if (inner_items[i].key != *(vit)) {
-          printf("Missing key %lld %lld!\n", *(vit), inner_items[i].key);
-          uint64_t pos; 
-          bool found = inner_btree->lookup_value(*(vit), &pos, &c);
-          printf("%d\n", found);
-        }
-        while (*(vit) <= inner_items[i].key && vit!=inner_keys.end()) {
-          vit++;
-        }
-      }
-      printf("%lld (%lld %lld) NodeType:%lld NextBlock:%lld, Level: %lld [%lld %lld]\n", block_id, inner_it.key(), inner_it.data(), inner_head->node_type, inner_head->next_block_id, inner_head->level, mn,mx);
-      if (block_id == inner_btree->metanode.last_block) {
-        break;
-      }
-      block_id = inner_head->next_block_id;
-    }
-    #endif
-
     auto outer_it = outer_btree->inner_btree.begin(); 
     Block outer_block = outer_btree->sm->get_block(outer_it.data());
+
+    outer_btree->flush_to_disk();
+    inner_btree->flush_to_disk();
 
     LeaftNodeHeader *outer_head = (LeaftNodeHeader *) (outer_block.data);
     LeafNodeIterm *outer_items = (LeafNodeIterm *) (outer_block.data + LeaftNodeHeaderSize);
@@ -763,118 +780,13 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
       }
     }
 
-#if 0
-    auto outer_it = outer_btree->inner_btree.begin(); 
-    auto inner_it = inner_btree->inner_btree.begin(); 
-    Block inner_block = inner_btree->sm->get_block(inner_it.data());
-    Block outer_block = outer_btree->sm->get_block(outer_it.data());
-
-    LeaftNodeHeader *inner_head = (LeaftNodeHeader *) (inner_block.data);
-    LeafNodeIterm *inner_items = (LeafNodeIterm *) (inner_block.data + LeaftNodeHeaderSize);
-    LeaftNodeHeader *outer_head = (LeaftNodeHeader *) (outer_block.data);
-    LeafNodeIterm *outer_items = (LeafNodeIterm *) (outer_block.data + LeaftNodeHeaderSize);
-    uint64_t ic=0;
-    uint64_t oc=0;
-    char kvbuf[16];
-    memset(kvbuf, 0, 16);
-    int inner_is_last = 0;
-    int outer_is_last = 0;
-    uint64_t inner_count = 0;
-    uint64_t outer_count = 0;
-    while (true) {
-      uint64_t ikey = inner_items[ic].key;
-      uint64_t okey = outer_items[oc].key;
-      if (ikey == okey) {
-        memcpy(kvbuf, (char *)(&ikey), 8);
-        KVSlice k(kvbuf, 8, 8);
-        result_builder->add(k);
-        ic++;
-        oc++;
-        inner_count++;
-        outer_count++;
-      } else if (ikey < okey) {
-        ic++;
-        inner_count++;
-      } else {
-        oc++;
-        outer_count++;
-      }
-
-      if (ic == inner_head->item_count) {
-        inner_it++;
-        if (inner_is_last) break;
-        if (inner_it == inner_btree->inner_btree.end()) {
-          inner_block = inner_btree->sm->get_block(inner_btree->metanode.last_block);
-          inner_is_last = 1;
-          // printf("count: %lld %lld\n", inner_count, outer_count);
-        } else {
-          inner_block = inner_btree->sm->get_block(inner_it.data());
-        }
-        ic = 0;
-        inner_head = (LeaftNodeHeader *) (inner_block.data);
-        inner_items = (LeafNodeIterm *) (inner_block.data + LeaftNodeHeaderSize);
-      }
-      if (oc == outer_head->item_count) {
-        outer_it++;
-        if (outer_is_last) break;
-        if (outer_it == outer_btree->inner_btree.end()) {
-          outer_block = outer_btree->sm->get_block(outer_btree->metanode.last_block);
-          outer_is_last = 1;
-          // printf("%lld %lld\n", inner_count, outer_count);
-        } else {
-          outer_block = outer_btree->sm->get_block(outer_it.data());
-        };
-        oc = 0;
-        outer_head = (LeaftNodeHeader *) (outer_block.data);
-        outer_items = (LeafNodeIterm *) (outer_block.data + LeaftNodeHeaderSize);
-      }
-    }
-    // printf("final: %lld %lld\n", inner_count, outer_count);
-    #endif
-
-#if 0
-
-    inner_index_iter.has_next_range(&c);
-    outer_index_iter.has_next_range(&c);
-    uint64_t inner_key = 0;
-    uint64_t outer_key = 0;
-    while (ic < inner_end && oc < outer_end) {
-    // while (inner_index_iter.has_next() && outer_index_iter.has_next()) {
-      if (inner_key <= inner_index_iter.key()) {
-        inner_key = inner_index_iter.key();
-      } else {
-        abort();
-      }
-      if (outer_key <= outer_index_iter.key()) {
-        outer_key = outer_index_iter.key();
-      } else {
-        abort();
-      }
-      // printf("[%lld %lld] [%lld %lld]\n", inner_key, inner_index_iter.value(), outer_key, outer_index_iter.value());
-      if (inner_key == outer_key) {
-        memcpy(kvbuf, (char *)(&inner_key), 8);
-        KVSlice k(kvbuf, 8, 8);
-        result_builder->add(k);
-        inner_index_iter.has_next_range(&c);
-        inner_index_iter.next();
-        outer_index_iter.has_next_range(&c);
-        outer_index_iter.next();
-        oc++;
-        ic++;
-      } else if (inner_key < outer_key) {
-        inner_index_iter.has_next_range(&c);
-        inner_index_iter.next();
-        ic++;
-      } else {
-        outer_index_iter.has_next_range(&c);
-        inner_index_iter.has_next();
-        outer_index_iter.next();
-        oc++;
-      }
-    }
-  #endif
     result->stats["disk_read"] = inner_btree->bytes_read() + outer_btree->bytes_read() + inner_iter->getTotalBytesFetched() + outer_iter->getTotalBytesFetched(); 
     result->stats["disk_write"] = inner_btree->bytes_written() + outer_btree->bytes_written() + (outer_end-outer_start + inner_end-inner_start) * sizeof(pii);
+    #if IOSTAT
+    auto join_end = std::chrono::high_resolution_clock::now();
+    result->stats["join_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(join_end - index_end).count();
+    result->stats["outer_index_train_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(outer_index_train_ts - op_start).count();
+    #endif
     delete inner_btree;
     delete outer_btree;
     result->output_table = result_builder->build();
@@ -884,6 +796,17 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     this->stats_["disk_read"] = this->partition_results_[0].stats["disk_read"];
     this->stats_["disk_write"] = this->partition_results_[0].stats["disk_write"];
     this->stats_["bucket_size"] = 256;
+    #if IOSTAT
+    this->stats_["iostat_kb_read_index"] = 
+      (uint64_t)this->partition_results_[0].stats["index_iostat"]["kbytes_read"] - 
+      (uint64_t)this->partition_results_[0].stats["start_iostat"]["kbytes_read"];
+    this->stats_["iostat_kb_wrtn_index"] = 
+      (uint64_t)this->partition_results_[0].stats["index_iostat"]["kbytes_wrtn"] - 
+      (uint64_t)this->partition_results_[0].stats["start_iostat"]["kbytes_wrtn"];
+    this->stats_["index_duration_ns"] = (uint64_t)this->partition_results_[0].stats["index_duration_ns"];
+    this->stats_["join_duration_ns"] = (uint64_t)this->partition_results_[0].stats["join_duration_ns"];
+    this->stats_["outer_index_train_ns"] = (uint64_t)this->partition_results_[0].stats["outer_index_train_ns"];
+    #endif
     this->output_table_ = this->result_builder_->build();
   }
 
