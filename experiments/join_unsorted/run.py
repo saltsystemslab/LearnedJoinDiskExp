@@ -15,6 +15,8 @@ flags.DEFINE_string("test_dir", "sponge/join_unsorted", "")
 flags.DEFINE_string("dataset", "fb", "")
 flags.DEFINE_string("io_device", "sda", "")
 flags.DEFINE_bool("use_cgroup", False, "")
+flags.DEFINE_bool("use_alex", False, "")
+flags.DEFINE_bool("debug_mode", False, "")
 flags.DEFINE_string("cgroup", "/sys/fs/cgroup/join-cgroup", "")
 
 def init_datasets():
@@ -56,6 +58,10 @@ def init_datasets():
 def setup_experiment_directories():
     setup_script = "./scripts/benchmark.py"
     args = [setup_script, "--only_build", f"--test_dir={FLAGS.test_dir}", f"--test_name={FLAGS.dataset}"]
+    if FLAGS.use_alex:
+        args.append('--use_alex')
+    if FLAGS.debug_mode:
+        args.append('--debug_build')
     print("Running setup script")
     print(args)
     subprocess.run(args)

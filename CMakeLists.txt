@@ -31,6 +31,7 @@ include_directories(
   third_party/LearnedIndexDiskExp/code/b+_tree/stx-btree-0.9/include
   third_party/LearnedIndexDiskExp/code/b+_tree/
   third_party/RadixSpline/include
+  third_party/LearnedIndexDiskExp/code/ALEX/src/core
 )
 
 set(THIRD_PARTY GTest::gtest_main OpenSSL::SSL tbb nlohmann_json::nlohmann_json)
@@ -43,6 +44,11 @@ endif()
 option(STRING_KEYS "STRING KEYS" OFF)
 if (STRING_KEYS)
   add_compile_definitions(STRING_KEYS=1)
+endif()
+
+option(USE_ALEX "USE_ALEX" OFF)
+if (USE_ALEX)
+  add_compile_definitions(USE_ALEX=1)
 endif()
 
 add_executable(benchmark_runner src/test_runner.cpp )

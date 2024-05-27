@@ -22,6 +22,7 @@ flags.DEFINE_bool("only_input", False, "Create input and exit")
 flags.DEFINE_bool("check_results", False, "Verify that all the outputs are same.")
 flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmark stats.")
 flags.DEFINE_bool("string_keys", False, "Use string keys.")
+flags.DEFINE_bool("use_alex", False, "Use alex.")
 flags.DEFINE_bool("debug_build", False, "")
 flags.DEFINE_bool("use_numactl", True, "")
 flags.DEFINE_bool("use_cgroups", False, "")
@@ -86,7 +87,8 @@ def build_runner(build_dir, force_track_stats=False):
     track_stats='-DTRACK_STATS=ON' if (FLAGS.track_stats or force_track_stats) else '-DTRACK_STATS=OFF'
     string_keys = '-DSTRING_KEYS=ON' if (FLAGS.string_keys) else '-DSTRING_KEYS=OFF'
     debug = '-DCMAKE_BUILD_TYPE=debug' if (FLAGS.debug_build) else '-DCMAKE_BUILD_TYPE=release'
-    subprocess.run(['cmake', '-B', build_dir, track_stats, string_keys, debug, '-S', '.'])
+    use_alex = '-DUSE_ALEX=ON' if (FLAGS.use_alex) else '-DUSE_ALEX=OFF'
+    subprocess.run(['cmake', '-B', build_dir, track_stats, string_keys, debug, use_alex, '-S', '.'])
     subprocess.run(['cmake', '--build', build_dir, '-j'])
     return os.path.join(build_dir, 'benchmark_runner')
 

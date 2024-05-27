@@ -14,7 +14,15 @@
 // TODO(chesetti): Must be last for some reason. Fix.
 #include <nlohmann/json.hpp>
 #include "table_op.h"
+
+#define IOSTAT 0
+
+#if USE_ALEX
+#include "alex.h"
+#else 
 #include "b_tree.h"
+#endif
+
 #include "pgm/pgm_index.hpp"
 #include "pgm/pgm_index_variants.hpp"
 
@@ -270,6 +278,9 @@ template <class T> class IndexedJoinOnUnsortedData: public TableOp<T> {
   }
 
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+  #if USE_ALEX
+    abort();
+  #else
     uint64_t outer_start = partition.outer.first;
     uint64_t outer_end = partition.outer.second;
     uint64_t inner_start = partition.inner.first;
@@ -310,6 +321,7 @@ template <class T> class IndexedJoinOnUnsortedData: public TableOp<T> {
 
     delete btree;
     result->output_table = result_builder->build();
+  #endif
   }
 
   void mergePartitions() override {
@@ -340,15 +352,14 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     return partitions;
   }
 
-#define IOSTAT 0
 
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
     #if IOSTAT 
-    uint64_t bucket_size = 100;
     result->stats["start_iostat"] = get_iostat();
     auto op_start = std::chrono::high_resolution_clock::now();
     #endif
 
+    uint64_t bucket_size = 100;
     uint64_t bytes_read = 0;
     uint64_t outer_start = partition.outer.first;
     uint64_t outer_end = partition.outer.second;
@@ -663,6 +674,7 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     return partitions;
   }
 
+
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
     // Read IOStat and Time here
     #if IOSTAT
@@ -676,6 +688,47 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     uint64_t inner_end = partition.inner.second;
     auto result_builder = this->result_builder_->getBuilderForRange(
         inner_start + outer_start, inner_end + outer_end);
+#if USE_ALEX
+  std::string outer_btree_index_path = outer_btree_file_path_ + "_index";
+  std::string outer_btree_data_path = outer_btree_file_path_ + "_data";
+
+  char *outerBtreeDataName = new char[outer_btree_data_path.size()+1];
+  memset(outerBtreeDataName, 0, outer_btree_data_path.size() + 1);
+  memcpy(outerBtreeDataName, outer_btree_data_path.c_str(),outer_btree_data_path.size());
+  char *outerBtreeIndexName = new char[outer_btree_index_path.size()+1];
+  memset(outerBtreeIndexName, 0, outer_btree_index_path.size() + 1);
+  memcpy(outerBtreeIndexName, outer_btree_index_path.c_str(),outer_btree_index_path.size());
+
+  alex::Alex<uint64_t, uint64_t> outer_index(LEAF_DISK, true, outerBtreeIndexName, outerBtreeDataName);
+  outer_index.sync_metanode(true);
+  outer_index.sync_metanode(false);
+ 
+  auto outer_iter = this->outer_->iterator();
+  long long tmp;
+  int tmp2;
+  uint64_t dummy_values = 2000000;
+  auto values = new std::pair<uint64_t, uint64_t>[dummy_values];
+  for (uint64_t i=outer_start; i<outer_start + dummy_values; i++) {
+    KVSlice k = outer_iter->key();
+    uint64_t key = *(uint64_t *)k.data();
+    values[i].first = key;
+    values[i].second = i;
+  }
+  std::sort(values, values + dummy_values);
+  std::cout<<"Starting bulkLoad"<<std::endl;
+  outer_index.bulk_load(values, dummy_values);
+  std::cout<<"Done bulkLoad"<<std::endl;
+  outer_index.sync_metanode(true);
+  outer_index.sync_metanode(false);
+
+  uint64_t key = dummy_values * 3;
+  uint64_t value = 10;
+  // outer_index.insert_disk(key, value, &tmp, &tmp, &tmp, &tmp, &tmp2);
+
+  result->stats["disk_read"] = 0;
+  result->stats["disk_write"] = 0;
+  return;
+#else
 
     LeafNodeIterm lni;
     int c;
@@ -721,25 +774,6 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     result->stats["index_iostat"] = get_iostat();
     result->stats["index_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(index_end - op_start).count();
 #endif
-    // std::sort(inner_keys.begin(), inner_keys.end());
-    // std::sort(outer_keys.begin(), outer_keys.end());
-    /*
-    uint64_t missing_inner = 0, missing_outer=0;
-    for (auto k: inner_keys) {
-      uint64_t pos;
-      if (!inner_btree->lookup_value(k, &pos, &c)){
-        missing_inner++;
-      }
-    }
-    for (auto k: outer_keys) {
-      uint64_t pos;
-      if (!outer_btree->lookup_value(k, &pos, &c)){
-        missing_outer++;
-      }
-    }
-    printf("missing %lld %lld\n", missing_inner, missing_outer);
-    printf("end %lld %lld\n", inner_end, outer_end);
-    */
 
     auto outer_it = outer_btree->inner_btree.begin(); 
     Block outer_block = outer_btree->sm->get_block(outer_it.data());
@@ -790,6 +824,7 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     delete inner_btree;
     delete outer_btree;
     result->output_table = result_builder->build();
+#endif
   }
 
   void mergePartitions() override {
