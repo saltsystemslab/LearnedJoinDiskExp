@@ -107,6 +107,12 @@ json run_test(json test_spec) {
   } else if (test_spec["algo"] == "unsorted_inlj_sorted_output") {
     op = new IndexedJoinOnUnsortedDataSortedOutput<KVSlice>(outer_table, inner_table, result_table_builder, num_threads, test_spec["outer_index_file"], test_spec["inner_index_file"]);
   }
+  #if USE_ALEX
+  else if (test_spec["algo"] == "alex_inlj") {
+    std::string inner_path = test_spec["inner_table"];
+    op = new AlexInlj(outer_table, inner_table, result_table_builder, num_threads, inner_path + "_alex");
+  }
+  #endif
   TableOpResult<KVSlice> result = op->profileOp();
   if (test_spec.contains("check_checksum") && test_spec["check_checksum"]) {
     result.stats["checksum"] = md5_checksum(result.output_table);
@@ -247,7 +253,6 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   } else if (index_type == "rmi") {
     return new RmiIndex<KVSlice>(test_spec["index"]["dataset"], get_converter(test_spec));
   }
-  
   else if (index_type == "btree") {
     uint64_t suffix = test_spec["index"]["leaf_size_in_pages"];
     suffix *= (4096 / ((uint64_t)test_spec["key_size"] +
@@ -255,6 +260,11 @@ Index<KVSlice> *get_index(std::string table_path, json test_spec) {
     return new BTreeWIndex(table_path + "_btree" + std::to_string(suffix),
                            suffix);
   }
+  #if USE_ALEX
+  else if (index_type == "alex") {
+    return nullptr;
+  }
+  #endif
   fprintf(stderr, "Unknown Index Type in test spec");
   abort();
 }

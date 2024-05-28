@@ -18,7 +18,7 @@
 #define IOSTAT 0
 
 #if USE_ALEX
-#include "alex.h"
+#include "alex_index.h"
 #else 
 #include "b_tree.h"
 #endif
@@ -39,7 +39,6 @@ std::string exec_iostat() {
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
     }
-    
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
     }
@@ -676,6 +675,9 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
 
 
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    #if USE_ALEX
+      abort();
+    #else
     // Read IOStat and Time here
     #if IOSTAT
     result->stats["start_iostat"] = get_iostat();
@@ -688,47 +690,6 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     uint64_t inner_end = partition.inner.second;
     auto result_builder = this->result_builder_->getBuilderForRange(
         inner_start + outer_start, inner_end + outer_end);
-#if USE_ALEX
-  std::string outer_btree_index_path = outer_btree_file_path_ + "_index";
-  std::string outer_btree_data_path = outer_btree_file_path_ + "_data";
-
-  char *outerBtreeDataName = new char[outer_btree_data_path.size()+1];
-  memset(outerBtreeDataName, 0, outer_btree_data_path.size() + 1);
-  memcpy(outerBtreeDataName, outer_btree_data_path.c_str(),outer_btree_data_path.size());
-  char *outerBtreeIndexName = new char[outer_btree_index_path.size()+1];
-  memset(outerBtreeIndexName, 0, outer_btree_index_path.size() + 1);
-  memcpy(outerBtreeIndexName, outer_btree_index_path.c_str(),outer_btree_index_path.size());
-
-  alex::Alex<uint64_t, uint64_t> outer_index(LEAF_DISK, true, outerBtreeIndexName, outerBtreeDataName);
-  outer_index.sync_metanode(true);
-  outer_index.sync_metanode(false);
- 
-  auto outer_iter = this->outer_->iterator();
-  long long tmp;
-  int tmp2;
-  uint64_t dummy_values = 2000000;
-  auto values = new std::pair<uint64_t, uint64_t>[dummy_values];
-  for (uint64_t i=outer_start; i<outer_start + dummy_values; i++) {
-    KVSlice k = outer_iter->key();
-    uint64_t key = *(uint64_t *)k.data();
-    values[i].first = key;
-    values[i].second = i;
-  }
-  std::sort(values, values + dummy_values);
-  std::cout<<"Starting bulkLoad"<<std::endl;
-  outer_index.bulk_load(values, dummy_values);
-  std::cout<<"Done bulkLoad"<<std::endl;
-  outer_index.sync_metanode(true);
-  outer_index.sync_metanode(false);
-
-  uint64_t key = dummy_values * 3;
-  uint64_t value = 10;
-  // outer_index.insert_disk(key, value, &tmp, &tmp, &tmp, &tmp, &tmp2);
-
-  result->stats["disk_read"] = 0;
-  result->stats["disk_write"] = 0;
-  return;
-#else
 
     LeafNodeIterm lni;
     int c;
@@ -824,7 +785,7 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     delete inner_btree;
     delete outer_btree;
     result->output_table = result_builder->build();
-#endif
+    #endif
   }
 
   void mergePartitions() override {
@@ -917,6 +878,81 @@ private:
   SearchStrategy<T> *search_strategy_;
 };
 
+#if USE_ALEX
+template <class T> class AlexInlj: public TableOp<T> {
+  public:
+  AlexInlj(
+    SSTable<T> *outer, SSTable<T> *inner,
+    PSSTableBuilder<T> *result_builder, int num_threads, std::string alex_path)
+      : TableOp<T>(outer, inner, result_builder, num_threads), alex_path_(alex_path) {
+      // Alex does not support loading from file, so we recreate the index.
+      AlexIndexBuilder builder(this->alex_path_);
+      auto iter = inner->iterator();
+      while (iter->valid()) {
+        builder.add(iter->key());
+        iter->next();
+      }
+      alex_index = builder.build();
+      // Drop Caches as we just read the input to recreate the index.
+      system("sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'");
+  }
+  std::vector<Partition> getPartitions() override {
+    if (this->num_threads_ != 1) {
+      abort();
+    }
+    uint64_t outer_start = 0;
+    uint64_t outer_end =  this->outer_->iterator()->numElts();
+    uint64_t inner_start = 0;
+    uint64_t inner_end =  this->inner_->iterator()->numElts();
+    std::vector<Partition> partitions;
+    partitions.push_back(
+        Partition{std::pair<uint64_t, uint64_t>(outer_start, outer_end),
+                  std::pair<uint64_t, uint64_t>(inner_start, inner_end)});
+    return partitions;
+  }
+
+  void mergePartitions() override {
+    this->stats_["inner_disk_fetch"] = 0;
+    this->stats_["inner_disk_fetch_size"] = 0;
+    this->stats_["inner_total_bytes_fetched"] = 0;
+    this->stats_["outer_disk_fetch"] = 0;
+    this->stats_["outer_disk_fetch_size"] = 0;
+    this->stats_["outer_total_bytes_fetched"] = 0;
+    this->output_table_ = this->result_builder_->build();
+
+  }
+  void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
+    uint64_t outer_start = partition.outer.first;
+    uint64_t outer_end = partition.outer.second;
+    uint64_t inner_start = partition.inner.first;
+    uint64_t inner_end = partition.inner.second;
+
+    auto outer_iterator = this->outer_->iterator();
+    auto result_builder = this->result_builder_->getBuilderForRange(
+        inner_start + outer_start, inner_end + outer_end);
+    uint64_t count = 0;
+    while (outer_iterator->currentPos() < outer_end) {
+      auto bounds = alex_index->getPositionBounds(outer_iterator->key());
+      count++;
+      if (count % 1000000 == 0) {
+        printf("%lld\n", count);
+      }
+      if (bounds.approx_pos) {
+        result_builder->add(outer_iterator->key());
+        // Do Something
+      }
+      outer_iterator->next();
+    }
+    result->output_table = result_builder->build(); 
+    delete outer_iterator;
+  }
+
+  private:
+    Index<T> *alex_index;
+    std::string alex_path_;
+};
+#endif
+
 template <class T> class Inlj : public BaseMergeAndJoinOp<T> {
 public:
   Inlj(SSTable<T> *outer, SSTable<T> *inner, Index<T> *inner_index,
@@ -970,7 +1006,8 @@ public:
     result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
     result->stats["outer_total_bytes_fetched"] =
         outer_iterator->getTotalBytesFetched();
-    result->output_table = result_builder->build(), delete outer_iterator;
+    result->output_table = result_builder->build();
+    delete outer_iterator;
     delete inner_iterator;
   }
 

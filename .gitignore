@@ -31,3 +31,4 @@ experiments/run_join_sorted_hdd_alps.sh
 experiments/run_join_sorted_ssd_alps.sh
 experiments/join/fb_join_sorted_hdd.txt
 experiments/join/fb_join_sorted_ssd.txt
+.vscode/settings.json
