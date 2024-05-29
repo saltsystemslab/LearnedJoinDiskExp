@@ -18,7 +18,8 @@ flags.DEFINE_bool("dry_run", False, "")
 flags.DEFINE_string("sosd_data_dir", "./third_party/sosd/data/", "")
 flags.DEFINE_string("ratios", "1,10,100,100", "")
 flags.DEFINE_string("indexes", "btree256,sampledflatpgm256","")
-flags.DEFINE_string("non_indexed_joins", "sort_join","")
+flags.DEFINE_string("non_indexed_joins", "","")
+flags.DEFINE_string("indexed_joins", "lsj,inlj","")
 flags.DEFINE_string("exp_name", "testrun","")
 flags.DEFINE_string("threads", "1","")
 flags.DEFINE_bool("use_cgroups", False, "") 
@@ -78,8 +79,11 @@ def main(argv):
 
     indexes = json.dumps(FLAGS.indexes.split(","))
     non_indexed_joins = json.dumps(FLAGS.non_indexed_joins.split(","))
-    if not non_indexed_joins:
+    indexed_joins = json.dumps(FLAGS.indexed_joins.split(","))
+    if not FLAGS.non_indexed_joins:
         non_indexed_joins = "[]"
+    if not FLAGS.indexed_joins:
+        indexed_joins = "[]"
     ratios = [int(r) for r in FLAGS.ratios.split(",")]
     threads = [int(t) for t in FLAGS.threads.split(",")]
     for thread in threads:
@@ -102,6 +106,7 @@ def main(argv):
             args.append(f'--ratios={ratios}')
             args.append(f'--indexes={indexes}')
             args.append(f'--non_indexed_joins={non_indexed_joins}')
+            args.append(f'--indexed_joins={indexed_joins}')
             args.append(f'--io_device={FLAGS.io_device}')
             if FLAGS.string_keys:
                 args.append("--string_keys")

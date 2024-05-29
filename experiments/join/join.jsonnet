@@ -20,6 +20,7 @@ local num_keys_in_inner = std.parseInt(std.extVar("TEST_DATASET_SIZE"));
 local ratios = std.parseJson(std.extVar("TEST_RATIOS"));
 local index_names = std.parseJson(std.extVar("TEST_INDEXES"));
 local non_indexed_joins = std.parseJson(std.extVar("TEST_NON_INDEXED_JOINS"));
+local indexed_joins = std.parseJson(std.extVar("TEST_INDEXED_JOINS"));
 
 local all_index_names = [
     "pgm256", "flatpgm256", "sampledflatpgm256", 
@@ -127,7 +128,7 @@ local algos = [
         "index": indexes[idx]
     }
     for idx in index_names
-     for join_algo in ["lsj", "inlj"]
+     for join_algo in indexed_joins
 ] + [
     {
         "algo_name": algo,

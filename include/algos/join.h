@@ -934,12 +934,8 @@ template <class T> class AlexInlj: public TableOp<T> {
     while (outer_iterator->currentPos() < outer_end) {
       auto bounds = alex_index->getPositionBounds(outer_iterator->key());
       count++;
-      if (count % 1000000 == 0) {
-        printf("%lld\n", count);
-      }
       if (bounds.approx_pos) {
         result_builder->add(outer_iterator->key());
-        // Do Something
       }
       outer_iterator->next();
     }

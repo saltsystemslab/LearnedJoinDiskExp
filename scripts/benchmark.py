@@ -39,6 +39,7 @@ flags.DEFINE_integer("sosd_num_keys", 100000000, "Num Keys in SOSD")
 flags.DEFINE_string("ratios", "[1,10,100,100]", "")
 flags.DEFINE_string("indexes", "[\"btree256\",\"sampledflatpgm256\"]","")
 flags.DEFINE_string("non_indexed_joins", "[\"sort_join\",\"hash_join\"]","")
+flags.DEFINE_string("indexed_joins", "[\"lsj\",\"inlj\"]","")
 flags.DEFINE_string("io_device", "nvme0n1", "")
 flags.DEFINE_string("cgroup", "/sys/fs/cgroup/user.slice", "")
 
@@ -56,6 +57,8 @@ def main(argv):
     print(FLAGS.spec)
     print("RATIOS: ", FLAGS.ratios)
     print(FLAGS.indexes)
+    print(FLAGS.indexed_joins)
+    print(FLAGS.non_indexed_joins)
     exp['config'] = json.loads(_jsonnet.evaluate_file(
         FLAGS.spec, ext_vars = {
             "TEST_OUTPUT_DIR": exp['output_dir'],
@@ -68,7 +71,8 @@ def main(argv):
             "TEST_CHECK_CHECKSUM": str(FLAGS.check_results),
             "TEST_RATIOS": str(FLAGS.ratios),
             "TEST_INDEXES": str(FLAGS.indexes),
-            "TEST_NON_INDEXED_JOINS": str(FLAGS.non_indexed_joins)
+            "TEST_NON_INDEXED_JOINS": str(FLAGS.non_indexed_joins),
+            "TEST_INDEXED_JOINS": str(FLAGS.indexed_joins)
         }
     ))
 

@@ -25,9 +25,7 @@ local all_index_names = [
 ];
 local index_names = [
     "flatpgm256",  
-    "flatpgm1024",  
-    "flatpgm4096", 
-    "btree256", "btree1024", "btree4096"
+    "btree256",
 ];
 
 local indexes = {

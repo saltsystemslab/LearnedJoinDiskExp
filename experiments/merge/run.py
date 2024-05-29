@@ -11,13 +11,18 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("repeat", 2, "")
 flags.DEFINE_string("dataset", "fb", "")
 flags.DEFINE_bool("clear_inputs", True, "")
-flags.DEFINE_bool("check_checksum", True, "")
+flags.DEFINE_bool("check_checksum", False, "")
 flags.DEFINE_bool("skip_input", False, "")
 flags.DEFINE_bool("use_numactl", False, "")
 flags.DEFINE_string("sosd_data_dir", "./data", "")
 flags.DEFINE_string("threads", "1","")
 flags.DEFINE_string("exp_name", "mergetestrun","")
 flags.DEFINE_bool("dry_run", False, "")
+flags.DEFINE_bool("clear_fs_cache", False, "") 
+flags.DEFINE_string("cgroup", "/sys/fs/cgroup/join-cgroup","")
+flags.DEFINE_bool("string_keys", False, "")
+flags.DEFINE_string("io_device", "sdb", "")
+flags.DEFINE_string("test_dir", "sponge", "")
 
 def init_datasets():
  datasets = {
@@ -76,6 +81,13 @@ def main(argv):
             args.append(f'--sosd_num_keys={datasets[dataset]["num_keys"]}')
             args.append(f'--dry_run={FLAGS.dry_run}')
             args.append(f'--skip_input={FLAGS.skip_input}')
+            args.append(f'--io_device={FLAGS.io_device}')
+            if FLAGS.clear_fs_cache:
+                args.append(f'--clear_fs_cache')
+            if FLAGS.use_numactl:
+                args.append(f'--use_numactl')
+            else:
+                args.append(f'--nouse_numactl')
             print(args)
             subprocess.run(args)
 
