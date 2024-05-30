@@ -399,8 +399,6 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     memset((void *)outer_bucket_max, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
     memset((void *)outer_bucket_cur, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
 
-    char kvbuf[16];
-
     // Write the buckets 
     outer_iter->seekTo(0);
     for (uint64_t i=outer_start; i < outer_end; i++) {
@@ -424,12 +422,21 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       outer_max_buffer_size = std::max(outer_bucket_sizes[i], outer_max_buffer_size);
       // printf("%lld %lld %lld\n", outer_bucket_max[i], outer_bucket_prefix[i], outer_bucket_sizes[i]);
     }
+
     int fd = open(outer_index_file_.c_str(), O_WRONLY | O_CREAT, 0644);
-    fallocate(fd, 0, 0, outer_num_keys*16);
+    fallocate(fd, 0, 0, outer_num_keys*2*sizeof(uint64_t));
     if (fd == -1) {
         perror("Failed to open file");
         exit(EXIT_FAILURE);
     }
+
+    uint64_t bucket_buffer_size = 16; // Size in terms of uint64_t
+    uint64_t *bucket_buffer;
+    uint64_t *bucket_buffer_offset;
+
+    // Each bucket in memory will store 8 pairs of integers before flushing.
+    bucket_buffer = new uint64_t[(outer_num_buckets + 1) * bucket_buffer_size];
+    bucket_buffer_offset = new uint64_t[(outer_num_buckets + 1)];
     outer_iter->seekTo(0);
     for (uint64_t i=outer_start; i<outer_end; i++) {
       KVSlice k = outer_iter->key();
@@ -440,18 +447,41 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       if (b >= outer_num_buckets + 1) {
         abort();
       }
-      uint64_t offset = (outer_bucket_prefix[b] + outer_bucket_cur[b]) * (2 * sizeof(uint64_t));
-      memcpy(kvbuf, k.data(), 8);
-      memcpy(kvbuf + 8, (char *)(&i), 8);
-      pwrite(fd, kvbuf, 2 * sizeof(uint64_t), offset);
-      outer_bucket_cur[b]++;
+      // There's a lot of hardcoding here - basically we flush every 8 pairs = 16 uint64_t integers
+      uint64_t bucket_buffer_size = 16;
+      uint64_t bucket_buffer_start = b * bucket_buffer_size;
+      uint64_t bucket_buffer_pos = bucket_buffer_start + bucket_buffer_offset[b];
+      // Copy 8 bytes from key into end of outer_bucket_buffer
+      memcpy((char *)(&bucket_buffer[bucket_buffer_pos]), k.data(), 8);
+      memcpy((char *)(&bucket_buffer[bucket_buffer_pos+1]), (char *)(&i), 8);
+      bucket_buffer_offset[b] += 2;
+      if (bucket_buffer_offset[b] == bucket_buffer_size) { // Flush to Disk.
+        uint64_t file_offset = (outer_bucket_prefix[b] + outer_bucket_cur[b]) * (2 * sizeof(uint64_t));
+        pwrite(fd, (char *)(&bucket_buffer[bucket_buffer_start]), bucket_buffer_size * sizeof(uint64_t), file_offset);
+        outer_bucket_cur[b] += 8;
+      }
       outer_iter->next();
     }
+    // Flush everything else
+    for (uint64_t i=0; i < outer_num_buckets; i++) {
+      if (bucket_buffer_offset[i]) {
+        uint64_t bucket_buffer_start = i * bucket_buffer_size;
+        uint64_t file_offset = (outer_bucket_prefix[i] + outer_bucket_cur[i]) * (2 * sizeof(uint64_t));
+        pwrite(fd, (char *)(&bucket_buffer[bucket_buffer_start]), bucket_buffer_offset[i] * sizeof(uint64_t), file_offset);
+        outer_bucket_cur[i] += bucket_buffer_offset[i]/2;
+      }
+    }
+
+    delete bucket_buffer;
+    delete bucket_buffer_offset;
+
     close(fd);
     fsync(fd);
     #if IOSTAT
     auto outer_index_bucket_ts = std::chrono::high_resolution_clock::now();
     #endif
+
+
 
     // Now do the same for inner.
     // Build the CDF for inner.
@@ -503,11 +533,16 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     }
 
     fd = open(inner_index_file_.c_str(), O_WRONLY | O_CREAT, 0644);
-    fallocate(fd, 0, 0, inner_num_keys*16);
+    fallocate(fd, 0, 0, inner_num_keys*2*sizeof(uint64_t));
     if (fd == -1) {
         perror("Failed to open file");
         exit(EXIT_FAILURE);
     }
+
+
+    // Each bucket in memory will store 8 pairs of integers before flushing.
+    bucket_buffer = new uint64_t[(inner_num_buckets + 1) * bucket_buffer_size];
+    bucket_buffer_offset = new uint64_t[(inner_num_buckets + 1)];
     inner_iter->seekTo(0);
     for (uint64_t i=inner_start; i<inner_end; i++) {
       KVSlice k = inner_iter->key();
@@ -518,13 +553,34 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
       if (b >= inner_num_buckets + 1) {
         abort();
       }
-      uint64_t offset = (inner_bucket_prefix[b] + inner_bucket_cur[b]) * (2 * sizeof(uint64_t));
-      memcpy(kvbuf, k.data(), 8);
-      memcpy(kvbuf + 8, (char *)(&i), 8);
-      pwrite(fd, kvbuf, 2 * sizeof(uint64_t), offset);
-      inner_bucket_cur[b]++;
+      // There's a lot of hardcoding here - basically we flush every 8 pairs = 16 uint64_t integers
+      uint64_t bucket_buffer_size = 16;
+      uint64_t bucket_buffer_start = b * bucket_buffer_size;
+      uint64_t bucket_buffer_pos = bucket_buffer_start + bucket_buffer_offset[b];
+      // Copy 8 bytes from key into end of inner_bucket_buffer
+      memcpy((char *)(&bucket_buffer[bucket_buffer_pos]), k.data(), 8);
+      memcpy((char *)(&bucket_buffer[bucket_buffer_pos+1]), (char *)(&i), 8);
+      bucket_buffer_offset[b] += 2;
+      if (bucket_buffer_offset[b] == bucket_buffer_size) { // Flush to Disk.
+        uint64_t file_offset = (inner_bucket_prefix[b] + inner_bucket_cur[b]) * (2 * sizeof(uint64_t));
+        pwrite(fd, (char *)(&bucket_buffer[bucket_buffer_start]), bucket_buffer_size * sizeof(uint64_t), file_offset);
+        inner_bucket_cur[b] += 8;
+      }
       inner_iter->next();
     }
+    // Flush everything else
+    for (uint64_t i=0; i < inner_num_buckets; i++) {
+      if (bucket_buffer_offset[i]) {
+        uint64_t bucket_buffer_start = i * bucket_buffer_size;
+        uint64_t file_offset = (inner_bucket_prefix[i] + inner_bucket_cur[i]) * (2 * sizeof(uint64_t));
+        pwrite(fd, (char *)(&bucket_buffer[bucket_buffer_start]), bucket_buffer_offset[i] * sizeof(uint64_t), file_offset);
+        inner_bucket_cur[i] += bucket_buffer_offset[i]/2;
+      }
+    }
+
+    delete bucket_buffer;
+    delete bucket_buffer_offset;
+
     close(fd);
     fsync(fd);
 
@@ -535,6 +591,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     pii *inner_buffer = new pii[inner_max_buffer_size];
     pii *outer_buffer = new pii[outer_max_buffer_size];
     
+    char kvbuf[16];
     memset(kvbuf, 0, 16);
 
     pread(fd1, (void *)inner_buffer, inner_bucket_sizes[inner_bucket] * sizeof(pii), inner_bucket_prefix[inner_bucket] * sizeof(pii));

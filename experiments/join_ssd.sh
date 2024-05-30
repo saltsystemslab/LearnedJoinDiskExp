@@ -1,11 +1,11 @@
 #!/bin/bash
 time ./experiments/join/run.py  \
---dataset=fb \
+--dataset=all \
 --sosd_data_dir=/home/chesetti/sosd-data/ \
 --nouse_numactl \
 --ratios=1,10,100,1000 \
 --indexes=btree256,sampledflatpgm256 \
---exp_name=join_ssd \
+--exp_name=join_ssd_all \
 --clear_fs_cache \
 --test_dir=sponge \
 --indexed_joins=lsj,inlj \
