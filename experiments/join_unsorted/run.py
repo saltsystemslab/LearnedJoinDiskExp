@@ -12,7 +12,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("phase", "create_input", "[create_input, run_test]")
 flags.DEFINE_string("sosd_data_dir", "./third_party/sosd/data", "")
 flags.DEFINE_string("test_dir", "sponge/join_unsorted", "")
-flags.DEFINE_string("dataset", "fb", "")
+flags.DEFINE_string("dataset", "all", "")
 flags.DEFINE_string("io_device", "sda", "")
 flags.DEFINE_bool("use_cgroup", False, "")
 flags.DEFINE_bool("use_alex", False, "")
@@ -102,6 +102,7 @@ def create_input(table_name, config_path):
             outfile.write(json.dumps(result_json))
     else:
         print(process.stdout)
+        print(process.stderr)
         print("Something wrong happened")
 
 def create_output_configs(table1, table2, testcase):
@@ -137,6 +138,7 @@ def get_iostat():
         if disk["disk_device"] == FLAGS.io_device:
             iostat["bytes_read"] = disk["kB_read"] * 1000
             iostat["bytes_wrtn"] = disk["kB_wrtn"] * 1000
+    print(iostat)
     return iostat
 
 def get_cgroup_iostat():
@@ -206,6 +208,8 @@ def run_config(config_path):
     
 
 def main(argv):
+    print(FLAGS.sosd_data_dir)
+    print(FLAGS.dataset)
     datasets = init_datasets()
     setup_experiment_directories()
     benchmark_runner = os.path.join(FLAGS.test_dir, "build", "benchmark_runner")
