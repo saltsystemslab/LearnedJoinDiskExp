@@ -1,0 +1,11 @@
+,index_name,dataset,index_build_duration,index_size
+0,sampledflatpgm4096,uniform_sparse,0.02726614,0.000256
+1,sampledflatpgm1024,uniform_sparse,0.029526815,0.003408
+2,sampledflatpgm256,uniform_sparse,0.043420209,0.050576
+3,sampledpgm256,uniform_sparse,0.038451756,0.050752
+4,flatpgm256,uniform_sparse,3.39526703,0.055264
+5,pgm256,uniform_sparse,3.540301281,0.055504
+6,btree256,uniform_sparse,0.005184422,12.627696
+7,radixspline4096,uniform_sparse,3.640353151,1073.742116
+8,radixspline1024,uniform_sparse,3.625176397,1073.744804
+9,radixspline256,uniform_sparse,3.649419153,1073.787236

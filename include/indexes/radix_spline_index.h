@@ -84,6 +84,8 @@ public:
     file.open(filename, std::ios_base::binary);
     file.write(serializedRs.c_str(), serializedRs.size());
     file.close();
+    keys_.clear();
+    keys_.shrink_to_fit();
   }
 
 private:

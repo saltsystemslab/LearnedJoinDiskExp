@@ -68,6 +68,8 @@ public:
   void backToFile(std::string filename) override {
     auto index = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon, 0>(
         x_points_.begin(), x_points_.end(), filename);
+      x_points_.clear();
+      x_points_.shrink_to_fit();
     delete index;
   }
 

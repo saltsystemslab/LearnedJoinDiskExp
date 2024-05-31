@@ -1,0 +1,12 @@
+,index_name,dataset,index_build_duration,index_size
+0,sampledflatpgm4096,wiki,0.018224404,0.006448
+1,sampledflatpgm1024,wiki,0.028289257,0.050768
+2,sampledflatpgm256,wiki,0.02998885,0.112112
+3,sampledpgm256,wiki,0.027333486,0.11264
+4,flatpgm256,wiki,2.077152346,0.116512
+5,pgm256,wiki,2.152632365,0.117056
+6,btree256,wiki,0.002257013,5.714384
+7,rmi,wiki,13.247391814,402.653216
+8,radixspline4096,wiki,1.876299301,946.279028
+9,radixspline1024,wiki,1.93806882,946.324212
+10,radixspline256,wiki,1.917840776,946.388132

@@ -183,6 +183,8 @@ public:
   }
   void backToFile(std::string filename) override { 
     storeElts(elts_, filename); 
+    elts_.clear();
+    elts_.shrink_to_fit();
   }
 
 private:

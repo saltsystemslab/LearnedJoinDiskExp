@@ -1,0 +1,11 @@
+,index_name,dataset,index_build_duration,index_size
+0,sampledflatpgm4096,lognormal,0.052241898,0.003872
+1,sampledflatpgm1024,lognormal,0.050092969,0.00768
+2,sampledflatpgm256,lognormal,0.061183981,0.015328
+3,flatpgm256,lognormal,6.72327912,0.015344
+4,sampledpgm256,lognormal,0.05026891,0.015672
+5,pgm256,lognormal,6.852015586,0.015688
+6,btree256,lognormal,0.005185372,12.627696
+7,radixspline4096,lognormal,3.298255244,536.874872
+8,radixspline1024,lognormal,3.318564509,536.878696
+9,radixspline256,lognormal,3.285232297,536.886344

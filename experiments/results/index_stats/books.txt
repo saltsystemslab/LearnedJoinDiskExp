@@ -1,0 +1,2 @@
+,index_name,dataset,index_build_duration,index_size
+0,rmi,books,74.947767173,402.653216
