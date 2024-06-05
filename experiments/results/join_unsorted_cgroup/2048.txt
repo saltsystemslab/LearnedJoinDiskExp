@@ -1,0 +1,4 @@
+ratio,unsorted_lsj_sorted_output,unsorted_inlj_sorted_output
+1,18746.347759922,18168.739562608
+100,225.687868533,320.057393969
+1000,,46.486309231

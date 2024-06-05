@@ -182,6 +182,11 @@ public:
     curWindow_ = cur_kv_cache_->getWindowFrom(cur_idx_, cur_idx_ + 1);
     return KVSlice(curWindow_.buf, metadata_.key_size, metadata_.val_size);
   }
+  uint64_t keyInt() override {
+    curWindow_ = cur_kv_cache_->getWindowFrom(cur_idx_, cur_idx_ + 1);
+    uint64_t *tmp = (uint64_t *)curWindow_.buf;
+    return tmp[cur_idx_ - curWindow_.lo_idx];
+  }
   void seekToFirst() override { cur_idx_ = 0; }
   void seekTo(uint64_t pos) override { cur_idx_ = pos; }
   uint64_t currentPos() override { return cur_idx_; }

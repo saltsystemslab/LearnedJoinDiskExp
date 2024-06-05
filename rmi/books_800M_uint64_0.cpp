@@ -19,15 +19,15 @@ void cleanup() {
     free(L1_PARAMETERS);
 }
 
-inline double linear(double alpha, double beta, double inp) {
-    return std::fma(beta, inp, alpha);
-}
-
 inline double cubic(double a, double b, double c, double d, double x) {
     auto v1 = std::fma(a, x, b);
     auto v2 = std::fma(v1, x, c);
     auto v3 = std::fma(v2, x, d);
     return v3;
+}
+
+inline double linear(double alpha, double beta, double inp) {
+    return std::fma(beta, inp, alpha);
 }
 
 inline size_t FCLAMP(double inp, double bound) {
@@ -36,8 +36,8 @@ inline size_t FCLAMP(double inp, double bound) {
 }
 
 uint64_t lookup(uint64_t key, size_t* err) {
-  double fpred;
   size_t modelIndex;
+  double fpred;
   fpred = cubic(L0_PARAMETER0, L0_PARAMETER1, L0_PARAMETER2, L0_PARAMETER3, (double)key);
   modelIndex = (uint64_t) fpred;
   fpred = linear(*((double*) (L1_PARAMETERS + (modelIndex * 24) + 0)), *((double*) (L1_PARAMETERS + (modelIndex * 24) + 8)), (double)key);

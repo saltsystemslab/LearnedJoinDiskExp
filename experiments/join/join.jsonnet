@@ -21,6 +21,7 @@ local ratios = std.parseJson(std.extVar("TEST_RATIOS"));
 local index_names = std.parseJson(std.extVar("TEST_INDEXES"));
 local non_indexed_joins = std.parseJson(std.extVar("TEST_NON_INDEXED_JOINS"));
 local indexed_joins = std.parseJson(std.extVar("TEST_INDEXED_JOINS"));
+local radix_bits = std.parseJson(std.extVar("TEST_RADIX_BITS"));
 
 local all_index_names = [
     "pgm256", "flatpgm256", "sampledflatpgm256", 
@@ -147,6 +148,7 @@ local algos = [
             "result_path": test_input_dir + "/inner",
             "create_indexes": true,
             "fraction_of_keys": 1,
+            "radixBits": radix_bits,
         }] +
         [
             input_template + {

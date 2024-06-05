@@ -14,10 +14,16 @@
 #include <iostream>
 #include <vector>
 
+#define RMI_DATA "/home/chesetti/Repos/LearnedJoinDiskExp/SOSD/rmi_data"
+
 #include "fb_200M_uint64_0.h"
 #include "osm_cellids_800M_uint64_0.h"
 #include "books_800M_uint64_0.h"
-#include "wiki_ts_200M_uint64_0.h"
+#include "wiki_ts_200M_uint64_1.h"
+#include "uniform_dense_200M_uint64_8.h"
+#include "uniform_sparse_200M_uint64_0.h"
+#include "lognormal_200M_uint64_2.h"
+#include "normal_200M_uint64_3.h"
 
 namespace li_merge {
 
@@ -25,26 +31,47 @@ template <class T> class RmiIndex : public Index<T> {
 public:
   RmiIndex(std::string dataset, KeyToPointConverter<T> *converter) : converter_(converter) {
     if (dataset=="fb_200M_uint64") {
-        fb_200M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        fb_200M_uint64_0::load(RMI_DATA);
         lookup = fb_200M_uint64_0::lookup;
         build_duration = fb_200M_uint64_0::BUILD_TIME_NS;
         size_in_bytes = fb_200M_uint64_0::RMI_SIZE;
     } else if (dataset=="osm_cellids_800M_uint64") {
-        osm_cellids_800M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        osm_cellids_800M_uint64_0::load(RMI_DATA);
         lookup = osm_cellids_800M_uint64_0::lookup;
         build_duration = osm_cellids_800M_uint64_0::BUILD_TIME_NS;
         size_in_bytes = osm_cellids_800M_uint64_0::RMI_SIZE;
     } else if (dataset=="books_800M_uint64") {
-        books_800M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        books_800M_uint64_0::load(RMI_DATA);
         lookup = books_800M_uint64_0::lookup;
         build_duration = books_800M_uint64_0::BUILD_TIME_NS;
         size_in_bytes = books_800M_uint64_0::RMI_SIZE;
     } else if (dataset=="wiki_ts_200M_uint64"){
-        wiki_ts_200M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
-        lookup = wiki_ts_200M_uint64_0::lookup;
-        build_duration = wiki_ts_200M_uint64_0::BUILD_TIME_NS;
-        size_in_bytes = wiki_ts_200M_uint64_0::RMI_SIZE;
-    } else {
+        wiki_ts_200M_uint64_1::load(RMI_DATA);
+        lookup = wiki_ts_200M_uint64_1::lookup;
+        build_duration = wiki_ts_200M_uint64_1::BUILD_TIME_NS;
+        size_in_bytes = wiki_ts_200M_uint64_1::RMI_SIZE;
+    } else if (dataset=="uniform_dense_200M_uint64"){
+        uniform_dense_200M_uint64_8::load(RMI_DATA);
+        lookup = uniform_dense_200M_uint64_8::lookup;
+        build_duration = uniform_dense_200M_uint64_8::BUILD_TIME_NS;
+        size_in_bytes = uniform_dense_200M_uint64_8::RMI_SIZE;
+    } else if (dataset=="uniform_sparse_200M_uint64"){
+        uniform_sparse_200M_uint64_0::load(RMI_DATA);
+        lookup = uniform_sparse_200M_uint64_0::lookup;
+        build_duration = uniform_sparse_200M_uint64_0::BUILD_TIME_NS;
+        size_in_bytes = uniform_sparse_200M_uint64_0::RMI_SIZE;
+    } else if (dataset=="lognormal_200M_uint64"){
+        lognormal_200M_uint64_2::load(RMI_DATA);
+        lookup = lognormal_200M_uint64_2::lookup;
+        build_duration = lognormal_200M_uint64_2::BUILD_TIME_NS;
+        size_in_bytes = lognormal_200M_uint64_2::RMI_SIZE;
+    } else if (dataset=="normal_200M_uint64"){
+        normal_200M_uint64_3::load(RMI_DATA);
+        lookup = normal_200M_uint64_3::lookup;
+        build_duration = normal_200M_uint64_3::BUILD_TIME_NS;
+        size_in_bytes = normal_200M_uint64_3::RMI_SIZE;
+    } 
+    else {
       abort();
     }
   }

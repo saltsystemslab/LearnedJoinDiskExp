@@ -154,7 +154,8 @@ json create_input_sstable(json test_spec) {
   SSTable<KVSlice> *table = createInputTable->profileAndCreateInputTable().outputTable;
 
   if (test_spec["create_indexes"]) {
-    CreateIndexes action(result_path, table, get_converter(test_spec));
+    uint64_t radixBits = (uint64_t)test_spec["radixBits"];
+    CreateIndexes action(result_path, table, get_converter(test_spec), radixBits);
     result["index_stats"] = action.doAction();
   }
   // printf("Num Keys: %lld\n", table->iterator()->numElts());

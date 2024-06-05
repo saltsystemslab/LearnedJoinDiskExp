@@ -33,35 +33,43 @@ def init_datasets():
  datasets = {
     "fb": {
         "source": os.path.join(FLAGS.sosd_data_dir, "fb_200M_uint64"),
-        "num_keys": 200000000
+        "num_keys": 200000000,
+        "radix_bits": 28,
     },
     "lognormal": {
         "source": os.path.join(FLAGS.sosd_data_dir, "lognormal_200M_uint64"),
-        "num_keys": 200000000
+        "num_keys": 200000000,
+        "radix_bits": 18,
     },
     "uniform_sparse": {
         "source": os.path.join(FLAGS.sosd_data_dir, "uniform_sparse_200M_uint64"),
-        "num_keys": 200000000
+        "num_keys": 200000000,
+        "radix_bits": 28,
     },
     "uniform_dense": {
         "source": os.path.join(FLAGS.sosd_data_dir, "uniform_dense_200M_uint64"),
-        "num_keys": 200000000
+        "num_keys": 200000000,
+        "radix_bits": 16,
     },
     "normal": {
         "source": os.path.join(FLAGS.sosd_data_dir, "normal_200M_uint64"),
-        "num_keys": 200000000
+        "num_keys": 200000000,
+        "radix_bits": 26,
     },
     "wiki": {
         "source": os.path.join(FLAGS.sosd_data_dir, "wiki_ts_200M_uint64"),
-        "num_keys": 200000000
+        "num_keys": 200000000,
+        "radix_bits": 26,
     },
     "osm": {
         "source": os.path.join(FLAGS.sosd_data_dir, "osm_cellids_800M_uint64"),
-        "num_keys": 800000000
+        "num_keys": 800000000,
+        "radix_bits": 28,
     },
     "books": {
         "source": os.path.join(FLAGS.sosd_data_dir, "books_800M_uint64"),
-        "num_keys": 800000000
+        "num_keys": 800000000,
+        "radix_bits": 28,
     },
     "string": {
         "source": "null",
@@ -100,6 +108,7 @@ def main(argv):
             args.append(f'--check_results={FLAGS.check_checksum}')
             args.append(f'--sosd_source={datasets[dataset]["source"]}')
             args.append(f'--sosd_num_keys={datasets[dataset]["num_keys"]}')
+            args.append(f'--radix_bits={datasets[dataset]["radix_bits"]}')
             args.append(f'--skip_input={FLAGS.skip_input}')
             args.append(f'--use_numactl={FLAGS.use_numactl}')
             args.append(f'--dry_run={FLAGS.dry_run}')

@@ -224,11 +224,10 @@ def main(argv):
     if FLAGS.phase == "run_test":
         output_configs = []
         output_configs.extend(create_output_configs(get_table_path("table1000"), get_table_path("table1000"), "sanity"))
-        #output_configs.extend(create_output_configs(get_table_path("table10"), get_table_path("table1"), "1"))
-        output_configs.extend(create_output_configs(get_table_path("table10"), get_table_path("table10"), "1"))
-        output_configs.extend(create_output_configs(get_table_path("table10"), get_table_path("table100"), "10"))
-        output_configs.extend(create_output_configs(get_table_path("table10"), get_table_path("table1000"), "100"))
-        output_configs.extend(create_output_configs(get_table_path("table10"), get_table_path("table10000"), "1000"))
+        output_configs.extend(create_output_configs(get_table_path("table1"), get_table_path("table1"), "1"))
+        output_configs.extend(create_output_configs(get_table_path("table1"), get_table_path("table10"), "10"))
+        output_configs.extend(create_output_configs(get_table_path("table1"), get_table_path("table100"), "100"))
+        output_configs.extend(create_output_configs(get_table_path("table1"), get_table_path("table1000"), "1000"))
         print(output_configs)
         random.shuffle(output_configs)
         for output_config in output_configs:

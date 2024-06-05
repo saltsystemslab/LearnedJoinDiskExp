@@ -1,11 +1,13 @@
 #!/bin/bash
 time ./experiments/join/run.py  \
---dataset=all \
+--dataset=fb \
 --sosd_data_dir=/media/datahdd/chesetti/SOSD/data \
 --nouse_numactl \
 --ratios=1,10,100,1000 \
 --indexes=btree256,sampledflatpgm256 \
---exp_name=join_hdd_all \
+--exp_name=join_hdd_all_3 \
+--check_checksum=true \
+--clear_inputs=false \
 --clear_fs_cache \
 --test_dir=/media/datahdd/chesetti/sponge \
 --indexed_joins=lsj,inlj \

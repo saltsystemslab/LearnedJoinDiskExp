@@ -72,6 +72,8 @@ public:
     memcpy(index_file_name, index_path.c_str(),index_path.size());
 
     alex = new alex::Alex<uint64_t, uint64_t>(LEAF_DISK, true, data_file_name, index_file_name);
+    uint64_t size = 800000000ULL;
+    elts_ = new std::pair<uint64_t, uint64_t>[size];
     num_elts_ = 0;
   }
   void add(const KVSlice &t) override {
@@ -79,11 +81,12 @@ public:
     std::pair<uint64_t, uint64_t> p;
     p.first = *key;
     p.second = num_elts_;
+    elts_[num_elts_] = p;
     num_elts_++;
-    elts_.push_back(p);
   }
   Index<KVSlice> *build() override {
     alex->bulk_load(&elts_[0], num_elts_);
+    delete []elts_;
     return new AlexIndex(alex);
   }
   void backToFile(std::string filename) override { 
@@ -92,7 +95,7 @@ public:
 
 private:
   uint64_t num_elts_;
-  std::vector<std::pair<uint64_t, uint64_t>> elts_;
+  std::pair<uint64_t, uint64_t> *elts_;
   alex::Alex<uint64_t, uint64_t> *alex;
 };
 

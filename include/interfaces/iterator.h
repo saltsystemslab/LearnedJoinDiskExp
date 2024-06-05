@@ -12,6 +12,7 @@ public:
   virtual void seekToFirst() = 0;
   virtual void seekTo(uint64_t pos) = 0;
   virtual T key() = 0;
+  virtual uint64_t keyInt() {return 0;};
   virtual uint64_t currentPos() = 0;
   virtual uint64_t numElts() = 0;
   // STATS.

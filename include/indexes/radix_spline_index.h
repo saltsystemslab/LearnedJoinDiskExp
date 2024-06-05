@@ -56,15 +56,17 @@ private:
 
 template <class T> class RadixSplineIndexBuilder : public IndexBuilder<T> {
 public:
-  RadixSplineIndexBuilder(KeyToPointConverter<T> *converter, uint64_t error)
-      : converter_(converter), error_(error) {}
+  RadixSplineIndexBuilder(KeyToPointConverter<T> *converter, uint64_t error, uint64_t radixBits)
+      : converter_(converter), error_(error) {
+        this->radix_bits = radixBits;
+      }
 
   void add(const T &t) override { keys_.push_back(converter_->toPoint(t)); }
   Index<KVSlice> *build() override {
     rsb = new rs::Builder<uint64_t>(keys_[0], keys_[keys_.size() - 1],
                                     radix_bits, error_);
-    for (auto k : keys_) {
-      rsb->AddKey(k);
+    for (uint64_t i=0; i<keys_.size(); i++) {
+      rsb->AddKey(keys_[i]);
     }
     return new RadixSplineIndex<KVSlice>(rsb, converter_, error_);
   }
@@ -89,7 +91,7 @@ public:
   }
 
 private:
-  const uint64_t radix_bits = 28; 
+  uint64_t radix_bits = 28; 
   // Using the hyperparameters from the SOSD dataset.
   uint64_t error_;
   std::vector<uint64_t> keys_;

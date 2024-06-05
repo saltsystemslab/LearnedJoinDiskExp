@@ -313,6 +313,7 @@ class CreateIndexes {
   std::string index_prefix;
   SSTable<KVSlice> *table;
   KeyToPointConverter<KVSlice> *converter;
+  uint64_t radixBits;
 
   json create_index(std::string table_name, std::string index_name,
                     Iterator<KVSlice> *iter, IndexBuilder<KVSlice> *builder) {
@@ -344,10 +345,11 @@ class CreateIndexes {
 
 public:
   CreateIndexes(std::string index_prefix, SSTable<KVSlice> *table,
-                KeyToPointConverter<KVSlice> *converter) {
+                KeyToPointConverter<KVSlice> *converter, uint64_t radixBits) {
     this->index_prefix = std::string(index_prefix);
     this->table = table;
     this->converter = converter;
+    this->radixBits = radixBits;
   }
   json doAction() {
     std::map<std::string, IndexBuilder<KVSlice> *> indexBuilders;
@@ -383,28 +385,15 @@ public:
     #if !USE_ALEX
     indexBuilders["sampledflatpgm256"] =
         new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
-    indexBuilders["sampledflatpgm1024"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 4, 128>(converter);
-    indexBuilders["sampledflatpgm4096"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 16, 128>(converter);
-
     indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
     indexBuilders["pgm256"] = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
     indexBuilders["flatpgm256"] =
         new OneLevelPgmIndexBuilder<KVSlice, 128, 1>(converter);
-    indexBuilders["sampledpgm256"] =
-        new PgmIndexBuilder<KVSlice, 1, 128>(converter);
-    indexBuilders["radixspline256"] = new RadixSplineIndexBuilder<KVSlice>(converter, 256);
-    indexBuilders["radixspline1024"] = new RadixSplineIndexBuilder<KVSlice>(converter, 1024);
-    indexBuilders["radixspline4096"] = new RadixSplineIndexBuilder<KVSlice>(converter, 4096);
+    indexBuilders["radixspline256"] = new RadixSplineIndexBuilder<KVSlice>(converter, 256, radixBits);
     #else
     // The name for ALEX doesn't matter, since we construct it again on the join.
     // The current AlexOnDisk implementation does not support initializing from file.
     indexBuilders["alex"] = new AlexIndexBuilder(index_prefix + "_alex"); 
-    indexBuilders["radixspline256"] = new RadixSplineIndexBuilder<KVSlice>(converter, 256);
-    indexBuilders["flatpgm256"] =
-        new OneLevelPgmIndexBuilder<KVSlice, 128, 1>(converter);
-    indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
     #endif
 
     json index_stats = json::array();

@@ -29,6 +29,7 @@ flags.DEFINE_bool("use_cgroups", False, "")
 flags.DEFINE_bool("clear_fs_cache", False, "")
 flags.DEFINE_string("cgroup_name", "", "")
 flags.DEFINE_integer("repeat", 3, "")
+flags.DEFINE_integer("radix_bits", 28, "")
 flags.DEFINE_integer("threads", 1, "")
 flags.DEFINE_bool("regen_report", False, "")
 flags.DEFINE_bool("clean", False, "")
@@ -72,7 +73,8 @@ def main(argv):
             "TEST_RATIOS": str(FLAGS.ratios),
             "TEST_INDEXES": str(FLAGS.indexes),
             "TEST_NON_INDEXED_JOINS": str(FLAGS.non_indexed_joins),
-            "TEST_INDEXED_JOINS": str(FLAGS.indexed_joins)
+            "TEST_INDEXED_JOINS": str(FLAGS.indexed_joins),
+            "TEST_RADIX_BITS": str(FLAGS.radix_bits)
         }
     ))
 
