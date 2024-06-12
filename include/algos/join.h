@@ -351,14 +351,14 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     return partitions;
   }
 
-
+  
   void doOpOnPartition(Partition partition, TableOpResult<T> *result) override {
     #if IOSTAT 
     result->stats["start_iostat"] = get_iostat();
     #endif
     auto op_start = std::chrono::high_resolution_clock::now();
 
-    uint64_t bucket_size = 100;
+uint64_t bucket_size = 100;
     uint64_t bytes_read = 0;
     uint64_t outer_start = partition.outer.first;
     uint64_t outer_end = partition.outer.second;
@@ -367,7 +367,7 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     auto result_builder = this->result_builder_->getBuilderForRange(
         inner_start + outer_start, inner_end + outer_end);
 
-    // Build the CDF for outer.
+// Build the CDF for outer.
     std::vector<uint64_t> outer_sampled_keys;
     uint64_t outer_num_keys = outer_end - outer_start;
     uint64_t sample_freq = 100;
@@ -436,6 +436,9 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     memset((char *)bucket_buffer_offset, 0, sizeof(uint64_t) * (outer_num_buckets + 1));
     outer_iter->seekTo(0);
     for (uint64_t i=outer_start; i<outer_end; i++) {
+      if (i%1000000 == 0) {
+        printf("Processed %lld keys \n", i);
+      }
       KVSlice k = outer_iter->key();
       uint64_t key = *(uint64_t *)k.data();
       auto pos = outer_index->search(key).pos;
@@ -508,6 +511,9 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
     // Write the buckets 
     inner_iter->seekTo(0);
     for (uint64_t i=inner_start; i < inner_end; i++) {
+      if (i%1000000 == 0) {
+        printf("Processed %lld keys \n", i);
+      }
       KVSlice k = inner_iter->key();
       uint64_t key = *(uint64_t *)k.data();
       inner_max_key = std::max(inner_max_key, key);
@@ -583,6 +589,12 @@ template <class T> class LearnedSortJoinOnUnsortedDataSortedOutput: public Table
 
     close(fd);
     fsync(fd);
+
+    std::string move_cgroup = "echo " + std::to_string(getpid()) + " > /sys/fs/cgroup/join-cgroup/cgroup.procs";
+    printf("Moved to cgroup!\n");
+    printf("%s\n", move_cgroup.c_str());
+    system(move_cgroup.c_str());
+    system("sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'");
 
 
     int fd1 = open(inner_index_file_.c_str(), O_RDONLY, 0644);
@@ -768,7 +780,8 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
       KVSlice k = outer_iter->key();
       uint64_t key = *(uint64_t *)k.data();
       lni.key = key; lni.value = i;
-      // printf("%lld %lld\n", lni.key, lni.value);
+      if (i%1000000 == 0)
+         printf("%lld %lld\n", lni.key, lni.value);
       // outer_keys.push_back(key);
       outer_btree->insert_key_leaf_disk(lni);
       outer_iter->next();
@@ -784,6 +797,8 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
       KVSlice k = inner_iter->key();
       uint64_t key = *(uint64_t *)k.data();
       lni.key = key; lni.value = i;
+      if (i%1000000 == 0)
+         printf("%lld %lld\n", lni.key, lni.value);
       // printf("%lld %lld\n", lni.key, lni.value);
       // inner_keys.push_back(key);
       inner_btree->insert_key_leaf_disk(lni);
@@ -795,6 +810,12 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     result->stats["index_iostat"] = get_iostat();
     result->stats["index_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(index_end - op_start).count();
 #endif
+    std::string move_cgroup = "echo " + std::to_string(getpid()) + " > /sys/fs/cgroup/join-cgroup/cgroup.procs";
+    printf("Moved to cgroup!\n");
+    printf("%s\n", move_cgroup.c_str());
+    system(move_cgroup.c_str());
+    system("sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'");
+
     auto inner_index_train_ts = std::chrono::high_resolution_clock::now();
 
     auto outer_it = outer_btree->inner_btree.begin(); 
@@ -903,6 +924,7 @@ public:
 
     while (outer_iterator->currentPos() < outer_end) {
       auto bounds = inner_index->getPositionBounds(outer_iterator->key());
+      auto bounds2 = inner_index->getPositionBoundsRA(outer_iterator->key());
       // Don't go back and search in a page you already looked at for a smaller
       // key.
       bounds.lower = std::max(bounds.lower, last_found_idx);

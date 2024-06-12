@@ -377,14 +377,15 @@ public:
 
     indexBuilders["sampledpgm256"] =
         new PgmIndexBuilder<KVSlice, 1, 128>(converter);
-    indexBuilders["sampledpgm1024"] =
-        new PgmIndexBuilder<KVSlice, 4, 128>(converter);
-    indexBuilders["sampledpgm4096"] =
-        new PgmIndexBuilder<KVSlice, 16, 128>(converter);
     */
     #if !USE_ALEX
     indexBuilders["sampledflatpgm256"] =
         new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
+    indexBuilders["sampledflatpgm1024"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 4, 128>(converter);
+    indexBuilders["sampledflatpgm4096"] =
+        new OneLevelPgmIndexBuilder<KVSlice, 16, 128>(converter);
+
     indexBuilders["btree256"] = new BTreeIndexBuilder(256, key_size);
     indexBuilders["pgm256"] = new PgmIndexBuilder<KVSlice, 128, 1>(converter);
     indexBuilders["flatpgm256"] =

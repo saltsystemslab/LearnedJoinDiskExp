@@ -39,6 +39,10 @@ public:
   }
   bool isErrorPageAligned() override { return false; }
 
+  Index<KVSlice> *shallow_copy() override { 
+    return new OneLevelPgmIndex<T, Epsilon, SampleFreq>(pgm_index_, converter_); 
+  };
+
 private:
   uint64_t cur_segment_index_;
   pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;

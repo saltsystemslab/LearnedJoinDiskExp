@@ -38,6 +38,11 @@ public:
   }
   bool isErrorPageAligned() override { return false; }
 
+  Index<T> *shallow_copy() override { 
+    return new PgmIndex<T, Epsilon, SampleFreq>(pgm_index_, converter_); 
+  };
+  
+
 private:
   pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
