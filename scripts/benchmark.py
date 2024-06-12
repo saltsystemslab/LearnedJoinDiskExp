@@ -24,7 +24,7 @@ flags.DEFINE_bool("track_stats", False, "Use debug build and count microbenchmar
 flags.DEFINE_bool("string_keys", False, "Use string keys.")
 flags.DEFINE_bool("use_alex", False, "Use alex.")
 flags.DEFINE_bool("debug_build", False, "")
-flags.DEFINE_bool("use_numactl", True, "")
+flags.DEFINE_bool("use_numactl", False, "")
 flags.DEFINE_bool("use_cgroups", False, "")
 flags.DEFINE_bool("clear_fs_cache", False, "")
 flags.DEFINE_string("cgroup_name", "", "")

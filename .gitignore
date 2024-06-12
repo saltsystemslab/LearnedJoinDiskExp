@@ -32,3 +32,5 @@ experiments/run_join_sorted_ssd_alps.sh
 experiments/join/fb_join_sorted_hdd.txt
 experiments/join/fb_join_sorted_ssd.txt
 .vscode/settings.json
+exp_runs_*
+exp_runs

@@ -9,12 +9,12 @@
 #include "pgm/pgm_index_variants.hpp"
 #include "rs/multi_map.h"
 #include "rs/serializer.h"
+#include "config.h"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <vector>
 
-#define RMI_DATA "/home/chesetti/Repos/LearnedJoinDiskExp/SOSD/rmi_data"
 
 #include "fb_200M_uint64_0.h"
 #include "osm_cellids_800M_uint64_0.h"

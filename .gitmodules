@@ -16,3 +16,6 @@
 [submodule "third_party/RadixSpline"]
 	path = third_party/RadixSpline
 	url = https://github.com/saltsystemslab/RadixSpline
+[submodule "third_party/SOSD"]
+	path = third_party/SOSD
+	url = git@github.com:saltsystemslab/SOSD

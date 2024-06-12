@@ -590,11 +590,14 @@ uint64_t bucket_size = 100;
     close(fd);
     fsync(fd);
 
+#if 0 
+    // Testing if moving after index creation is helpful.
     std::string move_cgroup = "echo " + std::to_string(getpid()) + " > /sys/fs/cgroup/join-cgroup/cgroup.procs";
     printf("Moved to cgroup!\n");
     printf("%s\n", move_cgroup.c_str());
     system(move_cgroup.c_str());
     system("sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'");
+#endif
 
 
     int fd1 = open(inner_index_file_.c_str(), O_RDONLY, 0644);
@@ -810,11 +813,15 @@ template <class T> class IndexedJoinOnUnsortedDataSortedOutput: public TableOp<T
     result->stats["index_iostat"] = get_iostat();
     result->stats["index_duration_ns"] =  std::chrono::duration_cast<std::chrono::nanoseconds>(index_end - op_start).count();
 #endif
+
+#if 0
+    // Testing if moving after index creation is helpful.
     std::string move_cgroup = "echo " + std::to_string(getpid()) + " > /sys/fs/cgroup/join-cgroup/cgroup.procs";
     printf("Moved to cgroup!\n");
     printf("%s\n", move_cgroup.c_str());
     system(move_cgroup.c_str());
     system("sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'");
+#endif
 
     auto inner_index_train_ts = std::chrono::high_resolution_clock::now();
 

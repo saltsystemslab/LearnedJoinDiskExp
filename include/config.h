@@ -7,4 +7,6 @@ typedef double POINT_FLOAT_TYPE;
 typedef uint64_t POINT_FLOAT_TYPE;
 #endif
 
+#define RMI_DATA "/home/chesetti/Repos/LearnedJoinDiskExp/SOSD/rmi_data"
+
 #endif
