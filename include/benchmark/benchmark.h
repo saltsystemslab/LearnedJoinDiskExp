@@ -1,6 +1,7 @@
 #ifndef LEARNEDINDEXMERGE_BENCHMARK_H
 #define LEARNEDINDEXMERGE_BENCHMARK_H
 
+#include "config.h"
 #include "comparator.h"
 #include "key_value_slice.h"
 #include "sstable.h"
@@ -380,7 +381,7 @@ public:
     indexBuilders["sampledpgm4096"] =
         new PgmIndexBuilder<KVSlice, 16, 128>(converter);
     */
-    #if !USE_ALEX
+   #if !USE_ALEX
     indexBuilders["sampledflatpgm256"] =
         new OneLevelPgmIndexBuilder<KVSlice, 1, 128>(converter);
     indexBuilders["sampledflatpgm1024"] =

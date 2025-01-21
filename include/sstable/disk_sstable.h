@@ -50,25 +50,32 @@ struct DiskSSTableMetadata {
 class DiskSSTablePageCache {
 public:
   DiskSSTablePageCache(DiskSSTableMetadata metadata) : metadata_(metadata) {
-    fd_ = open(metadata_.file_path.c_str(), O_RDONLY);
-    buf_ = new char[PAGE_SIZE];
+    fd_ = open(metadata_.file_path.c_str(), O_RDONLY | O_DIRECT);
+    if (fd_ == -1) {
+      printf("Error opening file: %s\n", metadata_.file_path.c_str());
+      perror("Failed to open file");
+      abort();
+    }
+    posix_memalign((void **)(&buf_), PAGE_SIZE, PAGE_SIZE);
+
     buf_capacity_ = PAGE_SIZE;
     buf_first_idx_ = 0;
     buf_len_ = 0;
     disk_fetches_ = 0;
+    cache_hits_ = 0;
     total_bytes_fetched_ = 0;
   }
   ~DiskSSTablePageCache() {
     close(fd_);
-    delete buf_;
+    free(buf_);
   }
   void resize(uint64_t num_items) {
-    delete buf_;
+    free(buf_);
     uint64_t num_items_per_page =
         std::ceil((1.0 * PAGE_SIZE) / (metadata_.getKVSize()));
     uint64_t num_pages = std::ceil((1.0 * num_items) / num_items_per_page);
     buf_capacity_ = num_pages * PAGE_SIZE;
-    buf_ = new char[buf_capacity_];
+    posix_memalign((void **)(&buf_), PAGE_SIZE, buf_capacity_);
     buf_len_ = 0;
     buf_first_idx_ = 0;
   }
@@ -78,8 +85,6 @@ public:
       return false;
     if (buf_first_idx_ > idx)
       return false;
-    uint64_t buf_last_idx_ =
-        buf_first_idx_ + (buf_len_) / metadata_.getKVSize();
     if (idx >= buf_last_idx_)
       return false;
     return true;
@@ -87,30 +92,47 @@ public:
 
   void loadBufferFrom(uint64_t lo_idx) {
     disk_fetches_++;
+    uint64_t buf_offset = (metadata_.getHeaderSize() + lo_idx * metadata_.getKVSize());
+    buf_offset = (buf_offset >> 12) << 12;
     buf_len_ =
-        pread(fd_, buf_, buf_capacity_,
-              metadata_.getHeaderSize() + lo_idx * metadata_.getKVSize());
+        pread(fd_, buf_, buf_capacity_, buf_offset);
+    if (buf_len_ == -1) {
+      printf("Failed to read from offset %lu %lu\n", lo_idx, buf_offset);
+      perror("Error reading file with pread");
+      abort();
+    }
     total_bytes_fetched_ += buf_len_;
     is_buf_loaded_ = true;
-    buf_first_idx_ = lo_idx;
+    // ASSUMES KVSIZE == HEADER. 
+    // HACK TO GET AROUND O_DIRECT REQUIRING READS TO BE BLOCK ALIGNED>
+    buf_first_idx_ = (buf_offset > 0) ? (buf_offset / metadata_.getKVSize() - 1) : 0;
+    buf_last_idx_ = buf_first_idx_ + buf_capacity_ / metadata_.getKVSize(); 
+    if (buf_offset == 0) buf_last_idx_--;
   }
 
   Window<KVSlice> getWindowFrom(uint64_t lo_idx, uint64_t hi_idx) {
     uint64_t lo_page = (lo_idx * metadata_.getKVSize()) / (PAGE_SIZE);
     if (!isIdxInBuffer(lo_idx)) {
       loadBufferFrom(lo_idx);
+    } else {
+      cache_hits_++;
     }
     Window<KVSlice> w;
     w.lo_idx = lo_idx;
-    w.hi_idx = buf_first_idx_ + (buf_len_) / metadata_.getKVSize();
+    w.hi_idx = buf_last_idx_;
     w.hi_idx = std::min(w.hi_idx, hi_idx);
     w.buf = buf_ + ((lo_idx - buf_first_idx_) * metadata_.getKVSize());
     w.buf_len = (w.hi_idx - w.lo_idx) * metadata_.getKVSize();
+    if (lo_page == 0) {
+      w.buf = w.buf + metadata_.getKVSize();
+    }
     w.iter = nullptr;
     return w;
   }
 
   uint64_t getDiskFetches() { return disk_fetches_; }
+
+  uint64_t getCacheHits() { return cache_hits_; }
 
   uint64_t getDiskFetchSize() { return buf_capacity_; }
 
@@ -125,8 +147,10 @@ private:
   uint64_t buf_len_;
   bool is_buf_loaded_;
   uint64_t buf_first_idx_;
+  uint64_t buf_last_idx_;
   uint64_t disk_fetches_;
   uint64_t total_bytes_fetched_;
+  uint64_t cache_hits_;
 };
 
 class DiskSSTableWindowIterator : public WindowIterator<KVSlice> {
@@ -141,6 +165,7 @@ public:
   Window<KVSlice> getWindow(uint64_t lo_idx, uint64_t hi_idx) override {
     return cache_->getWindowFrom(lo_idx, hi_idx);
   }
+  uint64_t getCacheHits() override { return cache_->getCacheHits(); }
   uint64_t getDiskFetches() override { return cache_->getDiskFetches(); }
   uint64_t getDiskFetchSize() override { return cache_->getDiskFetchSize(); }
   uint64_t getTotalBytesFetched() override {
@@ -199,6 +224,11 @@ public:
         ->getDiskFetchSize(); // Both peek and cur will have same fetch size.
   }
 
+  uint64_t getCacheHits() override {
+    return cur_kv_cache_
+        ->getCacheHits(); // Both peek and cur will have same fetch size.
+  }
+
 private:
   uint64_t cur_idx_; // cur_idx_ always (0, num_keys]
   DiskSSTableMetadata metadata_;
@@ -253,12 +283,13 @@ public:
       : file_path_(file_path), key_size_bytes_(key_size_bytes),
         value_size_bytes_(value_size_bytes),
         kv_size_bytes_(key_size_bytes + value_size_bytes),
-        buffer_(new char[PAGE_SIZE]), buffer_offset_(0),
+        buffer_offset_(HEADER_SIZE),
         buffer_size_(PAGE_SIZE),
-        file_start_offset_(HEADER_SIZE + start_offset_idx * (key_size_bytes +
-                                                             value_size_bytes)),
+        file_start_offset_(0),
         file_cur_offset_(0), num_keys_(0), built_(false) {
-    int fd_flags = O_WRONLY;
+
+    posix_memalign((void **)(&buffer_), PAGE_SIZE, PAGE_SIZE); 
+    int fd_flags = O_WRONLY | O_DIRECT;
     if (is_new_file) {
       remove(file_path.c_str());
       fd_flags = fd_flags | O_CREAT;
@@ -275,8 +306,8 @@ public:
   SSTable<KVSlice> *build() override {
     if (!built_) {
       flushBufferToDisk();
+      close(fd_); // header will reopen the file in non O_DIRECT mode and write header.
       writeHeader();
-      close(fd_);
       built_ = true;
     }
     // fprintf(stderr, "[%ld %ld]\n", file_start_offset_, file_start_offset_ +
@@ -314,6 +345,7 @@ void addKeysToBuilder(Iterator<KVSlice> *iterator,
 /*
 Will write out individual SSTables in the same file for each range.
 Use this if you know exactly how many elements you need for each range.
+// !!!DOES NOT WORK WITH O_DIRECT!!!!
 */
 
 class PFixedSizeKVDiskSSTableBuilder : public PSSTableBuilder<KVSlice> {
@@ -463,6 +495,7 @@ private:
 
 void FixedSizeKVDiskSSTableBuilder::writeHeader() {
   char header[HEADER_SIZE];
+  fd_ = open(file_path_.c_str(), O_WRONLY, 0644);
   assert(sizeof(key_size_bytes_) == 4);
   assert(sizeof(num_keys_) == 8);
   memcpy(header, (char *)(&num_keys_), sizeof(num_keys_));
@@ -473,17 +506,22 @@ void FixedSizeKVDiskSSTableBuilder::writeHeader() {
     bytes_written +=
         pwrite(fd_, header + bytes_written, HEADER_SIZE - bytes_written, 0);
   }
+  close(fd_);
 }
 
 void FixedSizeKVDiskSSTableBuilder::flushBufferToDisk() {
   uint64_t bytes_written = 0;
-  while (bytes_written < buffer_offset_) {
     bytes_written +=
-        pwrite(fd_, buffer_ + bytes_written, buffer_offset_ - bytes_written,
-               file_start_offset_ + file_cur_offset_ + bytes_written);
-  }
+        pwrite(fd_, buffer_, 4096,
+               file_start_offset_ + file_cur_offset_);
+    if (bytes_written == -1) {
+        printf("Writing at: %lu %lu\n", file_start_offset_ + file_cur_offset_, buffer_offset_);
+        perror("Error reading file with pread");
+        fprintf(stderr, "pwrite failed: %s\n", strerror(errno));
+      abort();
+    }
   buffer_offset_ = 0;
-  file_cur_offset_ += bytes_written;
+  file_cur_offset_ += 4096;
 }
 
 void FixedSizeKVDiskSSTableBuilder::add(const KVSlice &kvSlice) {

@@ -143,7 +143,7 @@ public:
   }
 
   uint64_t sizeInBytes() override { return tree_->get_tree_size(); }
-  uint64_t getMaxError() override { return leaf_size_in_keys_; }
+  uint64_t getMaxError() override { return leaf_size_in_keys_ + 1; }
   bool isErrorPageAligned() override { return true; }
 
 private:

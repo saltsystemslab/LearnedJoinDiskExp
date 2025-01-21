@@ -19,6 +19,7 @@ public:
 
   OneLevelPgmIndex(std::string filename, KeyToPointConverter<T> *converter)
       : converter_(converter), cur_segment_index_(0) {
+    filename_ = filename;
     pgm_index_ =
         new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon, 0>(filename);
   }
@@ -39,10 +40,15 @@ public:
   }
   bool isErrorPageAligned() override { return false; }
 
+  Index<T> *shallow_copy() override {
+    return new OneLevelPgmIndex(filename_, converter_);
+  }
+
 private:
   uint64_t cur_segment_index_;
   pgm::OneLevelPGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
+  std::string filename_;
 };
 
 template <class T, uint64_t Epsilon, uint64_t SampleFreq>

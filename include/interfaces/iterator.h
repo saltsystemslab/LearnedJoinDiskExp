@@ -18,6 +18,7 @@ public:
   virtual uint64_t getDiskFetches() { return 0; };
   virtual uint64_t getDiskFetchSize() { return 0; };
   virtual uint64_t getTotalBytesFetched() { return 0; };
+  virtual uint64_t getCacheHits() { return 0; };
 };
 
 template <class T> struct Window {
@@ -37,6 +38,7 @@ public:
   virtual Window<T> getWindow(uint64_t lo_idx, uint64_t hi_idx) = 0;
   virtual uint64_t getDiskFetches() = 0;
   virtual uint64_t getDiskFetchSize() { return 0; };
+  virtual uint64_t getCacheHits() { return 0; };
   virtual uint64_t getTotalBytesFetched() { return 0; };
 };
 } // namespace li_merge

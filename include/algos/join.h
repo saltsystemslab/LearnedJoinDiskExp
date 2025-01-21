@@ -68,14 +68,20 @@ public:
 
   void mergePartitions() override {
     uint64_t inner_disk_fetch_count = 0;
+    uint64_t inner_disk_cache_hit_count = 0;
     uint64_t inner_disk_fetch_size = 0;
     uint64_t inner_total_bytes_fetched = 0;
     uint64_t outer_disk_fetch_count = 0;
     uint64_t outer_total_bytes_fetched = 0;
     uint64_t outer_disk_fetch_size = 0;
+    uint64_t last_mile_fetch_usec = 0;
+    uint64_t last_mile_search_usec = 0;
+    uint64_t index_query_usec = 0;
     for (int i = 0; i < this->num_threads_; i++) {
       inner_disk_fetch_count +=
           (uint64_t)(this->partition_results_[i].stats["inner_disk_fetch"]);
+      inner_disk_cache_hit_count +=
+          (uint64_t)(this->partition_results_[i].stats["inner_disk_cache_hits"]);
       inner_disk_fetch_size = (uint64_t)(
           this->partition_results_[i].stats["inner_disk_fetch_size"]);
       inner_total_bytes_fetched += (uint64_t)(
@@ -86,13 +92,22 @@ public:
           this->partition_results_[i].stats["outer_disk_fetch_size"]);
       outer_total_bytes_fetched += (uint64_t)(
           this->partition_results_[i].stats["outer_total_bytes_fetched"]);
+      last_mile_fetch_usec += (uint64_t)(
+          this->partition_results_[i].stats["last_mile_fetch_usec"]);
+      last_mile_search_usec += (uint64_t)(
+          this->partition_results_[i].stats["last_mile_search_usec"]);
+      index_query_usec += (uint64_t)(this->partition_results_[i].stats["index_query_duration_usec"]);
     }
     this->stats_["inner_disk_fetch"] = inner_disk_fetch_count;
+    this->stats_["inner_disk_cache_hit_count"] = inner_disk_cache_hit_count;
     this->stats_["inner_disk_fetch_size"] = inner_disk_fetch_size;
     this->stats_["inner_total_bytes_fetched"] = inner_total_bytes_fetched;
     this->stats_["outer_disk_fetch"] = outer_disk_fetch_count;
     this->stats_["outer_disk_fetch_size"] = outer_disk_fetch_size;
     this->stats_["outer_total_bytes_fetched"] = outer_total_bytes_fetched;
+    this->stats_["last_mile_fetch_usec"] = last_mile_fetch_usec;
+    this->stats_["last_mile_search_usec"] = last_mile_search_usec;
+    this->stats_["index_query_usec"] = index_query_usec;
     this->output_table_ = this->result_builder_->build();
   }
 
@@ -824,6 +839,10 @@ public:
     uint64_t inner_start = partition.inner.first;
     uint64_t inner_end = partition.inner.second;
 
+    uint64_t index_query_duration_usec = 0;
+    uint64_t last_mile_fetch_duration_usec = 0;
+    uint64_t last_mile_search_duration_usec = 0;
+
     auto outer_iterator = this->outer_->iterator();
     auto inner_iterator = this->inner_->windowIterator();
     auto inner_index =
@@ -837,22 +856,32 @@ public:
     outer_iterator->seekTo(outer_start);
 
     while (outer_iterator->currentPos() < outer_end) {
-      auto bounds = inner_index->getPositionBounds(outer_iterator->key());
+    auto index_query_start = std::chrono::high_resolution_clock::now();
+    auto bounds = inner_index->getPositionBounds(outer_iterator->key());
       // Don't go back and search in a page you already looked at for a smaller
       // key.
       bounds.lower = std::max(bounds.lower, last_found_idx);
       bounds.upper = std::min(inner_end, bounds.upper);
+    auto index_query_stop = std::chrono::high_resolution_clock::now();
+    index_query_duration_usec += (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(index_query_stop - index_query_start).count();
+
       if (bounds.upper <= bounds.lower) {
         outer_iterator->next();
         continue;
       }
       SearchResult result;
       do {
+        auto last_mile_fetch_start = std::chrono::high_resolution_clock::now();
         auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
+        auto last_mile_fetch_end = std::chrono::high_resolution_clock::now();
+        last_mile_fetch_duration_usec += (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(last_mile_fetch_end - last_mile_fetch_start).count();
+        auto last_mile_search_start = std::chrono::high_resolution_clock::now();
         result = search_strategy_->search(window, outer_iterator->key(), bounds,
                                           this->comparator_);
         bounds.lower =
             window.hi_idx; // If you search next time, search from here.
+        auto last_mile_search_end = std::chrono::high_resolution_clock::now();
+        last_mile_search_duration_usec += (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(last_mile_search_end - last_mile_search_start).count();
         if (bounds.lower == inner_end)
           break; // If no more items to read, break.
       } while (result.shouldContinue);
@@ -864,13 +893,18 @@ public:
     }
     result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
     result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+    result->stats["inner_disk_cache_hits"] = inner_iterator->getCacheHits();
     result->stats["inner_total_bytes_fetched"] =
         inner_iterator->getTotalBytesFetched();
     result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
     result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
     result->stats["outer_total_bytes_fetched"] =
         outer_iterator->getTotalBytesFetched();
-    result->output_table = result_builder->build(), delete outer_iterator;
+    result->stats["last_mile_fetch_usec"] = last_mile_fetch_duration_usec;
+    result->stats["last_mile_search_usec"] = last_mile_search_duration_usec;
+    result->stats["index_query_duration_usec"] = index_query_duration_usec;
+    result->output_table = result_builder->build(); 
+    delete outer_iterator;
     delete inner_iterator;
   }
 
@@ -964,6 +998,10 @@ public:
     uint64_t inner_start = partition.inner.first;
     uint64_t inner_end = partition.inner.second;
 
+    uint64_t index_query_duration_usec = 0;
+    uint64_t last_mile_fetch_duration_usec = 0;
+    uint64_t last_mile_search_duration_usec = 0;
+
     auto outer_iterator = this->outer_->iterator();
     auto inner_iterator = this->inner_->windowIterator();
     auto inner_index =
@@ -977,14 +1015,25 @@ public:
     outer_iterator->seekTo(outer_start);
 
     while (outer_iterator->currentPos() < outer_end) {
+    auto index_query_start = std::chrono::high_resolution_clock::now();
       auto bounds = inner_index->getPositionBoundsRA(outer_iterator->key());
+    auto index_query_stop = std::chrono::high_resolution_clock::now();
+    index_query_duration_usec += (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(index_query_stop - index_query_start).count();
+
       SearchResult result;
       do {
+        auto last_mile_fetch_start = std::chrono::high_resolution_clock::now();
         auto window = inner_iterator->getWindow(bounds.lower, bounds.upper);
+        auto last_mile_fetch_end = std::chrono::high_resolution_clock::now();
+        last_mile_fetch_duration_usec += std::chrono::duration_cast<std::chrono::microseconds>(last_mile_fetch_end - last_mile_fetch_start).count();
+
+        auto last_mile_search_start = std::chrono::high_resolution_clock::now();
         result = search_strategy_->search(window, outer_iterator->key(), bounds,
                                           this->comparator_);
         bounds.lower =
             window.hi_idx; // If you search next time, search from here.
+        auto last_mile_search_end = std::chrono::high_resolution_clock::now();
+        last_mile_search_duration_usec += std::chrono::duration_cast<std::chrono::microseconds>(last_mile_search_end - last_mile_search_start).count();
         if (bounds.lower == inner_end)
           break; // If no more items to read, break.
       } while (result.shouldContinue);
@@ -996,12 +1045,16 @@ public:
     }
     result->stats["inner_disk_fetch"] = inner_iterator->getDiskFetches();
     result->stats["inner_disk_fetch_size"] = inner_iterator->getDiskFetchSize();
+    result->stats["inner_disk_cache_hits"] = inner_iterator->getCacheHits();
     result->stats["inner_total_bytes_fetched"] =
         inner_iterator->getTotalBytesFetched();
     result->stats["outer_disk_fetch"] = outer_iterator->getDiskFetches();
     result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
     result->stats["outer_total_bytes_fetched"] =
         outer_iterator->getTotalBytesFetched();
+    result->stats["last_mile_fetch_usec"] = last_mile_fetch_duration_usec;
+    result->stats["last_mile_search_usec"] = last_mile_search_duration_usec;
+    result->stats["index_query_duration_usec"] = index_query_duration_usec;
     result->output_table = result_builder->build();
     delete outer_iterator;
     delete inner_iterator;
@@ -1068,6 +1121,10 @@ public:
     result->stats["outer_disk_fetch_size"] = outer_iterator->getDiskFetchSize();
     result->stats["outer_total_bytes_fetched"] =
         outer_iterator->getTotalBytesFetched();
+    result->stats["last_mile_fetch_usec"] = 0;
+    result->stats["last_mile_search_usec"] = 0;
+    result->stats["index_query_duration_usec"] = 0;
+    result->stats["inner_disk_cache_hits"] = inner_iterator->getCacheHits();
     result->output_table = result_builder->build();
   }
 
@@ -1121,6 +1178,10 @@ public:
     result->stats["outer_total_bytes_fetched"] =
         outer_iterator->getTotalBytesFetched();
     result->output_table = result_builder->build(),
+    result->stats["last_mile_fetch_usec"] = 0;
+    result->stats["last_mile_search_usec"] = 0;
+    result->stats["index_query_duration_usec"] = 0;
+    result->stats["inner_disk_cache_hits"] = inner_iterator->getCacheHits();
 
     delete outer_iterator;
     delete inner_iterator;

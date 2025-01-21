@@ -19,6 +19,7 @@ public:
 
   PgmIndex(std::string filename, KeyToPointConverter<T> *converter)
       : converter_(converter)  {
+    filename_ = filename;
     pgm_index_ = new pgm::MappedPGMIndex<POINT_FLOAT_TYPE, Epsilon>(filename);
   }
 
@@ -37,6 +38,10 @@ public:
     return (2 * pgm_index_->epsilon_value + 1) * SampleFreq;
   }
   bool isErrorPageAligned() override { return false; }
+
+  Index<T> getShallowCopy() {
+    return new PgmIndex(filename_, converter_);
+  }
 
 private:
   pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
@@ -72,6 +77,7 @@ private:
   std::vector<POINT_FLOAT_TYPE> x_points_;
   KeyToPointConverter<T> *converter_;
   uint64_t sample_cd_;
+  std::string filename_;
 };
 } // namespace li_merge
 
