@@ -198,7 +198,7 @@ SearchStrategy<KVSlice> *get_search_strategy(json test_spec) {
 
 Index<KVSlice> *get_index(std::string table_path, json test_spec) {
   if (!test_spec.contains("index")) {
-    return new PgmIndex<KVSlice, 256, 1>(table_path + "_pgm256",
+    return new PgmIndex<KVSlice, 256, 1>(table_path + "_sampledflatpgm256",
                                       get_converter(test_spec));
   }
   std::string index_type = test_spec["index"]["type"];

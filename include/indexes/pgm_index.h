@@ -46,6 +46,7 @@ public:
 private:
   pgm::PGMIndex<POINT_FLOAT_TYPE, Epsilon> *pgm_index_;
   KeyToPointConverter<T> *converter_;
+  std::string filename_;
 };
 
 template <class T, uint64_t Epsilon, uint64_t SampleFreq>

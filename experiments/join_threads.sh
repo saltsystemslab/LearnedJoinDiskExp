@@ -10,5 +10,5 @@ time ./experiments/join/run.py  \
 --clear_fs_cache \
 --test_dir=sponge \
 --indexed_joins=lsj \
---non_indexed_joins= \
+--non_indexed_joins=sort_join,hash_join \
 --io_device=sda
