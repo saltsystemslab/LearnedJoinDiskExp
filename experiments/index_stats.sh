@@ -1,6 +1,15 @@
 #!/bin/bash
+./experiments/join/run_alex.py \
+--dataset=all \
+--sosd_data_dir=/home/chesetti/sosd-data/ \
+--nouse_numactl \
+--ratios=1 \
+--indexes=alex \
+--test_dir=sponge_alex \
+--clear_fs_cache 
+
 ./experiments/join/run.py  \
---dataset=fb \
+--dataset=all \
 --sosd_data_dir=/home/chesetti/sosd-data/ \
 --nouse_numactl \
 --ratios=1 \
@@ -8,12 +17,5 @@
 --exp_name=index_stats \
 --clear_fs_cache \
 --test_dir=sponge \
---indexed_joins=inlj \
+--indexed_joins=lsj
 
-./experiments/join/run_alex.py \
---dataset=fb \
---sosd_data_dir=/home/chesetti/sosd-data/ \
---nouse_numactl \
---ratios=1 \
---test_dir=sponge_alex \
---clear_fs_cache 

@@ -147,6 +147,7 @@ local algos = [
             "result_path": test_input_dir + "/inner",
             "create_indexes": true,
             "fraction_of_keys": 1,
+            "dataset": dataset_name,
         }] +
         [
             input_template + {

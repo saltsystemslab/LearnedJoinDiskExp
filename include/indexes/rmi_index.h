@@ -18,6 +18,10 @@
 #include "osm_cellids_800M_uint64_0.h"
 #include "books_800M_uint64_0.h"
 #include "wiki_ts_200M_uint64_0.h"
+#include "uniform_dense_200M_uint64_0.h"
+#include "uniform_sparse_200M_uint64_0.h"
+#include "normal_200M_uint64_0.h"
+#include "lognormal_200M_uint64_0.h"
 
 namespace li_merge {
 
@@ -44,6 +48,26 @@ public:
         lookup = wiki_ts_200M_uint64_0::lookup;
         build_duration = wiki_ts_200M_uint64_0::BUILD_TIME_NS;
         size_in_bytes = wiki_ts_200M_uint64_0::RMI_SIZE;
+    } else if (dataset=="uniform_dense_200M_uint64"){
+        uniform_dense_200M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        lookup = uniform_dense_200M_uint64_0::lookup;
+        build_duration = uniform_dense_200M_uint64_0::BUILD_TIME_NS;
+        size_in_bytes = uniform_dense_200M_uint64_0::RMI_SIZE;
+    } else if (dataset=="uniform_sparse_200M_uint64"){
+        uniform_sparse_200M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        lookup = uniform_sparse_200M_uint64_0::lookup;
+        build_duration = uniform_sparse_200M_uint64_0::BUILD_TIME_NS;
+        size_in_bytes = uniform_sparse_200M_uint64_0::RMI_SIZE;
+    } else if (dataset=="normal_200M_uint64"){
+        normal_200M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        lookup = normal_200M_uint64_0::lookup;
+        build_duration = normal_200M_uint64_0::BUILD_TIME_NS;
+        size_in_bytes = normal_200M_uint64_0::RMI_SIZE;
+    } else if (dataset=="lognormal_200M_uint64"){
+        lognormal_200M_uint64_0::load("/home/chesetti/Repos/sosd/rmi_data");
+        lookup = lognormal_200M_uint64_0::lookup;
+        build_duration = lognormal_200M_uint64_0::BUILD_TIME_NS;
+        size_in_bytes = lognormal_200M_uint64_0::RMI_SIZE;
     } else {
       abort();
     }
