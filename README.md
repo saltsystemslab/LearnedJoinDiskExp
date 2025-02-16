@@ -5,17 +5,10 @@ This repository contains the benchmark suite to evaluate learned indexes for joi
 
 ## Setup
 
-First clone the Repo.
-
-```bash
-git clone git@github.com:saltsystemslab/LearnedJoinDiskExp
-cd LearnedJoinDiskExp
-git submodule update --init --recursive
-```
-
 ### Setup datasets.
 
 ```bash
+git submodule update --init --recursive
 cd third_party/sosd/
 sudo apt -y update
 sudo apt -y install zstd python3-pip m4 cmake clang libboost-all-dev
